@@ -44,7 +44,7 @@ gradlew.bat build
 - 播放 VIP 歌曲: 浏览器登录 music.163.com 导出 cookie (JSON) 覆盖 `fmusic_server/cookie.json`, 执行 `/music reload`
 
 >
-> `FMusic.cfg` (config/ 下) 仅含固定提示: server config is on ../fmusic_server
+> `FMusic.cfg` (config/ 下) 可配置pause_at_freeze(是否在单人游戏未开启局域网联机的情况下进入Esc菜单时暂停音乐,默认false)
 
 ## 开发
 
