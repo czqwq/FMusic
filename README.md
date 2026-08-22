@@ -55,5 +55,17 @@ gradlew.bat build
 
 ## 许可
 
-本模组基于 [AllMusic](https://github.com/Coloryr/AllMusic) 移植, 遵循其开源许可;
-内置解码器分别来自 javalayer / jcraft / Project Nayuki / Jay 等项目, 各自遵循 LGPL 等许可。
+本模组以 **GNU Affero General Public License v3.0 (AGPL-3.0)** 发布, 详见 [LICENSE](LICENSE)。
+
+### 代码来源与致谢
+
+| 部分 | 来源 | 许可证 |
+|---|---|---|
+| 主体移植 | [AllMusic](https://github.com/Coloryr/AllMusic) (Coloryr) | GPL-3.0 (与本项目兼容) |
+| 内置音乐 API | [netapi](https://github.com/Coloryr/netapi) (Coloryr) | AGPL-3.0 (许可全文见 [LICENSE.netapi](src/main/resources/LICENSE.netapi)) |
+| MP3 解码器 | javalayer (JavaZOOM) | LGPL |
+| OGG 解码器 | jcraft jogg/jorbis | LGPL |
+| FLAC 解码器 | Project Nayuki | LGPL |
+| M4A/AAC 解码器 | Jay / FAAD2 移植 | LGPL 等 |
+
+按 AGPL-3.0 条款, 对本项目的使用、修改与分发需保持本许可证并保留上述版权声明;
