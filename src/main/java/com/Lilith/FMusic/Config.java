@@ -23,10 +23,13 @@ public class Config {
         configFile = file;
         Configuration configuration = new Configuration(file);
         configuration.load();
-        pauseAtFreeze = configuration.get(Configuration.CATEGORY_GENERAL, PAUSE_AT_FREEZE, false,
-                "单人游戏中暂停(按Esc)时是否暂停音乐播放\n"
-                        + "音乐配置: 服务端在 ../fmusic_server, 客户端在 ./fmusic_client.json")
-                .getBoolean();
+        pauseAtFreeze = configuration
+            .get(
+                Configuration.CATEGORY_GENERAL,
+                PAUSE_AT_FREEZE,
+                false,
+                "单人游戏中暂停(按Esc)时是否暂停音乐播放\n" + "音乐配置: 服务端在 ../fmusic_server, 客户端在 ./fmusic_client.json")
+            .getBoolean();
         if (configuration.hasChanged()) {
             configuration.save();
         }
@@ -50,10 +53,13 @@ public class Config {
         }
         Configuration configuration = new Configuration(configFile);
         configuration.load();
-        configuration.get(Configuration.CATEGORY_GENERAL, PAUSE_AT_FREEZE, false,
-                "单人游戏中暂停(按Esc)时是否暂停音乐播放\n"
-                        + "音乐配置: 服务端在 ../fmusic_server, 客户端在 ./fmusic_client.json")
-                .set(pauseAtFreeze);
+        configuration
+            .get(
+                Configuration.CATEGORY_GENERAL,
+                PAUSE_AT_FREEZE,
+                false,
+                "单人游戏中暂停(按Esc)时是否暂停音乐播放\n" + "音乐配置: 服务端在 ../fmusic_server, 客户端在 ./fmusic_client.json")
+            .set(pauseAtFreeze);
         configuration.save();
     }
 }

@@ -10,23 +10,23 @@ import java.util.Stack;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import net.minecraft.client.Minecraft;
+
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.io.CloseMode;
-import net.minecraft.client.Minecraft;
-
 import org.lwjgl.BufferUtils;
 import org.lwjgl.openal.AL10;
 
 import com.Lilith.FMusic.Config;
 import com.Lilith.FMusic.client.core.objs.PlayTaskObj;
-import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.client.core.player.decoder.BuffPack;
 import com.Lilith.FMusic.client.core.player.decoder.IDecoder;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.M4ADecoder;
 import com.Lilith.FMusic.client.core.player.decoder.mp3.Mp3Decoder;
 import com.Lilith.FMusic.client.core.player.decoder.ogg.OggDecoder;
+import com.Lilith.FMusic.server.core.FMusic;
 
 public class FMusicPlayer extends InputStream {
 
@@ -361,7 +361,8 @@ public class FMusicPlayer extends InputStream {
             semaphoreReload.release();
         }
         if (Config.pauseAtFreeze) {
-            boolean paused = Minecraft.getMinecraft().isGamePaused();
+            boolean paused = Minecraft.getMinecraft()
+                .isGamePaused();
             // 同步冻结服务端计时与歌词 (与音乐同生共死)
             FMusic.frozen = paused;
             if (paused && !frozen && isPlay) {
@@ -373,7 +374,7 @@ public class FMusicPlayer extends InputStream {
                 frozen = false;
                 // 恢复游戏: 立即恢复播放
                 if (isPlay && AL10.alIsSource(index)
-                        && AL10.alGetSourcei(index, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING) {
+                    && AL10.alGetSourcei(index, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING) {
                     AL10.alSourcePlay(index);
                 }
             }

@@ -14,17 +14,17 @@ import java.util.concurrent.TimeUnit;
 
 import javax.imageio.ImageIO;
 
+import net.minecraft.client.Minecraft;
+
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 
 import com.Lilith.FMusic.client.core.render.PictureFrameBuffer;
 import com.Lilith.FMusic.client.core.render.TextFrameBuffer;
 import com.Lilith.FMusic.client.core.render.TextureRender;
 import com.Lilith.FMusic.codec.HudPosObj;
-import com.Lilith.FMusic.server.core.FMusic;
-
-import net.minecraft.client.Minecraft;
 import com.Lilith.FMusic.codec.HudPosType;
 import com.Lilith.FMusic.codec.KtvLyricObj;
+import com.Lilith.FMusic.server.core.FMusic;
 
 /**
  * FMusic信息显示
@@ -238,7 +238,8 @@ public class FMusicHud {
         if (save == null) return;
         if (!save.pic.rotate) return;
         // 游戏暂停时冻结旋转动画(独立于 pause_at_freeze, 视觉动画跟随画面暂停), 恢复后继续
-        if (Minecraft.getMinecraft().isGamePaused()) {
+        if (Minecraft.getMinecraft()
+            .isGamePaused()) {
             return;
         }
         if (count < save.pic.speed) {

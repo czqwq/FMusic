@@ -1,12 +1,12 @@
 package com.Lilith.FMusic;
 
+import net.minecraftforge.client.ClientCommandHandler;
+
 import com.Lilith.FMusic.client.FMusic;
 import com.Lilith.FMusic.client.command.CommandFMusic;
 
 import cpw.mods.fml.common.event.FMLLoadCompleteEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
-
-import net.minecraftforge.client.ClientCommandHandler;
 
 public class ClientProxy extends CommonProxy {
 
