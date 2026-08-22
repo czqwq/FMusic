@@ -14,9 +14,17 @@ dependencies {
     compileOnly('it.unimi.dsi:fastutil:8.5.18')
     annotationProcessor('com.google.auto.value:auto-value:1.10.1')
     implementation('com.google.auto.value:auto-value-annotations:1.10.1')
-    runtimeOnlyNonPublishable('com.github.GTNewHorizons:Angelica:2.2.8:dev')
     runtimeOnlyNonPublishable(gtnhDev("NotEnoughItems"))
 
+    var tasks = project.gradle.startParameter.taskNames
+    if (tasks.contains("runClient") || tasks.contains("runClient25")) {
+        runtimeOnlyNonPublishable('com.github.GTNewHorizons:Angelica:2.2.8:dev')
+    }
+    configurations.all {
+        resolutionStrategy {
+            force "com.github.GTNewHorizons:GTNHLib:0.11.43"
+        }
+    }
 
 
 
