@@ -1,6 +1,6 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.api;
 
-import java.awt.*;
+import java.awt.Image;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.logging.Level;

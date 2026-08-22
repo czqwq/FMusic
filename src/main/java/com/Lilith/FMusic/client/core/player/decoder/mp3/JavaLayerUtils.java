@@ -18,7 +18,11 @@
 
 package com.Lilith.FMusic.client.core.player.decoder.mp3;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InvalidClassException;
+import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
 import java.lang.reflect.Array;
 
 import net.minecraft.client.Minecraft;

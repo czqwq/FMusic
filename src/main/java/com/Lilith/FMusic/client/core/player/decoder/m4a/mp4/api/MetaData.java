@@ -3,14 +3,26 @@ package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.api;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.Box;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.BoxTypes;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.CopyrightBox;
-import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.meta.*;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.meta.ID3TagBox;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.meta.ITunesMetadataBox;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.meta.NeroMetadataTagsBox;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.meta.ThreeGPPAlbumBox;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.meta.ThreeGPPLocationBox;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.meta.ThreeGPPMetadataBox;
 
 /**
  * This class contains the metadata for a movie. It parses different metadata

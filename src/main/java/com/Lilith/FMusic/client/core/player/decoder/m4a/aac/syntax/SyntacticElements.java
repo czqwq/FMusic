@@ -2,7 +2,12 @@ package com.Lilith.FMusic.client.core.player.decoder.m4a.aac.syntax;
 
 import java.util.logging.Level;
 
-import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.*;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.AACException;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.ChannelConfiguration;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.DecoderConfig;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.Profile;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.SampleBuffer;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.SampleFrequency;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.filterbank.FilterBank;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.sbr.SBR;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.tools.IS;
