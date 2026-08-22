@@ -1,0 +1,48 @@
+package com.Lilith.FMusic.server.core.objs.message;
+
+public class AddMusicObj {
+
+    public String listFull;
+    public String playerToMany;
+    public String banMusic;
+    public String playerBan;
+    public String existMusic;
+    public String success;
+    public String noPlayer;
+    public String noID;
+    public String cancel;
+    public String timeOut;
+
+    public static AddMusicObj make() {
+        AddMusicObj obj = new AddMusicObj();
+        obj.init();
+
+        return obj;
+    }
+
+    public boolean check() {
+        if (listFull == null) return true;
+        if (banMusic == null) return true;
+        if (existMusic == null) return true;
+        if (success == null) return true;
+        if (noPlayer == null) return true;
+        if (noID == null) return true;
+        if (cancel == null) return true;
+        if (playerToMany == null) return true;
+        if (playerBan == null) return true;
+        return timeOut == null;
+    }
+
+    public void init() {
+        if (listFull == null) listFull = "<gold>[FMusic]<red>错误，队列已满";
+        if (playerToMany == null) playerToMany = "<gold>[FMusic]<red>错误，你点了太多的歌";
+        if (playerBan == null) playerBan = "<gold>[FMusic]<red>错误，你已被禁止点歌";
+        if (banMusic == null) banMusic = "<gold>[FMusic]<red>错误，这首歌被禁点了";
+        if (existMusic == null) existMusic = "<gold>[FMusic]<red>错误，这首歌已经存在了";
+        if (success == null) success = "<gold>[FMusic]<white>点歌成功";
+        if (noPlayer == null) noPlayer = "<gold>[FMusic]<red>没有播放的玩家";
+        if (noID == null) noID = "<gold>[FMusic]<red>错误，请输入歌曲数字ID";
+        if (cancel == null) cancel = "<gold>[FMusic]<yellow>点歌被取消";
+        if (timeOut == null) timeOut = "<gold>[FMusic]<yellow>点歌被取消，音乐长度过长";
+    }
+}

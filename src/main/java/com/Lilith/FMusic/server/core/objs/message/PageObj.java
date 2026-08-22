@@ -1,0 +1,30 @@
+package com.Lilith.FMusic.server.core.objs.message;
+
+public class PageObj {
+
+    public String choice;
+    public String next;
+    public String last;
+
+    public static PageObj make() {
+        PageObj obj = new PageObj();
+        obj.init();
+
+        return obj;
+    }
+
+    public boolean check() {
+        boolean res = choice == null;
+        if (next == null) res = true;
+        if (last == null) res = true;
+
+        return res;
+    }
+
+    public void init() {
+        if (choice == null)
+            choice = "<yellow>" + ARG.index + "->" + ARG.musicName + " | " + ARG.musicAuthor + " | " + ARG.musicAl;
+        if (next == null) next = "<yellow>[<underlined>点我下一页</underlined>]";
+        if (last == null) last = "<yellow>[<underlined>点我上一页</underlined>]";
+    }
+}

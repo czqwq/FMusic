@@ -4,6 +4,7 @@
 /.vscode/
 /run/
 /build/
+/tmp/
 /eclipse/
 .classpath
 .project
@@ -15,6 +16,7 @@ options.txt
 /saves/
 usernamecache.json
 banned-ips.json
+/undefined/
 banned-players.json
 eula.txt
 ops.json

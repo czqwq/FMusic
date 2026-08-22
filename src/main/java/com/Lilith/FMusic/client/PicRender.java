@@ -1,0 +1,91 @@
+package com.Lilith.FMusic.client;
+
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+
+import javax.imageio.ImageIO;
+
+import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+
+import org.lwjgl.opengl.GL11;
+
+import com.Lilith.FMusic.client.core.FMusicHud;
+import com.Lilith.FMusic.client.core.Point2f;
+import com.Lilith.FMusic.client.core.render.PictureFrameBuffer;
+import com.Lilith.FMusic.codec.HudPosType;
+
+public class PicRender extends PictureFrameBuffer {
+
+    private final DynamicTexture sourceTexture;
+    private final DynamicTexture rotateTexture;
+
+    public PicRender(int size) {
+        sourceTexture = new DynamicTexture(size, size);
+        rotateTexture = new DynamicTexture(size, size);
+    }
+
+    @Override
+    public void update(byte[] source, byte[] rotate) {
+        try {
+            ByteArrayInputStream stream = new ByteArrayInputStream(source);
+            BufferedImage image = ImageIO.read(stream);
+            image
+                .getRGB(0, 0, image.getWidth(), image.getHeight(), sourceTexture.getTextureData(), 0, image.getWidth());
+            sourceTexture.updateDynamicTexture();
+
+            stream = new ByteArrayInputStream(rotate);
+            image = ImageIO.read(stream);
+            image
+                .getRGB(0, 0, image.getWidth(), image.getHeight(), rotateTexture.getTextureData(), 0, image.getWidth());
+            rotateTexture.updateDynamicTexture();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void draw(boolean rotate, int size, float x, float y, int ang, HudPosType dir, float alpha) {
+        Point2f point = FMusicHud.getPos(size, size, x, y, dir);
+
+        GL11.glBindTexture(
+            GL11.GL_TEXTURE_2D,
+            rotate ? rotateTexture.getGlTextureId() : sourceTexture.getGlTextureId());
+        GL11.glDepthMask(false);
+        GL11.glEnable(GL11.GL_BLEND);
+        GL11.glShadeModel(GL11.GL_SMOOTH);
+        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+        int a = size / 2;
+        GL11.glPushMatrix();
+        GL11.glTranslatef(point.x + a, point.y + a, 0.0f);
+
+        if (ang > 0) {
+            GL11.glRotatef(ang, 0, 0, 1f);
+        }
+
+        int x0 = -a;
+        int x1 = a;
+        int y0 = -a;
+        int y1 = a;
+        int z = 0;
+        float u0 = 0;
+        float u1 = 1;
+        float v0 = 0;
+        float v1 = 1;
+
+        Tessellator tessellator = Tessellator.instance;
+        tessellator.startDrawingQuads();
+        tessellator.setColorRGBA_F(1.0f, 1.0f, 1.0f, alpha);
+        tessellator.addVertexWithUV(x0, y1, z, u0, v1);
+        tessellator.addVertexWithUV(x1, y1, z, u1, v1);
+        tessellator.addVertexWithUV(x1, y0, z, u1, v0);
+        tessellator.addVertexWithUV(x0, y0, z, u0, v0);
+        tessellator.draw();
+
+        GL11.glDisable(GL11.GL_BLEND);
+        GL11.glDepthMask(true);
+
+        GL11.glPopMatrix();
+    }
+}

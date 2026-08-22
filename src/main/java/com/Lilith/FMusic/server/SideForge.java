@@ -1,0 +1,184 @@
+package com.Lilith.FMusic.server;
+
+import java.io.File;
+import java.util.Collection;
+
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.minimessage.MiniMessage;
+import net.minecraft.command.ICommandSender;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.network.PacketBuffer;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.IChatComponent;
+import net.minecraftforge.common.MinecraftForge;
+
+import com.Lilith.FMusic.codec.MusicPack;
+import com.Lilith.FMusic.codec.MusicPacketCodec;
+import com.Lilith.FMusic.server.core.FMusic;
+import com.Lilith.FMusic.server.core.objs.music.PlayerAddMusicObj;
+import com.Lilith.FMusic.server.core.objs.music.SongInfoObj;
+import com.Lilith.FMusic.server.core.side.BaseSide;
+import com.Lilith.FMusic.server.event.MusicAddEvent;
+import com.Lilith.FMusic.server.event.MusicPlayEvent;
+
+import cpw.mods.fml.common.network.internal.FMLProxyPacket;
+import cpw.mods.fml.relauncher.Side;
+import io.netty.buffer.ByteBuf;
+
+public class SideForge extends BaseSide {
+
+    @Override
+    public void runTask(Runnable run) {
+        runTask(run, 0);
+    }
+
+    @Override
+    public void runTask(Runnable run1, int delay) {
+        Tasks.add(new TaskItem() {
+
+            {
+                tick = delay;
+                run = run1;
+            }
+        });
+    }
+
+    @Override
+    public boolean checkPermission(Object player, String permission) {
+        return checkPermission(player);
+    }
+
+    @Override
+    public boolean checkPermission(Object player) {
+        if (player instanceof MinecraftServer) {
+            return true;
+        }
+        if (player instanceof EntityPlayerMP) {
+            return ((EntityPlayerMP) player).canCommandSenderUseCommand(2, "music");
+        }
+
+        return false;
+    }
+
+    @Override
+    public boolean isPlayer(Object source) {
+        return source instanceof EntityPlayerMP;
+    }
+
+    @Override
+    public boolean needPlay(boolean islist) {
+        for (Object player1 : FMusicServer.server.getConfigurationManager().playerEntityList) {
+            EntityPlayerMP player = (EntityPlayerMP) player1;
+            if (!FMusic.isSkip(player.getCommandSenderName(), null, false, islist)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public Collection<?> getPlayers() {
+        return FMusicServer.server.getConfigurationManager().playerEntityList;
+    }
+
+    @Override
+    public String getPlayerName(Object player) {
+        if (player instanceof EntityPlayerMP) {
+            EntityPlayerMP player1 = (EntityPlayerMP) player;
+            return player1.getCommandSenderName();
+        }
+
+        return null;
+    }
+
+    @Override
+    public String getPlayerServer(Object player) {
+        return null;
+    }
+
+    @Override
+    public void send(Object player, MusicPack pack) {
+        if (player instanceof EntityPlayerMP) {
+            EntityPlayerMP player1 = (EntityPlayerMP) player;
+            send(player1, MusicPacketCodec.pack(pack));
+        }
+    }
+
+    @Override
+    public Object getPlayer(String player) {
+        return FMusicServer.server.getConfigurationManager()
+            .func_152612_a(player);
+    }
+
+    @Override
+    public void sendBar(Object player, Component data) {
+        if (player instanceof EntityPlayerMP) {
+            EntityPlayerMP player1 = (EntityPlayerMP) player;
+            IChatComponent textComponent = FMusicServer.parse(data);
+            player1.addChatMessage(textComponent);
+        }
+    }
+
+    @Override
+    public File getFolder() {
+        return new File(FMusic.SERVER_DIR);
+    }
+
+    @Override
+    public void broadcast(Component message) {
+        IChatComponent textComponent = FMusicServer.parse(message);
+        for (Object player1 : FMusicServer.server.getConfigurationManager().playerEntityList) {
+            EntityPlayerMP player = (EntityPlayerMP) player1;
+            if (!FMusic.isSkip(player.getCommandSenderName(), null, false)) {
+                player.addChatMessage(textComponent);
+            }
+        }
+    }
+
+    @Override
+    public void sendMessage(Object obj, Component message) {
+        if (obj instanceof ICommandSender) {
+            IChatComponent textComponent = FMusicServer.parse(message);
+            ICommandSender sender = (ICommandSender) obj;
+            sender.addChatMessage(textComponent);
+        }
+    }
+
+    @Override
+    public boolean onMusicPlay(SongInfoObj obj) {
+        MusicPlayEvent event = new MusicPlayEvent(obj);
+        return MinecraftForge.EVENT_BUS.post(event);
+    }
+
+    @Override
+    public boolean onMusicAdd(Object obj, PlayerAddMusicObj music) {
+        MusicAddEvent event = new MusicAddEvent(music, (ICommandSender) obj);
+        return MinecraftForge.EVENT_BUS.post(event);
+    }
+
+    @Override
+    public Component miniMessage(String input) {
+        MiniMessage mm = MiniMessage.miniMessage();
+        return mm.deserialize(input);
+    }
+
+    @Override
+    public Component miniMessageRun(String input, String command) {
+        Component component = miniMessage(input);
+        return component.clickEvent(ClickEvent.runCommand(command));
+    }
+
+    @Override
+    public Component miniMessageSuggest(String input, String command) {
+        Component component = miniMessage(input);
+        return component.clickEvent(ClickEvent.suggestCommand(command));
+    }
+
+    private void send(EntityPlayerMP players, ByteBuf data) {
+        if (players == null) return;
+        FMLProxyPacket packet = new FMLProxyPacket(new PacketBuffer(data), "fmusic:channel");
+        packet.setTarget(Side.CLIENT);
+        runTask(() -> FMusicServer.channel.sendTo(packet, players));
+    }
+}
