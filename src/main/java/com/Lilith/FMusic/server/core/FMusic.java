@@ -60,6 +60,11 @@ public class FMusic {
      */
     public static final String version = "4.0.0";
     /**
+     * 单人游戏暂停(pause_at_freeze)时冻结音乐计时;
+     * 由客户端 tick 设置, 服务端计时与客户端歌词同步暂停
+     */
+    public static boolean frozen = false;
+    /**
      * 配置文件版本号
      */
     public static final String configVersion = "401";
@@ -324,8 +329,6 @@ public class FMusic {
             reader.close();
             messageCheck();
 
-            log.data("<gold>[FMusic]<yellow>当前语言配置文件版本为：" + messageVersion + "，你的语言文件版本为：" + message.version);
-
             if (!message.version.equalsIgnoreCase(messageVersion)) {
                 log.data("<gold>[FMusic]<red>语言文件版本号错误，运行可能会发生问题，请删除后重载");
             }
@@ -340,8 +343,6 @@ public class FMusic {
                 cookie = new ArrayList<>();
                 saveCookie();
             }
-
-            log.data("<gold>[FMusic]<yellow>当前插件配置文件版本为：" + configVersion + "，你的配置文件版本为：" + config.version);
 
             if (!FMusic.configVersion.equalsIgnoreCase(config.version)) {
                 log.data("<gold>[FMusic]<red>请及时更新配置文件");
@@ -408,7 +409,6 @@ public class FMusic {
      * @param file 配置文件文件夹
      */
     public static void init(File file) {
-        log.data("<gold>[FMusic]<yellow>正在启动，感谢使用，本插件交流群：571239090");
         try {
             file.mkdir();
 

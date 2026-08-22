@@ -77,6 +77,10 @@ public class PlayRuntime {
      * 歌曲时间定时器
      */
     private static void time1() {
+        // 游戏暂停(单人, pause_at_freeze)时冻结计时, 保持歌词与音乐同步
+        if (FMusic.frozen) {
+            return;
+        }
         if (isPlay) {
             PlayMusic.musicNowTime += 10;
             if (PlayMusic.musicLessTime >= 10) {

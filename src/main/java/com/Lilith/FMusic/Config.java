@@ -1,27 +1,59 @@
 package com.Lilith.FMusic;
 
 import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+
+import net.minecraftforge.common.config.Configuration;
 
 public class Config {
 
+    private static final String PAUSE_AT_FREEZE = "pause_at_freeze";
+
     /**
-     * FMusic 的配置不在此 cfg 中,而是分散在游戏运行目录下:
-     * - 服务端配置: ../fmusic_server/ (config.json / message.json / ban.json / hud.json / music.json / cookie.json)
-     * - 客户端配置: ./fmusic_client.json
-     * 此文件仅写入固定提示内容,不注册任何选项。
+     * 单人游戏中暂停(按 Esc)时是否暂停音乐播放
      */
-    public static void synchronizeConfiguration(File configFile) {
-        try {
-            if (!configFile.exists() || configFile.length() == 0) {
-                String comment = "# FMusic configuration\n" + "#\n"
-                    + "# server config is on ../fmusic_server\n"
-                    + "# client config is on ./fmusic_client.json\n";
-                Files.write(configFile.toPath(), comment.getBytes(StandardCharsets.UTF_8));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
+    public static boolean pauseAtFreeze = false;
+
+    private static File configFile;
+
+    /**
+     * 读取/保存 FMusic.cfg。
+     * 音乐相关配置不在此文件: 服务端在 ../fmusic_server, 客户端在 ./fmusic_client.json。
+     */
+    public static void synchronizeConfiguration(File file) {
+        configFile = file;
+        Configuration configuration = new Configuration(file);
+        configuration.load();
+        pauseAtFreeze = configuration.get(Configuration.CATEGORY_GENERAL, PAUSE_AT_FREEZE, false,
+                "单人游戏中暂停(按Esc)时是否暂停音乐播放\n"
+                        + "音乐配置: 服务端在 ../fmusic_server, 客户端在 ./fmusic_client.json")
+                .getBoolean();
+        if (configuration.hasChanged()) {
+            configuration.save();
         }
+    }
+
+    /**
+     * /music reload 时刷新 FMusic.cfg
+     */
+    public static void reload() {
+        if (configFile != null) {
+            synchronizeConfiguration(configFile);
+        }
+    }
+
+    /**
+     * 将当前内存值写回 FMusic.cfg (设置指令调用, 立即生效并持久化)
+     */
+    public static void save() {
+        if (configFile == null) {
+            return;
+        }
+        Configuration configuration = new Configuration(configFile);
+        configuration.load();
+        configuration.get(Configuration.CATEGORY_GENERAL, PAUSE_AT_FREEZE, false,
+                "单人游戏中暂停(按Esc)时是否暂停音乐播放\n"
+                        + "音乐配置: 服务端在 ../fmusic_server, 客户端在 ./fmusic_client.json")
+                .set(pauseAtFreeze);
+        configuration.save();
     }
 }

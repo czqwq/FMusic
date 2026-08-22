@@ -96,6 +96,9 @@ public class OggDecoder implements IDecoder {
             buffer = oy.data;
             try {
                 bytes = input.read(buffer, index, 4096);
+                if (bytes < 0) {
+                    bytes = 0;
+                }
             } catch (Exception e) {
                 throw new IOException(e.getMessage());
             }
@@ -185,6 +188,9 @@ public class OggDecoder implements IDecoder {
                 buffer = oy.data;
                 try {
                     bytes = input.read(buffer, index, 4096);
+                    if (bytes < 0) {
+                        bytes = 0;
+                    }
                 } catch (Exception e) {
                     throw new IOException(e.getMessage());
                 }
@@ -287,6 +293,10 @@ public class OggDecoder implements IDecoder {
                     buffer = oy.data;
                     try {
                         bytes = input.read(buffer, index, 4096);
+                        if (bytes < 0) {
+                            bytes = 0;
+                            eos = 1;
+                        }
                     } catch (Exception e) {
                         throw new IOException(e.getMessage());
                     }

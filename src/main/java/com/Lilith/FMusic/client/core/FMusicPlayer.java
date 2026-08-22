@@ -14,10 +14,14 @@ import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.io.CloseMode;
+import net.minecraft.client.Minecraft;
+
 import org.lwjgl.BufferUtils;
 import org.lwjgl.openal.AL10;
 
+import com.Lilith.FMusic.Config;
 import com.Lilith.FMusic.client.core.objs.PlayTaskObj;
+import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.client.core.player.decoder.BuffPack;
 import com.Lilith.FMusic.client.core.player.decoder.IDecoder;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.M4ADecoder;
@@ -41,9 +45,16 @@ public class FMusicPlayer extends InputStream {
     private int index = -1;
     private final IntBuffer source;
     private long local;
+    private long contentLength = -1;
+    private int reconnectCount = 0;
+    private int decodeErrorCount = 0;
     private boolean isRun;
     private boolean isChat;
     private int chatCount = 0;
+    /**
+     * 游戏暂停(单人按Esc, pause_at_freeze=true)时音乐是否被冻结
+     */
+    private boolean frozen;
 
     public FMusicPlayer(IntBuffer source) {
         this.source = source;
@@ -96,6 +107,8 @@ public class FMusicPlayer extends InputStream {
         if (entity == null) {
             throw new IOException("Response entity is null");
         }
+        contentLength = entity.getContentLength();
+        reconnectCount = 0;
         content = new BufferedInputStream(entity.getContent());
     }
 
@@ -202,13 +215,15 @@ public class FMusicPlayer extends InputStream {
                     decoder = new M4ADecoder(this);
                 } else if (head[0] == 'I' && head[1] == 'D' && head[2] == '3') {
                     decoder = new Mp3Decoder(this);
-                } else if (head[0] == (byte) 0xFF && head[1] == (byte) 0xFB) {
+                } else if (head[0] == (byte) 0xFF && (head[1] & 0xE0) == 0xE0) {
+                    // MPEG 音频同步字 (0xFFEx/0xFFFx), 不限 128kbps
                     decoder = new Mp3Decoder(this);
                 } else {
                     decoder = new OggDecoder(this);
                 }
 
                 if (!decoder.set()) {
+                    streamClose();
                     FMusicCore.bridge.sendMessage("不支持这样的文件播放");
                     continue;
                 }
@@ -223,6 +238,7 @@ public class FMusicPlayer extends InputStream {
                 }
 
                 isClose = false;
+                boolean eof = false;
 
                 while (true) {
                     if (!isRun) {
@@ -236,7 +252,7 @@ public class FMusicPlayer extends InputStream {
                         break;
                     }
                     try {
-                        while (AL10.alGetSourcei(index, AL10.AL_BUFFERS_QUEUED) < FMusicCore.config.queueSize) {
+                        while (!eof && AL10.alGetSourcei(index, AL10.AL_BUFFERS_QUEUED) < FMusicCore.config.queueSize) {
                             if (!isRun) {
                                 return;
                             }
@@ -245,8 +261,10 @@ public class FMusicPlayer extends InputStream {
                             }
                             BuffPack output = decoder.decodeFrame();
                             if (output == null) {
+                                eof = true;
                                 break;
                             }
+                            decodeErrorCount = 0;
                             ByteBuffer byteBuffer = BufferUtils.createByteBuffer(output.len)
                                 .put(output.buff, 0, output.len);
                             ((Buffer) byteBuffer).flip();
@@ -265,7 +283,7 @@ public class FMusicPlayer extends InputStream {
 
                             AL10.alSourceQueueBuffers(index, buffer);
 
-                            if (AL10.alGetSourcei(index, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING) {
+                            if (AL10.alGetSourcei(index, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING && !frozen) {
                                 AL10.alSourcePlay(index);
                             }
                         }
@@ -275,11 +293,24 @@ public class FMusicPlayer extends InputStream {
                         checkChat();
                         checkVolume();
                         dequeue();
+
+                        if (eof && !frozen && AL10.alGetSourcei(index, AL10.AL_SOURCE_STATE) == AL10.AL_STOPPED) {
+                            // 解码完毕且缓冲队列真正播完(AL_STOPPED), 自然结束;
+                            // 注意不能用 != AL_PLAYING: 暂停(PAUSED)状态下不能视为结束
+                            break;
+                        }
                     } catch (Exception e) {
                         if (!isClose) {
-                            e.printStackTrace();
+                            decodeErrorCount++;
+                            if (decodeErrorCount >= 3) {
+                                e.printStackTrace();
+                                break;
+                            }
+                            // 单帧解码失败, 尝试继续下一帧
+                            Thread.sleep(50);
+                        } else {
+                            break;
                         }
-                        break;
                     }
                 }
 
@@ -312,6 +343,8 @@ public class FMusicPlayer extends InputStream {
                 }
 
                 isPlay = false;
+                frozen = false;
+                decodeErrorCount = 0;
 
                 if (!isRun) {
                     return;
@@ -326,6 +359,27 @@ public class FMusicPlayer extends InputStream {
         if (wait) {
             wait = false;
             semaphoreReload.release();
+        }
+        if (Config.pauseAtFreeze) {
+            boolean paused = Minecraft.getMinecraft().isGamePaused();
+            // 同步冻结服务端计时与歌词 (与音乐同生共死)
+            FMusic.frozen = paused;
+            if (paused && !frozen && isPlay) {
+                frozen = true;
+                if (AL10.alIsSource(index)) {
+                    AL10.alSourcePause(index);
+                }
+            } else if (!paused && frozen) {
+                frozen = false;
+                // 恢复游戏: 立即恢复播放
+                if (isPlay && AL10.alIsSource(index)
+                        && AL10.alGetSourcei(index, AL10.AL_SOURCE_STATE) != AL10.AL_PLAYING) {
+                    AL10.alSourcePlay(index);
+                }
+            }
+        } else if (frozen) {
+            frozen = false;
+            FMusic.frozen = false;
         }
     }
 
@@ -380,15 +434,16 @@ public class FMusicPlayer extends InputStream {
 
     @Override
     public int read() throws IOException {
-        local++;
-        return content.read();
+        int temp = content.read();
+        if (temp >= 0) {
+            local++;
+        }
+        return temp;
     }
 
     @Override
     public int read(byte[] buf) throws IOException {
-        int temp = content.read(buf);
-        local += temp;
-        return temp;
+        return read(buf, 0, buf.length);
     }
 
     @Override
@@ -408,11 +463,30 @@ public class FMusicPlayer extends InputStream {
     public synchronized int read(byte[] buf, int off, int len) throws IOException {
         try {
             int temp = content.read(buf, off, len);
-            local += temp;
-            return temp;
+            if (temp > 0) {
+                local += temp;
+                reconnectCount = 0;
+                return temp;
+            }
+            if (temp == 0) {
+                return 0;
+            }
+            // temp == -1: 流被服务器提前关闭?
+            // 若声明了 Content-Length 且未读满, 视为连接被截断, 断点续传重连
+            if (contentLength > 0 && local < contentLength && reconnectCount < 5) {
+                reconnectCount++;
+                connect();
+                return read(buf, off, len);
+            }
+            return -1;
         } catch (IOException e) {
-            connect();
-            return this.read(buf, off, len);
+            // 连接异常, 断点续传重连 (限制次数, 防止无限递归)
+            if (reconnectCount < 5) {
+                reconnectCount++;
+                connect();
+                return read(buf, off, len);
+            }
+            throw e;
         }
     }
 

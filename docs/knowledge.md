@@ -106,6 +106,24 @@ FMusic.loadComplete   → ClientProxy: fMusicClient.test(event)
 - init(Path, bridge, IntBuffer source): 建 HttpClient + FMusicPlayer;renderInit(): 建 FMusicHud
 
 ### FMusicPlayer (OpenAL 流式播放)
+
+**已修复的播放问题 (诊断记录):**
+
+| 症状 | 根因 | 修复 |
+|---|---|---|
+| 播放到一半中断 | 服务器断流 read 返回 -1 被当 EOF; 原代码不重连且 local += -1 | read 系列: -1 且 local < Content-Length → Range 断点重连 (限 5 次); temp<0 不加 local |
+| 播放中断 | 单帧解码异常直接 break 整个播放 | 解码异常容错: 连续 3 次失败才放弃, 单次失败跳过继续 |
+| 播放中断/卡顿 | 单线程 下载=解码=播放, 网络慢时队列耗尽 (underrun) | 设计限制; queueSize (默认100帧≈2.6s) 可调大 |
+| 播放不全 | OGG 结尾: read 返回 -1 但代码只认 bytes==0; jorbis wrote(-1) 污染 fill | OggDecoder: bytes<0 → 0 且主循环 eos=1 |
+| 播放不全 | FLAC 结尾返回 len=0 空帧 (应 null) | FlacDecoder: blockSamples==0 → null |
+| 播放不全 | 自然播完后线程空转不退出 (isPlay 恒 true, 等 STOP 兜底) | 播放循环加 eof 标志: 解码完毕且 AL_STOPPED → 自然结束 |
+| 播放失败 | MP3 只认 0xFFFB (128kbps), 其他码率误判 OGG | 0xFF 且 (b1&0xE0)==0xE0 → MP3 |
+| 计时不准 | 服务端固定 10ms 步进, 与客户端实际播放(缓冲)脱节; 客户端开播延迟 ~0.5-2s | 设计限制: 服务端可调 fixSongTime; 无法感知客户端缓冲 |
+
+**剩余已知限制 (未改):**
+- HUD 时间来自服务端 TIME 包 (每 sendDelay=1000ms 一次), 进度条 1 秒一跳
+- 服务端 musicLessTime 按 length+fixSongTime 倒计时, 网络慢时客户端滞后 → 服务端先 STOP 切尾 (调大 fixSongTime 缓解)
+- MP3 seek 精度 = 帧对齐 (time/26*framesize)
 - 从 Minecraft SoundSystem 的 streaming 通道借用一个 AL 音频源 (ALSource)
 - HTTP Range 断点续传 (FMusicPlayer 继承 InputStream, decoder 从它读)
 - 格式识别: M4A(0x0000001c) / MP3(ID3 或 0xFFFB) / 其余按 OGG
@@ -268,7 +286,29 @@ dependencies {
 - cookie: 复用 MusicHttpClient 的 cookie.json 持久化, 配置浏览器 cookie 后可播放 VIP 歌曲 (见 README)
 - 注意: 原插件 import com.coloryr.allmusic.libs.org.apache.hc... (原版 relocate 包名) → 已改为 org.apache.hc... (编译期原包, 运行时由本项目 shadow 自动 relocate)
 
-## 14. FMusic.cfg (模板 Forge 配置)
+## 14. FMusic.cfg 与 pause_at_freeze
+
+- **FMusic.cfg** (config/ 下) 现为正式 Forge Configuration, 存放单人游戏暂停行为配置
+- **指令**: `/fmusic pause_at_freeze <true/false>` (客户端指令, ClientCommandHandler)
+  - 仅在单人游戏且未开放局域网时可执行 (mc.isSingleplayer() && !integratedServer.getPublic())
+  - 无参数时查询当前值; 设置后立即 Config.save() 写入 config/FMusic.cfg
+  - 默认 false (保持原行为: 暂停时音乐继续播放)
+- **行为**: true 时按 Esc 暂停游戏 → FMusicPlayer.frozen → alSourcePause 暂停音乐;
+  恢复游戏 → 播放循环自动 alSourcePlay 恢复 (自然结束判断排除 frozen, 避免暂停时误结束)
+- **/music reload**: 服务端 CommandReload 额外调用 Config.reload() 刷新 FMusic.cfg
+- **踩坑1 (配置不保存)**: Config.save() 若复用 synchronizeConfiguration 会重新 load 并用文件旧值覆盖内存,
+  且从未把新值写回 Property → 文件不变、内存丢失。save() 必须独立实现: load → get().set(内存值) → save
+- **踩坑2 (恢复无声)**: 自然结束判断曾用 `state != AL_PLAYING`, 会把 PAUSED(暂停中)误判为结束
+  → eof=true 时恢复瞬间终止播放并 resetSource 清空缓冲。必须用 `state == AL_STOPPED` 才算真正播完;
+  且恢复游戏时应主动 alSourcePlay, 不依赖播放循环 5ms 检查
+- **计时冻结 (防歌词不同步)**: FMusic.frozen 静态标志 (server core) — 客户端 FMusicPlayer.tick 在
+  暂停时置 true, 恢复时置 false; PlayRuntime.time1 与 FMusicHud.lyricTick 开头检查并跳过
+  → 音乐/服务端 musicNowTime/musicLessTime/歌词触发/客户端KTV计时 全部同步暂停与恢复
+  (musicLessTime 冻结意味着暂停时间不计入歌曲时长, 不会提前 STOP)
+- **唱片旋转动画**: picRotateTick **独立**检测 Minecraft.isGamePaused() (不依赖 pause_at_freeze,
+  视觉动画总是跟随画面暂停), 游戏暂停即停转, 恢复后继续
+
+## 15. 聊天消息序列化 (按钮修复)
 
 - 模板遗留的 Config.java 不注册任何配置项 (AllMusic 的配置都在 fmusic_server/ 与 fmusic_client.json)
 - 文件为空/不存在时写入固定提示内容:
@@ -276,7 +316,7 @@ dependencies {
   - client config is on ./fmusic_client.json
 - 双端 preInit 都会调用 Config.synchronizeConfiguration (run/server 与 run/client 各一份)
 
-## 15. 注意事项 / 待办
+## 16. 注意事项 / 待办
 
 - 信道/配置/资源域名已全面改为 fmusic 命名 → **与原版 AllMusic 客户端/服务端不互通** (如需互通: 改回 fmusic:channel → allmusic:channel, fmusic_server/ → allmusic_server/)
 - mixins.allmusic_client.json 原配置未复制 (两个声音 mixin 已并入 mixins.FMusic.json, 重复配置会导致重复应用)

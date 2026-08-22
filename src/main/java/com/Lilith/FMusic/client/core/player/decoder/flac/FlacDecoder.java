@@ -130,6 +130,10 @@ public final class FlacDecoder implements AutoCloseable, IDecoder {
     @Override
     public BuffPack decodeFrame() throws Exception {
         int blockSamples = readAudioBlock(samples, 0);
+        if (blockSamples == 0) {
+            // 流结束
+            return null;
+        }
         int sampleBytesLen = 0;
         for (int i = 0; i < blockSamples; i++) {
             for (int ch = 0; ch < streamInfo.numChannels; ch++) {

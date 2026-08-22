@@ -20,6 +20,9 @@ import com.Lilith.FMusic.client.core.render.PictureFrameBuffer;
 import com.Lilith.FMusic.client.core.render.TextFrameBuffer;
 import com.Lilith.FMusic.client.core.render.TextureRender;
 import com.Lilith.FMusic.codec.HudPosObj;
+import com.Lilith.FMusic.server.core.FMusic;
+
+import net.minecraft.client.Minecraft;
 import com.Lilith.FMusic.codec.HudPosType;
 import com.Lilith.FMusic.codec.KtvLyricObj;
 
@@ -234,6 +237,10 @@ public class FMusicHud {
     private void picRotateTick() {
         if (save == null) return;
         if (!save.pic.rotate) return;
+        // 游戏暂停时冻结旋转动画(独立于 pause_at_freeze, 视觉动画跟随画面暂停), 恢复后继续
+        if (Minecraft.getMinecraft().isGamePaused()) {
+            return;
+        }
         if (count < save.pic.speed) {
             count++;
             return;
@@ -245,6 +252,10 @@ public class FMusicHud {
 
     private void lyricTick() {
         if (save == null || ktv == null || lyricTime == -1) return;
+        // 游戏暂停(pause_at_freeze)时冻结本地 KTV 计时, 保持与音乐同步
+        if (FMusic.frozen) {
+            return;
+        }
         lyricTime += 10;
         kUpdate();
         updateKtvOffset();

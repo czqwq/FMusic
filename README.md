@@ -14,6 +14,7 @@ Minecraft 1.7.10 (Forge) 音乐模组
 - **格式支持**: MP3 / FLAC / OGG / M4A (AAC)
 - **服务端管理**: 空闲歌单、禁歌/禁人、静音、配置热重载、经济系统接口
 - **直接播放**: `/music test <音频URL>` 可测试播放任意直链 (mp3/flac/ogg/m4a)
+- **暂停跟随**: `/fmusic pause_at_freeze true` (单人游戏) 让按 Esc 暂停时音乐同步暂停
 - **内置音乐 API**: 网易云音乐 (netapi) 默认启用, 无需额外插件; 也支持 api/ 目录加载外部 jar
 - **Forge 事件**: MusicPlayEvent / MusicAddEvent (可取消)
 - **可点击消息按钮**: 聊天中 [点我选择]/[点我查看] 等按钮可点击执行命令 (1.7.10 兼容序列化)

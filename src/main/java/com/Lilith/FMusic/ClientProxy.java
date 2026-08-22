@@ -1,9 +1,12 @@
 package com.Lilith.FMusic;
 
 import com.Lilith.FMusic.client.FMusic;
+import com.Lilith.FMusic.client.command.CommandFMusic;
 
 import cpw.mods.fml.common.event.FMLLoadCompleteEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+
+import net.minecraftforge.client.ClientCommandHandler;
 
 public class ClientProxy extends CommonProxy {
 
@@ -22,6 +25,9 @@ public class ClientProxy extends CommonProxy {
 
         // FMusic 客户端初始化: 注册渲染/声音/数据包/网络信道等事件
         fMusicClient.preload(event);
+
+        // 客户端指令: /fmusic pause_at_freeze <true/false>
+        ClientCommandHandler.instance.registerCommand(new CommandFMusic());
     }
 
     @Override

@@ -3,7 +3,6 @@ plugins {
     id("com.gtnewhorizons.gtnhconvention")
 }
 
-// AllMusic (client+server 二合一) 运行时依赖,打包进 jar 并自动 relocate 到 com.Lilith.FMusic.shadow
 dependencies {
     // Apache HttpClient 5 (client/server 核心的 HTTP 与音乐流下载)
     shadowImplementation("org.apache.httpcomponents.client5:httpclient5:5.6.1")
