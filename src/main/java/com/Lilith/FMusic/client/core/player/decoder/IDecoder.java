@@ -1,8 +1,8 @@
 package com.Lilith.FMusic.client.core.player.decoder;
 
 public interface IDecoder {
-    //so what the hell about that decoder
-    //heavy code:(
+    // so what the hell about that decoder
+    // heavy code:(
 
     BuffPack decodeFrame() throws Exception;
 
