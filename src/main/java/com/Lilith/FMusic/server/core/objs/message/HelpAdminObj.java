@@ -58,8 +58,7 @@ public class HelpAdminObj {
         if (addList1 == null) addList1 = "<gold>[FMusic]<yellow>使用/music addlist [音乐API] [歌单ID] 添加歌单到空闲列表";
         if (clearList == null) clearList = "<gold>[FMusic]<yellow>使用/music clearlist 清空空闲歌单";
         if (clearBanList == null) clearBanList = "<gold>[FMusic]<yellow>使用/music clearban 清空禁止点歌列表";
-        if (clearBanPlayerList == null)
-            clearBanPlayerList = "<gold>[FMusic]<yellow>使用/music clearbanplayer 清空禁止玩家点歌列表";
+        if (clearBanPlayerList == null) clearBanPlayerList = "<gold>[FMusic]<yellow>使用/music clearbanplayer 清空禁止玩家点歌列表";
         if (test == null) test = "<gold>[FMusic]<yellow>使用/music test [ID] 测试解析音乐";
         if (test1 == null) test1 = "<gold>[FMusic]<yellow>使用/music test [音乐API] [ID] 测试解析音乐";
     }

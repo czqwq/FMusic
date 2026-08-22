@@ -1,9 +1,9 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.fd;
 
+import java.io.IOException;
+
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.FullBox;
-
-import java.io.IOException;
 
 public class FilePartitionBox extends FullBox {
 

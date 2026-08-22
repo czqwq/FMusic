@@ -1,5 +1,15 @@
 package com.Lilith.FMusic.netapi;
 
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
 import org.apache.hc.client5.http.cookie.Cookie;
@@ -11,22 +21,13 @@ import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.NameValuePair;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.message.BasicNameValuePair;
+
+import com.Lilith.FMusic.netapi.obj.EncResObj;
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.music.MusicHttpClient;
 import com.Lilith.FMusic.server.core.objs.HttpResObj;
-import com.Lilith.FMusic.netapi.obj.EncResObj;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
 
 public class NetApiHttpClient {
 
@@ -87,7 +88,8 @@ public class NetApiHttpClient {
                 request.setHeader("User-Agent", MusicHttpClient.UserAgent);
                 String csrfToken = "";
                 for (Cookie cookie : cookies) {
-                    if (cookie.getName().equalsIgnoreCase("__csrf")) {
+                    if (cookie.getName()
+                        .equalsIgnoreCase("__csrf")) {
                         csrfToken = cookie.getValue();
                     }
                 }
@@ -100,29 +102,40 @@ public class NetApiHttpClient {
                 params.add(new BasicNameValuePair("encSecKey", res.encSecKey));
                 request.setEntity(new UrlEncodedFormEntity(params));
             } else if (type == EncryptType.EAPI) {
-                request.setHeader("User-Agent", "Mozilla/5.0 (Linux; Android 9; PCT-AL10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.64 HuaweiBrowser/10.0.3.311 Mobile Safari/537.36");
+                request.setHeader(
+                    "User-Agent",
+                    "Mozilla/5.0 (Linux; Android 9; PCT-AL10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.64 HuaweiBrowser/10.0.3.311 Mobile Safari/537.36");
                 JsonObject header = new JsonObject();
                 header.addProperty("appver", "8.10.90");
                 header.addProperty("versioncode", "140");
-                header.addProperty("buildver", new Date().toString().substring(0, 10));
+                header.addProperty(
+                    "buildver",
+                    new Date().toString()
+                        .substring(0, 10));
                 header.addProperty("resolution", "1920x1080");
                 header.addProperty("os", "android");
                 String requestId = "0000" + (new Date() + "_" + Math.floor(Math.random() * 1000));
                 header.addProperty("requestId", requestId);
                 for (Cookie cookie : cookies) {
-                    if (cookie.getName().equalsIgnoreCase("MUSIC_U")) {
+                    if (cookie.getName()
+                        .equalsIgnoreCase("MUSIC_U")) {
                         header.addProperty("MUSIC_U", cookie.getValue());
-                    } else if (cookie.getName().equalsIgnoreCase("MUSIC_A")) {
-                        header.addProperty("MUSIC_A", cookie.getValue());
-                    } else if (cookie.getName().equalsIgnoreCase("channel")) {
-                        header.addProperty("channel", cookie.getValue());
-                    } else if (cookie.getName().equalsIgnoreCase("mobilename")) {
-                        header.addProperty("mobilename", cookie.getValue());
-                    } else if (cookie.getName().equalsIgnoreCase("osver")) {
-                        header.addProperty("osver", cookie.getValue());
-                    } else if (cookie.getName().equalsIgnoreCase("__csrf")) {
-                        header.addProperty("__csrf", cookie.getValue());
-                    }
+                    } else if (cookie.getName()
+                        .equalsIgnoreCase("MUSIC_A")) {
+                            header.addProperty("MUSIC_A", cookie.getValue());
+                        } else if (cookie.getName()
+                            .equalsIgnoreCase("channel")) {
+                                header.addProperty("channel", cookie.getValue());
+                            } else if (cookie.getName()
+                                .equalsIgnoreCase("mobilename")) {
+                                    header.addProperty("mobilename", cookie.getValue());
+                                } else if (cookie.getName()
+                                    .equalsIgnoreCase("osver")) {
+                                        header.addProperty("osver", cookie.getValue());
+                                    } else if (cookie.getName()
+                                        .equalsIgnoreCase("__csrf")) {
+                                            header.addProperty("__csrf", cookie.getValue());
+                                        }
                 }
                 data.add("header", header);
                 res = CryptoUtil.eapi(ourl, data);
@@ -135,7 +148,11 @@ public class NetApiHttpClient {
                 request.setUri(new URI(url));
                 List<NameValuePair> params = new ArrayList<>();
                 for (Map.Entry<String, JsonElement> item : data.entrySet()) {
-                    params.add(new BasicNameValuePair(item.getKey(), item.getValue().getAsString()));
+                    params.add(
+                        new BasicNameValuePair(
+                            item.getKey(),
+                            item.getValue()
+                                .getAsString()));
                 }
                 request.setEntity(new UrlEncodedFormEntity(params));
             }

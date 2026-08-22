@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DataObj {
+
     private playlist playlist;
 
     public List<String> getPlaylist() {
@@ -20,6 +21,7 @@ public class DataObj {
 }
 
 class track {
+
     private long id;
 
     public String getId() {
@@ -28,6 +30,7 @@ class track {
 }
 
 class playlist {
+
     private List<track> trackIds;
     private String name;
 

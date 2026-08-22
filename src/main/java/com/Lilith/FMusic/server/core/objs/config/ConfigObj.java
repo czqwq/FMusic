@@ -1,11 +1,11 @@
 package com.Lilith.FMusic.server.core.objs.config;
 
-import com.Lilith.FMusic.server.core.FMusic;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import com.Lilith.FMusic.server.core.FMusic;
 
 /**
  * 配置文件对象

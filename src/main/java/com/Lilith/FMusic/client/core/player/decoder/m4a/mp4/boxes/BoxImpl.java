@@ -1,11 +1,11 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes;
 
-import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
 
 public class BoxImpl implements Box {
 

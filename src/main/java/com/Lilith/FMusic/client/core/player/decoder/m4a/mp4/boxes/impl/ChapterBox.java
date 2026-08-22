@@ -1,11 +1,11 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl;
 
-import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
-import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.FullBox;
-
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.FullBox;
 
 /**
  * The chapter box allows to specify individual chapters along the main timeline

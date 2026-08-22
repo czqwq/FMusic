@@ -1,11 +1,11 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl;
 
+import java.io.IOException;
+
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.BoxTypes;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.FullBox;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.Utils;
-
-import java.io.IOException;
 
 /**
  * The Copyright box contains a copyright declaration which applies to the

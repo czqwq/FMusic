@@ -69,8 +69,7 @@ public class ChatComponentSerializer {
         if (click != null) {
             String action = actionName(click.action());
             if (action != null) {
-                prop(sb, first, "clickEvent",
-                        "{\"action\":\"" + action + "\",\"value\":" + quote(click.value()) + "}");
+                prop(sb, first, "clickEvent", "{\"action\":\"" + action + "\",\"value\":" + quote(click.value()) + "}");
                 first = false;
             }
         }
@@ -88,7 +87,8 @@ public class ChatComponentSerializer {
         }
 
         // 子组件
-        if (!component.children().isEmpty()) {
+        if (!component.children()
+            .isEmpty()) {
             StringBuilder extra = new StringBuilder("[");
             boolean firstChild = true;
             for (Component child : component.children()) {
@@ -126,7 +126,9 @@ public class ChatComponentSerializer {
         if (!first) {
             sb.append(',');
         }
-        sb.append(quote(key)).append(':').append(value);
+        sb.append(quote(key))
+            .append(':')
+            .append(value);
     }
 
     private static String quote(String s) {
@@ -160,6 +162,7 @@ public class ChatComponentSerializer {
                     }
             }
         }
-        return sb.append('"').toString();
+        return sb.append('"')
+            .toString();
     }
 }

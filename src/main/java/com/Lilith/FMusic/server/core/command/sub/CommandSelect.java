@@ -1,5 +1,9 @@
 package com.Lilith.FMusic.server.core.command.sub;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.command.ACommand;
 import com.Lilith.FMusic.server.core.command.CommandEX;
@@ -9,10 +13,6 @@ import com.Lilith.FMusic.server.core.objs.message.ARG;
 import com.Lilith.FMusic.server.core.objs.music.SearchPageObj;
 import com.Lilith.FMusic.server.core.saves.SaveTask;
 import com.Lilith.FMusic.server.core.utils.Function;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 public class CommandSelect extends ACommand {
 

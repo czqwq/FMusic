@@ -1,15 +1,15 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.aac;
 
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.filterbank.FilterBank;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.syntax.BitStream;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.syntax.Constants;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.syntax.PCE;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.syntax.SyntacticElements;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.transport.ADIFHeader;
-
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Handler;
-import java.util.logging.Level;
 
 /**
  * Main AAC decoder class

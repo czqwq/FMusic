@@ -1,10 +1,10 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.adts;
 
-import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.ChannelConfiguration;
-import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.SampleFrequency;
-
 import java.io.DataInputStream;
 import java.io.IOException;
+
+import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.ChannelConfiguration;
+import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.SampleFrequency;
 
 class ADTSFrame {
 

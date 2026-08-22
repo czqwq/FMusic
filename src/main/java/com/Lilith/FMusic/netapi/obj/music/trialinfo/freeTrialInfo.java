@@ -1,6 +1,7 @@
 package com.Lilith.FMusic.netapi.obj.music.trialinfo;
 
 public class freeTrialInfo {
+
     private long start;
     private long end;
 

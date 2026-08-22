@@ -53,44 +53,28 @@ public class HudObj {
     }
 
     public void init() {
-        if (state == null) state = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud
-            + "<yellow>]的状态为[<blue>"
-            + ARG.value
-            + "<yellow>]";
+        if (state == null)
+            state = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud + "<yellow>]的状态为[<blue>" + ARG.value + "<yellow>]";
         if (set == null) set = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud
             + "<yellow>]的坐标为[<blue>"
             + ARG.x
             + ", "
             + ARG.y
             + "<yellow>]";
-        if (set1 == null) set1 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud
-            + "<yellow>]的对齐方式为[<blue>"
-            + ARG.value
-            + "<yellow>]";
-        if (set2 == null) set2 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud
-            + "<yellow>]的颜色为[<blue>"
-            + ARG.value
-            + "<yellow>]";
-        if (set3 == null) set3 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud
-            + "<yellow>]的阴影为[<blue>"
-            + ARG.value
-            + "<yellow>]";
-        if (set4 == null) set4 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud
-            + "<yellow>]的透明度为[<blue>"
-            + ARG.value
-            + "<yellow>]";
-        if (set5 == null) set5 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud
-            + "<yellow>]的循环模式为[<blue>"
-            + ARG.value
-            + "<yellow>]";
-        if (set6 == null) set6 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud
-            + "<yellow>]的最大宽度为[<blue>"
-            + ARG.value
-            + "<yellow>]";
-        if (set7 == null) set7 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud
-            + "<yellow>]的间距为[<blue>"
-            + ARG.value
-            + "<yellow>]";
+        if (set1 == null)
+            set1 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud + "<yellow>]的对齐方式为[<blue>" + ARG.value + "<yellow>]";
+        if (set2 == null)
+            set2 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud + "<yellow>]的颜色为[<blue>" + ARG.value + "<yellow>]";
+        if (set3 == null)
+            set3 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud + "<yellow>]的阴影为[<blue>" + ARG.value + "<yellow>]";
+        if (set4 == null)
+            set4 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud + "<yellow>]的透明度为[<blue>" + ARG.value + "<yellow>]";
+        if (set5 == null)
+            set5 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud + "<yellow>]的循环模式为[<blue>" + ARG.value + "<yellow>]";
+        if (set6 == null)
+            set6 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud + "<yellow>]的最大宽度为[<blue>" + ARG.value + "<yellow>]";
+        if (set7 == null)
+            set7 = "<gold>[FMusic]<yellow>已设置[<aqua>" + ARG.hud + "<yellow>]的间距为[<blue>" + ARG.value + "<yellow>]";
         if (reset == null) reset = "<gold>[FMusic]<yellow>界面[<aqua>" + ARG.hud + "<yellow>]恢复至默认位置";
         if (emptyMusic == null) emptyMusic = "没有播放的音乐";
         if (emptyList == null) emptyList = "队列中无歌曲";

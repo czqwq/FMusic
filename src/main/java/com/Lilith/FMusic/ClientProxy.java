@@ -1,6 +1,7 @@
 package com.Lilith.FMusic;
 
 import com.Lilith.FMusic.client.FMusic;
+
 import cpw.mods.fml.common.event.FMLLoadCompleteEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 

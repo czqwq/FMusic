@@ -1,11 +1,11 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.api.codec;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.api.DecoderInfo;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.sampleentries.codec.CodecSpecificBox;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.sampleentries.codec.EAC3SpecificBox;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class EAC3DecoderInfo extends DecoderInfo {
 

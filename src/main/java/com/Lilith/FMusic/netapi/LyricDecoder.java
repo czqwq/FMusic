@@ -1,16 +1,17 @@
 package com.Lilith.FMusic.netapi;
 
-import com.Lilith.FMusic.codec.KtvLyricObj;
-import com.Lilith.FMusic.server.core.FMusic;
-import com.Lilith.FMusic.server.core.objs.music.LyricItemObj;
-import com.Lilith.FMusic.server.core.utils.Function;
-import com.Lilith.FMusic.netapi.obj.music.lyric.WLyricObj;
-
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.Lilith.FMusic.codec.KtvLyricObj;
+import com.Lilith.FMusic.netapi.obj.music.lyric.WLyricObj;
+import com.Lilith.FMusic.server.core.FMusic;
+import com.Lilith.FMusic.server.core.objs.music.LyricItemObj;
+import com.Lilith.FMusic.server.core.utils.Function;
+
 public class LyricDecoder {
+
     private static final Pattern p = Pattern.compile("\\(([0-9]+),[0-9]+.[0-9]\\)");
     private final Map<Long, LyricItemObj> lyrics = new LinkedHashMap<>();
     public boolean isHave = false;
@@ -35,17 +36,18 @@ public class LyricDecoder {
         String[] lyric;
 
         boolean haveT = false;
-        if (!obj.isOk())
-            return true;
-        else if (obj.isNone())
-            return false;
-        lyric = obj.getLyric().split("\n");
+        if (!obj.isOk()) return true;
+        else if (obj.isNone()) return false;
+        lyric = obj.getLyric()
+            .split("\n");
 
         Map<Long, String> temp = getTime(Arrays.asList(lyric));
         Map<Long, String> temp1 = new HashMap<>();
 
         if (obj.getTlyric() != null) {
-            List<String> tlyric = Arrays.asList(obj.getTlyric().split("\n"));
+            List<String> tlyric = Arrays.asList(
+                obj.getTlyric()
+                    .split("\n"));
             haveT = true;
             temp1 = getTime(tlyric);
         }
@@ -65,12 +67,16 @@ public class LyricDecoder {
 
         if (isHaveK) {
             for (Map.Entry<Long, String> item : temp.entrySet()) {
-                this.lyrics.put(item.getKey(), new LyricItemObj(item.getValue(), haveT ? temp1.get(item.getKey()) : null, item.getKey()));
+                this.lyrics.put(
+                    item.getKey(),
+                    new LyricItemObj(item.getValue(), haveT ? temp1.get(item.getKey()) : null, item.getKey()));
             }
         } else {
             for (Map.Entry<Long, String> item : temp.entrySet()) {
-                String value = FMusic.getReplacer().replace(item.getValue());
-                String value1 = FMusic.getReplacer().replace(temp1.get(item.getKey()));
+                String value = FMusic.getReplacer()
+                    .replace(item.getValue());
+                String value1 = FMusic.getReplacer()
+                    .replace(temp1.get(item.getKey()));
                 this.lyrics.put(item.getKey(), new LyricItemObj(value, haveT ? value1 : null, item.getKey()));
             }
         }
@@ -93,11 +99,9 @@ public class LyricDecoder {
         long time;
         long milt;
         for (String s : lyric) {
-            if (!s.startsWith("["))
-                continue;
+            if (!s.startsWith("[")) continue;
             String temp = Function.getString(s, "[", "]");
-            if (!temp.contains(".") || !temp.contains(":"))
-                continue;
+            if (!temp.contains(".") || !temp.contains(":")) continue;
             if (Function.countChar(temp, ':') > 1) {
                 String[] a = s.split(":");
                 min = a[0].substring(1);
@@ -108,40 +112,35 @@ public class LyricDecoder {
                 sec = Function.getString(s, ":", ".");
                 mil = Function.getString(s, ".", "]");
             }
-            if (!Function.isInteger(min))
-                continue;
-            if (!Function.isInteger(sec))
-                continue;
-            if (!Function.isInteger(mil))
-                continue;
-            if (min.isEmpty() || sec.isEmpty() || mil.isEmpty())
-                continue;
+            if (!Function.isInteger(min)) continue;
+            if (!Function.isInteger(sec)) continue;
+            if (!Function.isInteger(mil)) continue;
+            if (min.isEmpty() || sec.isEmpty() || mil.isEmpty()) continue;
             milt = Long.parseLong(mil);
             if (mil.length() == 3) {
                 milt /= 10;
             }
             time = Long.parseLong(min) * 60 * 1000 + Long.parseLong(sec) * 1000 + milt * 10;
-//            if (time > 0 && time + FMusic.getConfig().lyricDelay > 0)
-//                time += FMusic.getConfig().lyricDelay / 10 * 10;
+            // if (time > 0 && time + FMusic.getConfig().lyricDelay > 0)
+            // time += FMusic.getConfig().lyricDelay / 10 * 10;
             res.put(time, Function.getString(s, "]", null));
         }
         return res;
     }
 
     private KtvLyricObj getKTime(String lyric, boolean yrc) {
-        if (!lyric.startsWith("[") || !lyric.contains("]("))
-            return null;
+        if (!lyric.startsWith("[") || !lyric.contains("](")) return null;
 
         String[] datas = lyric.split("\\(([0-9]+),[0-9]+.[0-9]\\)");
         Matcher m = p.matcher(lyric);
         List<String> temp1111 = new ArrayList<>();
         while (m.find()) {
-            temp1111.add(m.group()
+            temp1111.add(
+                m.group()
                     .replace("(", "")
                     .replace(")", ""));
         }
-        if (datas.length == 1)
-            return null;
+        if (datas.length == 1) return null;
 
         String temp = Function.getString(lyric, "[", "]");
         String[] temp11 = temp.split(",");

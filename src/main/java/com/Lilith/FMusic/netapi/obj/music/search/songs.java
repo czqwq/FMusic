@@ -3,6 +3,7 @@ package com.Lilith.FMusic.netapi.obj.music.search;
 import java.util.List;
 
 public class songs {
+
     private long id;
     private String name;
     private List<artists> artists;
@@ -23,7 +24,8 @@ public class songs {
     public String getArtists() {
         StringBuilder a = new StringBuilder();
         for (artists temp : artists) {
-            a.append(temp.getName()).append(",");
+            a.append(temp.getName())
+                .append(",");
         }
         return a.substring(0, a.length() - 1);
     }

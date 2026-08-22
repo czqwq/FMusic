@@ -1,5 +1,14 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes;
 
+import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.logging.ConsoleHandler;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.AppleLosslessBox;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.BinaryXMLBox;
@@ -105,15 +114,6 @@ import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.sampleent
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.sampleentries.codec.H263SpecificBox;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.sampleentries.codec.QCELPSpecificBox;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.sampleentries.codec.SMVSpecificBox;
-
-import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.logging.ConsoleHandler;
-import java.util.logging.Handler;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class BoxFactory implements BoxTypes {
 

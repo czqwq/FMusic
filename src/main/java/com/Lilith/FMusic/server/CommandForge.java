@@ -1,11 +1,12 @@
 package com.Lilith.FMusic.server;
 
-import com.Lilith.FMusic.server.core.command.CommandEX;
+import java.util.List;
+
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommand;
 import net.minecraft.command.ICommandSender;
 
-import java.util.List;
+import com.Lilith.FMusic.server.core.command.CommandEX;
 
 public class CommandForge extends CommandBase {
 

@@ -37,8 +37,7 @@ public class CommandUnban extends ACommand {
         if (api.checkId(musicID)) {
             api.setList(musicID, sender);
             BanSave.removeBanMusic(args[1], api.getId());
-            FMusic.side
-                .sendMessage(sender, "<gold>[FMusic]<white>音乐API " + api.getId() + "已解封点歌" + musicID);
+            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>音乐API " + api.getId() + "已解封点歌" + musicID);
         } else {
             FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>请输入有效的ID");
         }

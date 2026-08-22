@@ -1,5 +1,15 @@
 package com.Lilith.FMusic.netapi;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.Lilith.FMusic.netapi.obj.music.info.InfoObj;
+import com.Lilith.FMusic.netapi.obj.music.list.DataObj;
+import com.Lilith.FMusic.netapi.obj.music.lyric.WLyricObj;
+import com.Lilith.FMusic.netapi.obj.music.search.SearchDataObj;
+import com.Lilith.FMusic.netapi.obj.music.search.songs;
+import com.Lilith.FMusic.netapi.obj.music.trialinfo.TrialInfoObj;
+import com.Lilith.FMusic.netapi.obj.program.info.PrInfoObj;
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
 import com.Lilith.FMusic.server.core.music.LyricSave;
@@ -10,17 +20,7 @@ import com.Lilith.FMusic.server.core.objs.music.SearchPageObj;
 import com.Lilith.FMusic.server.core.objs.music.SongInfoObj;
 import com.Lilith.FMusic.server.core.saves.MusicListSave;
 import com.Lilith.FMusic.server.core.utils.Function;
-import com.Lilith.FMusic.netapi.obj.music.info.InfoObj;
-import com.Lilith.FMusic.netapi.obj.music.list.DataObj;
-import com.Lilith.FMusic.netapi.obj.music.lyric.WLyricObj;
-import com.Lilith.FMusic.netapi.obj.music.search.SearchDataObj;
-import com.Lilith.FMusic.netapi.obj.music.search.songs;
-import com.Lilith.FMusic.netapi.obj.music.trialinfo.TrialInfoObj;
-import com.Lilith.FMusic.netapi.obj.program.info.PrInfoObj;
 import com.google.gson.JsonObject;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class NetiApiMain implements IMusicApi {
 
@@ -45,17 +45,12 @@ public class NetiApiMain implements IMusicApi {
         if (arg.contains("id=") && !arg.contains("/?userid")) {
             if (arg.contains("&uct2")) {
                 return Function.getString(arg, "id=", "&uct2");
-            } else if (arg.contains("&user"))
-                return Function.getString(arg, "id=", "&user");
-            else
-                return Function.getString(arg, "id=", null);
+            } else if (arg.contains("&user")) return Function.getString(arg, "id=", "&user");
+            else return Function.getString(arg, "id=", null);
         } else if (arg.contains("song/")) {
-            if (arg.contains("/?userid"))
-                return Function.getString(arg, "song/", "/?userid");
-            else
-                return Function.getString(arg, "song/", null);
-        } else
-            return arg;
+            if (arg.contains("/?userid")) return Function.getString(arg, "song/", "/?userid");
+            else return Function.getString(arg, "song/", null);
+        } else return arg;
     }
 
     @Override
@@ -75,26 +70,39 @@ public class NetiApiMain implements IMusicApi {
         JsonObject params = new JsonObject();
         params.addProperty("c", "[{\"id\":" + id + "}]");
 
-        HttpResObj res = NetApiHttpClient.post("https://music.163.com/api/v3/song/detail", params, EncryptType.WEAPI, null);
+        HttpResObj res = NetApiHttpClient
+            .post("https://music.163.com/api/v3/song/detail", params, EncryptType.WEAPI, null);
         if (res != null && res.ok) {
             InfoObj temp = FMusic.gson.fromJson(res.data, InfoObj.class);
             if (temp.isOk()) {
                 params = new JsonObject();
                 params.addProperty("ids", "[" + id + "]");
                 params.addProperty("br", "320000");
-                res = NetApiHttpClient.post("https://music.163.com/weapi/song/enhance/player/url", params, EncryptType.WEAPI, null);
+                res = NetApiHttpClient
+                    .post("https://music.163.com/weapi/song/enhance/player/url", params, EncryptType.WEAPI, null);
                 if (res == null || !res.ok) {
                     FMusic.log.data("<gold>[FMusic]<red>版权检索失败");
                     return null;
                 }
                 TrialInfoObj obj = FMusic.gson.fromJson(res.data, TrialInfoObj.class);
                 com.Lilith.FMusic.server.core.objs.music.TrialInfoObj info = new com.Lilith.FMusic.server.core.objs.music.TrialInfoObj();
-                info.start = obj.getFreeTrialInfo().getStart();
-                info.end = obj.getFreeTrialInfo().getEnd();
-                return new SongInfoObj(temp.getAuthor(), temp.getName(),
-                        id, temp.getAlia(), player, temp.getAl(), isList, temp.getLength(),
-                        temp.getPicUrl(), obj.isTrial(), info,
-                        getId());
+                info.start = obj.getFreeTrialInfo()
+                    .getStart();
+                info.end = obj.getFreeTrialInfo()
+                    .getEnd();
+                return new SongInfoObj(
+                    temp.getAuthor(),
+                    temp.getName(),
+                    id,
+                    temp.getAlia(),
+                    player,
+                    temp.getAl(),
+                    isList,
+                    temp.getLength(),
+                    temp.getPicUrl(),
+                    obj.isTrial(),
+                    info,
+                    getId());
             }
         }
         return null;
@@ -115,17 +123,27 @@ public class NetiApiMain implements IMusicApi {
      */
     public SongInfoObj getMusic(String id, String player, boolean isList) {
         SongInfoObj info = getMusicDetail(id, player, isList);
-        if (info != null)
-            return info;
+        if (info != null) return info;
         JsonObject params = new JsonObject();
         params.addProperty("id", id);
-        HttpResObj res = NetApiHttpClient.post("https://music.163.com/api/dj/program/detail", params, EncryptType.WEAPI, null);
+        HttpResObj res = NetApiHttpClient
+            .post("https://music.163.com/api/dj/program/detail", params, EncryptType.WEAPI, null);
         if (res != null && res.ok) {
             PrInfoObj temp = FMusic.gson.fromJson(res.data, PrInfoObj.class);
             if (temp.isOk()) {
-                return new SongInfoObj(temp.getAuthor(), temp.getName(),
-                        temp.getId(), temp.getAlia(), player, "电台", isList, temp.getLength(),
-                        null, false, null, getId());
+                return new SongInfoObj(
+                    temp.getAuthor(),
+                    temp.getName(),
+                    temp.getId(),
+                    temp.getAlia(),
+                    player,
+                    "电台",
+                    isList,
+                    temp.getLength(),
+                    null,
+                    false,
+                    null,
+                    getId());
             } else {
                 FMusic.log.data("<gold>[FMusic]<red>歌曲信息获取为空");
             }
@@ -144,7 +162,8 @@ public class NetiApiMain implements IMusicApi {
         params.addProperty("ids", "[" + id + "]");
         params.addProperty("level", "exhigh");
         params.addProperty("encodeType", "aac");
-        HttpResObj res = NetApiHttpClient.post("https://music.163.com/weapi/song/enhance/player/url/v1", params, EncryptType.WEAPI, null);
+        HttpResObj res = NetApiHttpClient
+            .post("https://music.163.com/weapi/song/enhance/player/url/v1", params, EncryptType.WEAPI, null);
         if (res != null && res.ok) {
             try {
                 TrialInfoObj obj = FMusic.gson.fromJson(res.data, TrialInfoObj.class);
@@ -169,17 +188,19 @@ public class NetiApiMain implements IMusicApi {
             params.addProperty("id", id);
             params.addProperty("n", 100000);
             params.addProperty("s", 8);
-            HttpResObj res = NetApiHttpClient.post("https://music.163.com/api/v6/playlist/detail", params, EncryptType.API, null);
-            if (res != null && res.ok)
-                try {
-                    isUpdate = true;
-                    DataObj obj = FMusic.gson.fromJson(res.data, DataObj.class);
-                    MusicListSave.addIdleList(obj.getPlaylist(), getId());
-                    FMusic.side.sendMessageTask(sender, FMusic.getMessage().musicPlay.listMusic.get.replace(ARG.name, obj.getName()));
-                } catch (Exception e) {
-                    FMusic.log.data("<gold>[FMusic]<red>歌曲列表获取错误");
-                    e.printStackTrace();
-                }
+            HttpResObj res = NetApiHttpClient
+                .post("https://music.163.com/api/v6/playlist/detail", params, EncryptType.API, null);
+            if (res != null && res.ok) try {
+                isUpdate = true;
+                DataObj obj = FMusic.gson.fromJson(res.data, DataObj.class);
+                MusicListSave.addIdleList(obj.getPlaylist(), getId());
+                FMusic.side.sendMessageTask(
+                    sender,
+                    FMusic.getMessage().musicPlay.listMusic.get.replace(ARG.name, obj.getName()));
+            } catch (Exception e) {
+                FMusic.log.data("<gold>[FMusic]<red>歌曲列表获取错误");
+                e.printStackTrace();
+            }
             isUpdate = false;
         }, "FMusic_setList");
         thread.start();
@@ -203,8 +224,11 @@ public class NetiApiMain implements IMusicApi {
         params.addProperty("yv", 0);
         params.addProperty("ytv", 0);
         params.addProperty("rtv", 0);
-        HttpResObj res = NetApiHttpClient.post("https://interface3.music.163.com/eapi/song/lyric/v1",
-                params, EncryptType.EAPI, "/api/song/lyric/v1");
+        HttpResObj res = NetApiHttpClient.post(
+            "https://interface3.music.163.com/eapi/song/lyric/v1",
+            params,
+            EncryptType.EAPI,
+            "/api/song/lyric/v1");
         if (res != null && res.ok) {
             try {
                 WLyricObj obj = FMusic.gson.fromJson(res.data, WLyricObj.class);
@@ -246,7 +270,8 @@ public class NetiApiMain implements IMusicApi {
 
         StringBuilder name1 = new StringBuilder();
         for (int a = isDefault ? 0 : 1; a < name.length; a++) {
-            name1.append(name[a]).append(" ");
+            name1.append(name[a])
+                .append(" ");
         }
         String MusicName = name1.toString();
         MusicName = MusicName.substring(0, MusicName.length() - 1);
@@ -257,15 +282,19 @@ public class NetiApiMain implements IMusicApi {
         params.addProperty("limit", 30);
         params.addProperty("offset", 0);
 
-        HttpResObj res = NetApiHttpClient.post("https://music.163.com/weapi/search/get", params, EncryptType.WEAPI, null);
+        HttpResObj res = NetApiHttpClient
+            .post("https://music.163.com/weapi/search/get", params, EncryptType.WEAPI, null);
         if (res != null && res.ok) {
             SearchDataObj obj = FMusic.gson.fromJson(res.data, SearchDataObj.class);
             if (obj != null && obj.isOk()) {
                 List<songs> res1 = obj.getResult();
                 SearchMusicObj item;
                 for (songs temp : res1) {
-                    item = new SearchMusicObj(String.valueOf(temp.getId()), temp.getName(),
-                            temp.getArtists(), temp.getAlbum());
+                    item = new SearchMusicObj(
+                        String.valueOf(temp.getId()),
+                        temp.getName(),
+                        temp.getArtists(),
+                        temp.getAlbum());
                     resData.add(item);
                 }
                 maxpage = res1.size() / 10;

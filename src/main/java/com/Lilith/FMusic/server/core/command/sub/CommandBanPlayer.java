@@ -1,12 +1,12 @@
 package com.Lilith.FMusic.server.core.command.sub;
 
-import com.Lilith.FMusic.server.core.FMusic;
-import com.Lilith.FMusic.server.core.command.ICommand;
-import com.Lilith.FMusic.server.core.saves.BanSave;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import com.Lilith.FMusic.server.core.FMusic;
+import com.Lilith.FMusic.server.core.command.ICommand;
+import com.Lilith.FMusic.server.core.saves.BanSave;
 
 public class CommandBanPlayer implements ICommand {
 

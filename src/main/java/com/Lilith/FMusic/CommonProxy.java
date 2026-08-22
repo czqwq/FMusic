@@ -1,6 +1,7 @@
 package com.Lilith.FMusic;
 
 import com.Lilith.FMusic.server.FMusicServer;
+
 import cpw.mods.fml.common.event.FMLInitializationEvent;
 import cpw.mods.fml.common.event.FMLLoadCompleteEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
@@ -15,7 +16,7 @@ public class CommonProxy {
      * FMusic 服务端逻辑实例
      * 通过 commonSetup 将自身注册到 Forge/FML 事件总线。
      */
-    //你知道吗,当时起FMusic的第一想法是FuckMusic,其次才是FunMusic
+    // 你知道吗,当时起FMusic的第一想法是FuckMusic,其次才是FunMusic
     protected final FMusicServer fMusicServer = new FMusicServer();
 
     // preInit "Run before anything else. Read your config, create blocks, items, etc, and register them with the

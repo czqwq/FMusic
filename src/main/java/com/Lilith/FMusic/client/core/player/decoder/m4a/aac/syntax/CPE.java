@@ -1,12 +1,12 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.aac.syntax;
 
+import java.util.Arrays;
+
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.AACException;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.DecoderConfig;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.Profile;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.SampleFrequency;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.tools.MSMask;
-
-import java.util.Arrays;
 
 public class CPE extends Element implements Constants {
 

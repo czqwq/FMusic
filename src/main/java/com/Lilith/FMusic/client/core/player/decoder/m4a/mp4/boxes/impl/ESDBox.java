@@ -1,11 +1,11 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl;
 
+import java.io.IOException;
+
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.FullBox;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.od.ESDescriptor;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.od.ObjectDescriptor;
-
-import java.io.IOException;
 
 /**
  * The entry sample descriptor (ESD) box is a container for entry descriptors.

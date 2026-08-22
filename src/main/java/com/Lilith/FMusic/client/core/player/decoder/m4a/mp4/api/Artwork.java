@@ -1,13 +1,14 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.api;
 
-import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.meta.ITunesMetadataBox.DataType;
-
-import javax.imageio.ImageIO;
 import java.awt.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import javax.imageio.ImageIO;
+
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.meta.ITunesMetadataBox.DataType;
 
 public class Artwork {
 

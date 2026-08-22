@@ -1,5 +1,9 @@
 package com.Lilith.FMusic.server.core.command.sub;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.command.ACommand;
 import com.Lilith.FMusic.server.core.command.PermissionList;
@@ -8,10 +12,6 @@ import com.Lilith.FMusic.server.core.music.PlayRuntime;
 import com.Lilith.FMusic.server.core.objs.message.ARG;
 import com.Lilith.FMusic.server.core.objs.music.SongInfoObj;
 import com.Lilith.FMusic.server.core.saves.BanSave;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 public class CommandPush extends ACommand {
 

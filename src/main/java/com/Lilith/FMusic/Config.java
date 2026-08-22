@@ -15,10 +15,9 @@ public class Config {
     public static void synchronizeConfiguration(File configFile) {
         try {
             if (!configFile.exists() || configFile.length() == 0) {
-                String comment = "# FMusic configuration\n"
-                        + "#\n"
-                        + "# server config is on ../fmusic_server\n"
-                        + "# client config is on ./fmusic_client.json\n";
+                String comment = "# FMusic configuration\n" + "#\n"
+                    + "# server config is on ../fmusic_server\n"
+                    + "# client config is on ./fmusic_client.json\n";
                 Files.write(configFile.toPath(), comment.getBytes(StandardCharsets.UTF_8));
             }
         } catch (Exception e) {

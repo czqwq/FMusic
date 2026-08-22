@@ -1,12 +1,14 @@
 package com.Lilith.FMusic.client;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.FontRenderer;
+
+import org.lwjgl.opengl.GL11;
+
 import com.Lilith.FMusic.client.core.FMusicHud;
 import com.Lilith.FMusic.client.core.Point2f;
 import com.Lilith.FMusic.client.core.render.TextFrameBuffer;
 import com.Lilith.FMusic.codec.HudPosType;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.FontRenderer;
-import org.lwjgl.opengl.GL11;
 
 public class CoreRenderTarget extends TextFrameBuffer<String> {
 

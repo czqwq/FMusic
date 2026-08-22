@@ -27,12 +27,12 @@
 
 package com.Lilith.FMusic.client.core.player.decoder.mp3;
 
-import com.Lilith.FMusic.client.core.FMusicPlayer;
-
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PushbackInputStream;
+
+import com.Lilith.FMusic.client.core.FMusicPlayer;
 
 /**
  * The <code>Bistream</code> class is responsible for parsing

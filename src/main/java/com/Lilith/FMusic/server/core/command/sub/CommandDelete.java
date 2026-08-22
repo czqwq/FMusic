@@ -1,13 +1,13 @@
 package com.Lilith.FMusic.server.core.command.sub;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.command.ACommand;
 import com.Lilith.FMusic.server.core.music.PlayMusic;
 import com.Lilith.FMusic.server.core.utils.Function;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 public class CommandDelete extends ACommand {
 

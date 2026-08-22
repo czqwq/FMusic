@@ -1,6 +1,7 @@
 package com.Lilith.FMusic.netapi.obj.music.lyric;
 
 public class WLyricObj {
+
     private lrc lrc;
     private tlyric tlyric;
     private klyric klyric;
@@ -17,20 +18,17 @@ public class WLyricObj {
     }
 
     public String getTlyric() {
-        if (tlyric == null)
-            return null;
+        if (tlyric == null) return null;
         return tlyric.getLyric();
     }
 
     public String getKlyric() {
-        if (klyric == null)
-            return null;
+        if (klyric == null) return null;
         return klyric.getLyric();
     }
 
     public String getYrc() {
-        if (yrc == null)
-            return null;
+        if (yrc == null) return null;
         return yrc.getLyric();
     }
 
@@ -44,6 +42,7 @@ public class WLyricObj {
 }
 
 class lrc {
+
     private String lyric;
 
     public String getLyric() {
@@ -52,6 +51,7 @@ class lrc {
 }
 
 class tlyric {
+
     private String lyric;
 
     public String getLyric() {
@@ -60,6 +60,7 @@ class tlyric {
 }
 
 class klyric {
+
     private String lyric;
     private int version;
 
@@ -73,6 +74,7 @@ class klyric {
 }
 
 class yrc {
+
     private long version;
     private String lyric;
 

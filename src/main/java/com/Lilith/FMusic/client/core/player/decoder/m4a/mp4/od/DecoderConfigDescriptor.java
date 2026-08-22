@@ -1,8 +1,8 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.od;
 
-import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
-
 import java.io.IOException;
+
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
 
 /**
  * The <code>DecoderConfigDescriptor</code> provides information about the

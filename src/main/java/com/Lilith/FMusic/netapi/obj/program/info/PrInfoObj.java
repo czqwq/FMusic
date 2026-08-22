@@ -5,31 +5,37 @@ public class PrInfoObj {
     private program program;
 
     public boolean isOk() {
-        return (program != null && program.getMainSong().getName() != null);
+        return (program != null && program.getMainSong()
+            .getName() != null);
     }
 
     public String getId() {
 
-        return String.valueOf(program.getMainSong().getId());
+        return String.valueOf(
+            program.getMainSong()
+                .getId());
     }
 
     public String getName() {
 
-        return program.getMainSong().getName();
+        return program.getMainSong()
+            .getName();
     }
 
     public String getAlia() {
-        if (program.getDj() == null)
-            return null;
-        return program.getDj().getBrand();
+        if (program.getDj() == null) return null;
+        return program.getDj()
+            .getBrand();
     }
 
     public long getLength() {
-        return program.getMainSong().getLength();
+        return program.getMainSong()
+            .getLength();
     }
 
     public String getAuthor() {
-        return program.getDj().getNickname();
+        return program.getDj()
+            .getNickname();
     }
 }
 
@@ -43,14 +49,10 @@ class mainSong {
     private hMusic bMusic;
 
     public long getLength() {
-        if (hMusic != null)
-            return hMusic.getLength();
-        else if (mMusic != null)
-            return mMusic.getLength();
-        else if (lMusic != null)
-            return lMusic.getLength();
-        else if (bMusic != null)
-            return bMusic.getLength();
+        if (hMusic != null) return hMusic.getLength();
+        else if (mMusic != null) return mMusic.getLength();
+        else if (lMusic != null) return lMusic.getLength();
+        else if (bMusic != null) return bMusic.getLength();
         return 0;
     }
 
@@ -64,6 +66,7 @@ class mainSong {
 }
 
 class program {
+
     private dj dj;
     private mainSong mainSong;
 
@@ -77,6 +80,7 @@ class program {
 }
 
 class dj {
+
     private String brand;
     private String nickname;
 
@@ -90,6 +94,7 @@ class dj {
 }
 
 class hMusic {
+
     private long size;
     private long bitrate;
 

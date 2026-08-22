@@ -54,11 +54,8 @@ public class MusicPlayObj {
     public void init() {
         if (stopPlaying == null) stopPlaying = "<gold>[FMusic]<yellow>已停止你的音乐播放";
         if (emptyPlayingMusic == null) emptyPlayingMusic = "<gold>[FMusic]<yellow>无正在播放的歌曲";
-        if (nowPlay == null) nowPlay = "<gold>[FMusic]<yellow>正在播放：" + ARG.musicName
-            + " | "
-            + ARG.musicAuthor
-            + " by: "
-            + ARG.player;
+        if (nowPlay == null)
+            nowPlay = "<gold>[FMusic]<yellow>正在播放：" + ARG.musicName + " | " + ARG.musicAuthor + " by: " + ARG.player;
         if (emptyPlay == null) emptyPlay = "<gold>[FMusic]<yellow>队列中无歌曲";
         if (listMusic == null) listMusic = ListMusicObj.make();
         if (emptyCanPlay == null) emptyCanPlay = "<gold>[FMusic]<red>无法播放歌曲" + ARG.musicId + "可能该歌曲为VIP歌曲";

@@ -3,6 +3,7 @@ package com.Lilith.FMusic.netapi.obj.music.info;
 import java.util.List;
 
 public class InfoObj {
+
     private List<Songs> songs;
 
     public boolean isOk() {
@@ -10,17 +11,18 @@ public class InfoObj {
     }
 
     public String getName() {
-        if (songs == null || songs.isEmpty())
-            return "";
-        return songs.get(0).getName();
+        if (songs == null || songs.isEmpty()) return "";
+        return songs.get(0)
+            .getName();
     }
 
     public String getAuthor() {
         StringBuilder Author = new StringBuilder();
-        if (songs.isEmpty())
-            return "";
-        for (ar ar : songs.get(0).getAr()) {
-            Author.append(ar.getName()).append(",");
+        if (songs.isEmpty()) return "";
+        for (ar ar : songs.get(0)
+            .getAr()) {
+            Author.append(ar.getName())
+                .append(",");
         }
         if (Author.length() != 0) {
             Author = new StringBuilder(Author.substring(0, Author.length() - 1));
@@ -30,8 +32,10 @@ public class InfoObj {
 
     public String getAlia() {
         StringBuilder Alia = new StringBuilder();
-        for (String alia : songs.get(0).getAlia()) {
-            Alia.append(alia).append(",");
+        for (String alia : songs.get(0)
+            .getAlia()) {
+            Alia.append(alia)
+                .append(",");
         }
         if (Alia.length() != 0) {
             Alia = new StringBuilder(Alia.substring(0, Alia.length() - 1));
@@ -40,23 +44,25 @@ public class InfoObj {
     }
 
     public String getAl() {
-        return songs.get(0).getAl();
+        return songs.get(0)
+            .getAl();
     }
 
     public long getLength() {
-        if (songs == null)
-            return 0;
-        return songs.get(0).getLength();
+        if (songs == null) return 0;
+        return songs.get(0)
+            .getLength();
     }
 
     public String getPicUrl() {
-        if (songs == null)
-            return null;
-        return songs.get(0).getPicUrl();
+        if (songs == null) return null;
+        return songs.get(0)
+            .getPicUrl();
     }
 }
 
 class Songs {
+
     private String name;
     private List<ar> ar;
     private List<String> alia;
@@ -66,12 +72,9 @@ class Songs {
     private h h;
 
     public long getLength() {
-        if (l != null)
-            return l.getLength();
-        if (m != null)
-            return m.getLength();
-        if (h != null)
-            return h.getLength();
+        if (l != null) return l.getLength();
+        if (m != null) return m.getLength();
+        if (h != null) return h.getLength();
         return 0;
     }
 
@@ -97,6 +100,7 @@ class Songs {
 }
 
 class ar {
+
     private String name;
 
     public String getName() {
@@ -105,6 +109,7 @@ class ar {
 }
 
 class al {
+
     private String name;
     private String picUrl;
 
@@ -118,6 +123,7 @@ class al {
 }
 
 class h {
+
     private long br;
     private long size;
 

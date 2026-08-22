@@ -3,6 +3,7 @@ package com.Lilith.FMusic.netapi.obj.music.search;
 import java.util.List;
 
 public class SearchDataObj {
+
     private result result;
 
     public boolean isOk() {
@@ -15,6 +16,7 @@ public class SearchDataObj {
 }
 
 class result {
+
     private List<songs> songs;
 
     public List<songs> getSongs() {
@@ -22,8 +24,8 @@ class result {
     }
 }
 
-
 class artists {
+
     private String name;
 
     public String getName() {
@@ -32,6 +34,7 @@ class artists {
 }
 
 class album {
+
     private String name;
 
     public String getName() {

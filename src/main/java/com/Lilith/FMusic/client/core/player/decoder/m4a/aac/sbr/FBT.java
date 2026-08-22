@@ -1,8 +1,8 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.aac.sbr;
 
-import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.SampleFrequency;
-
 import java.util.Arrays;
+
+import com.Lilith.FMusic.client.core.player.decoder.m4a.aac.SampleFrequency;
 
 class FBT implements Constants {
 

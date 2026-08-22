@@ -1,8 +1,8 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.sampleentries.codec;
 
-import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
-
 import java.io.IOException;
+
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
 
 /**
  * This box contains parameters for AC-3 decoders. For more information see the

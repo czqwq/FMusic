@@ -1,20 +1,10 @@
 package com.Lilith.FMusic.client;
 
-import com.Lilith.FMusic.client.core.FMusicBridge;
-import com.Lilith.FMusic.client.core.FMusicCore;
-import com.Lilith.FMusic.client.core.render.PictureFrameBuffer;
-import com.Lilith.FMusic.client.core.render.TextFrameBuffer;
-import com.Lilith.FMusic.client.core.render.TextureRender;
-import cpw.mods.fml.client.FMLClientHandler;
-import cpw.mods.fml.common.FMLCommonHandler;
-import cpw.mods.fml.common.event.FMLLoadCompleteEvent;
-import cpw.mods.fml.common.event.FMLPreInitializationEvent;
-import cpw.mods.fml.common.eventhandler.SubscribeEvent;
-import cpw.mods.fml.common.gameevent.TickEvent;
-import cpw.mods.fml.common.network.FMLNetworkEvent;
-import cpw.mods.fml.common.network.NetworkRegistry;
-import cpw.mods.fml.relauncher.Side;
-import cpw.mods.fml.relauncher.SideOnly;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.InputStream;
+import java.util.List;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.audio.SoundCategory;
 import net.minecraft.client.gui.ScaledResolution;
@@ -26,17 +16,30 @@ import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.client.event.sound.PlaySoundEvent17;
 import net.minecraftforge.common.MinecraftForge;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import com.Lilith.FMusic.client.core.FMusicBridge;
+import com.Lilith.FMusic.client.core.FMusicCore;
+import com.Lilith.FMusic.client.core.render.PictureFrameBuffer;
+import com.Lilith.FMusic.client.core.render.TextFrameBuffer;
+import com.Lilith.FMusic.client.core.render.TextureRender;
+
+import cpw.mods.fml.client.FMLClientHandler;
+import cpw.mods.fml.common.FMLCommonHandler;
+import cpw.mods.fml.common.event.FMLLoadCompleteEvent;
+import cpw.mods.fml.common.event.FMLPreInitializationEvent;
+import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import cpw.mods.fml.common.gameevent.TickEvent;
+import cpw.mods.fml.common.network.FMLNetworkEvent;
+import cpw.mods.fml.common.network.NetworkRegistry;
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
 import paulscode.sound.Channel;
 import paulscode.sound.Library;
 import paulscode.sound.SoundSystem;
 import paulscode.sound.libraries.ChannelLWJGLOpenAL;
-
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.InputStream;
-import java.util.List;
 
 @SideOnly(Side.CLIENT)
 public class FMusic implements FMusicBridge {

@@ -1,17 +1,18 @@
 package com.Lilith.FMusic.netapi;
 
-import com.Lilith.FMusic.netapi.obj.EncResObj;
-import com.Lilith.FMusic.server.core.FMusic;
-import com.google.gson.JsonObject;
-
-import javax.crypto.Cipher;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
+
+import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
+
+import com.Lilith.FMusic.netapi.obj.EncResObj;
+import com.Lilith.FMusic.server.core.FMusic;
+import com.google.gson.JsonObject;
 
 public class CryptoUtil {
 
@@ -42,17 +43,16 @@ public class CryptoUtil {
 
     private static String aesEncrypt(String content, String key, String iv) {
         String result = null;
-        if (content == null || key == null)
-            return result;
+        if (content == null || key == null) return result;
         try {
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
             byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
             byte[] keys = key.getBytes(StandardCharsets.UTF_8);
             byte[] ivs = iv.getBytes(StandardCharsets.UTF_8);
-            cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keys, "AES"),
-                    new IvParameterSpec(ivs));
+            cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(keys, "AES"), new IvParameterSpec(ivs));
             bytes = cipher.doFinal(bytes);
-            result = Base64.getEncoder().encodeToString(bytes);
+            result = Base64.getEncoder()
+                .encodeToString(bytes);
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -62,8 +62,7 @@ public class CryptoUtil {
 
     private static String aesEncrypt(String content, String key) {
         String result = null;
-        if (content == null || key == null)
-            return result;
+        if (content == null || key == null) return result;
         try {
             Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
             byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
@@ -88,11 +87,14 @@ public class CryptoUtil {
     }
 
     private static String rsaEncrypt(String text) {
-        text = new StringBuffer(text).reverse().toString();
+        text = new StringBuffer(text).reverse()
+            .toString();
 
         BigInteger biText = new BigInteger(strToHex(text), 16);
         BigInteger biEx = new BigInteger("010001", 16);
-        BigInteger biMod = new BigInteger("00e0b509f6259df8642dbc35662901477df22677ec152b5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741d546b8e289dc6935b3ece0462db0a22b8e7", 16);
+        BigInteger biMod = new BigInteger(
+            "00e0b509f6259df8642dbc35662901477df22677ec152b5ff68ace615bb7b725152b3ab17a876aea8a5aa76d2e417629ec4ee341f56135fccf695280104e0312ecbda92557c93870114af6c9d05c4f7f0c3685b7a46bee255932575cce10b424d813cfe4875d3e82047b97ddef52741d546b8e289dc6935b3ece0462db0a22b8e7",
+            16);
         BigInteger biRet = biText.modPow(biEx, biMod);
 
         return zFill(biRet.toString(16));

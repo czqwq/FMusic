@@ -14,9 +14,9 @@
  */
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.impl.sampleentries;
 
-import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
-
 import java.io.IOException;
+
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
 
 public class FDHintSampleEntry extends SampleEntry {
 

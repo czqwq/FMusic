@@ -1,5 +1,10 @@
 package com.Lilith.FMusic.server.core.command;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
 import com.Lilith.FMusic.server.core.command.sub.CommandAddList;
@@ -34,11 +39,6 @@ import com.Lilith.FMusic.server.core.objs.message.ARG;
 import com.Lilith.FMusic.server.core.objs.music.PlayerAddMusicObj;
 import com.Lilith.FMusic.server.core.saves.BanSave;
 import com.Lilith.FMusic.server.core.saves.SaveTask;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class CommandEX {
 

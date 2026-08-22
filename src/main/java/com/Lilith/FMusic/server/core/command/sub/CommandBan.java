@@ -1,15 +1,15 @@
 package com.Lilith.FMusic.server.core.command.sub;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
 import com.Lilith.FMusic.server.core.command.ACommand;
 import com.Lilith.FMusic.server.core.music.PlayMusic;
 import com.Lilith.FMusic.server.core.objs.music.SongInfoObj;
 import com.Lilith.FMusic.server.core.saves.BanSave;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 public class CommandBan extends ACommand {
 
@@ -40,8 +40,7 @@ public class CommandBan extends ACommand {
 
         if (api.checkId(musicID)) {
             BanSave.addBanMusic(musicID, api.getId());
-            FMusic.side
-                .sendMessage(sender, "<gold>[FMusic]<white>音乐API " + api.getId() + " 已禁止点歌" + musicID);
+            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>音乐API " + api.getId() + " 已禁止点歌" + musicID);
         } else {
             FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>请输入有效的ID");
         }

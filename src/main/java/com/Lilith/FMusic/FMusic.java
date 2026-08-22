@@ -15,8 +15,8 @@ import cpw.mods.fml.common.event.FMLServerStoppingEvent;
 
 @Mod(modid = FMusic.MODID, version = Tags.VERSION, name = "FMusic", acceptedMinecraftVersions = "[1.7.10]")
 public class FMusic {
-    //Code base on Allmusic
-    //Tech support version for gtnh
+    // Code base on Allmusic
+    // Tech support version for gtnh
 
     public static final String MODID = "FMusic";
     public static final Logger LOG = LogManager.getLogger(MODID);

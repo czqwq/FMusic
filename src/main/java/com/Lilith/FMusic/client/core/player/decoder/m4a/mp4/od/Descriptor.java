@@ -1,13 +1,13 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.od;
 
-import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
 
 /**
  * The abstract base class and factory for all descriptors (defined in ISO

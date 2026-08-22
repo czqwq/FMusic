@@ -17,12 +17,12 @@
 
 package com.Lilith.FMusic.client.core.player.decoder.flac;
 
+import java.io.IOException;
+
 import com.Lilith.FMusic.client.core.FMusicCore;
 import com.Lilith.FMusic.client.core.FMusicPlayer;
 import com.Lilith.FMusic.client.core.player.decoder.BuffPack;
 import com.Lilith.FMusic.client.core.player.decoder.IDecoder;
-
-import java.io.IOException;
 
 /**
  * Handles high-level decoding and seeking in FLAC files. Also returns metadata blocks.
