@@ -3,8 +3,8 @@
 Minecraft 1.7.10 (Forge) 音乐模组
 
 在单模组内同时集成原 AllMusic 的 **客户端**（HUD 显示、OpenAL 流式播放、mp3/flac/ogg/m4a 解码）与
-**服务端**（点歌/歌单/切歌投票/插歌/歌词/KTV/空闲歌单/音乐 API 插件系统），并统一重打包到
-`com.Lilith.FMusic` 包路径与 `FMusic` 命名空间。
+**服务端**（点歌/歌单/切歌投票/插歌/歌词/KTV/空闲歌单/音乐 API 插件系统）
+常维护在1.7.10,如果有问题请发issues
 
 ## 功能
 
