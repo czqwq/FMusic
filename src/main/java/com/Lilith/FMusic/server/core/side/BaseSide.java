@@ -9,6 +9,7 @@ import net.kyori.adventure.text.Component;
 import com.Lilith.FMusic.codec.CommandType;
 import com.Lilith.FMusic.codec.HudPosObj;
 import com.Lilith.FMusic.codec.MusicPack;
+import com.Lilith.FMusic.server.FMusicServer;
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.music.PlayMusic;
 import com.Lilith.FMusic.server.core.objs.music.PlayerAddMusicObj;
@@ -214,6 +215,7 @@ public abstract class BaseSide {
      * @param url    地址
      */
     public final void sendMusic(String player, String url) {
+        FMusicServer.LOGGER.debug("[FMusic] [sendMusic] 定向发送 PLAY -> " + player + ": " + url);
         PlayMusic.addNowPlayPlayer(player);
         Object player1 = getPlayer(player);
         if (player1 == null) return;
@@ -411,6 +413,7 @@ public abstract class BaseSide {
      * @param url 歌曲Url
      */
     public final void sendMusic(String url) {
+        FMusicServer.LOGGER.debug("[FMusic] [sendMusic] 广播发送 PLAY: " + url);
         for (Object player : getPlayers()) {
             String name = getPlayerName(player);
             if (name == null) continue;

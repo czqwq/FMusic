@@ -193,7 +193,9 @@ public class ConfigObj {
         ktvLyricDelay = 0;
         lyricDelay = 0;
         sendDelay = 1000;
-        joinDelay = 1000;
+        // 单位: tick (Tasks 每 tick 递减), 1000 tick = 50 秒; 默认 40 tick = 2 秒,
+        // 登录后尽快同步播放状态, 避免点歌后才执行同步任务导致重播
+        joinDelay = 40;
         lyricReplace = new HashMap<>();
         version = FMusic.configVersion;
     }

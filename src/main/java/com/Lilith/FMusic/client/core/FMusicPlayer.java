@@ -16,6 +16,8 @@ import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.io.CloseMode;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.openal.AL10;
 
@@ -29,6 +31,8 @@ import com.Lilith.FMusic.client.core.player.decoder.ogg.OggDecoder;
 import com.Lilith.FMusic.server.core.FMusic;
 
 public class FMusicPlayer extends InputStream {
+
+    private static final Logger LOGGER = LogManager.getLogger("FMusic Player");
 
     private final Stack<PlayTaskObj> tasks = new Stack<>();
     private final Semaphore semaphore = new Semaphore(0);
@@ -46,6 +50,8 @@ public class FMusicPlayer extends InputStream {
     private final IntBuffer source;
     private long local;
     private long contentLength = -1;
+    /** 文件总长度 (首次连接记录, 用于断流判断; contentLength 是本次响应的剩余长度, 坐标系不同) */
+    private long totalLength = -1;
     private int reconnectCount = 0;
     private int decodeErrorCount = 0;
     private boolean isRun;
@@ -55,6 +61,10 @@ public class FMusicPlayer extends InputStream {
      * 游戏暂停(单人按Esc, pause_at_freeze=true)时音乐是否被冻结
      */
     private boolean frozen;
+    /**
+     * POS 先于 PLAY 到达时缓存的跳转时间 (ms), 任务开始时应用
+     */
+    private int pendingTime = 0;
 
     public FMusicPlayer(IntBuffer source) {
         this.source = source;
@@ -85,8 +95,12 @@ public class FMusicPlayer extends InputStream {
 
     public void setTime(int time) {
         if (nowTask == null) {
+            // 播放任务尚未开始 (PLAY/POS 同批到达时 POS 先于任务弹出), 缓存待任务开始时应用
+            FMusicLog.debug(LOGGER, "[FMusic] 跳转请求: " + time + "ms (播放未开始, 缓存)");
+            pendingTime = time;
             return;
         }
+        FMusicLog.debug(LOGGER, "[FMusic] 跳转请求: " + time + "ms (当前 " + nowTask.time + "ms)");
         isClose = true;
         nowTask.time = time;
         tasks.clear();
@@ -109,7 +123,24 @@ public class FMusicPlayer extends InputStream {
         }
         contentLength = entity.getContentLength();
         reconnectCount = 0;
+        if (local == 0) {
+            totalLength = contentLength;
+        }
+        if (local > 0 && statusCode == 200) {
+            // 服务器忽略 Range 返回全量: 继续读会从头播放 (卡开头音), 拒绝并交由上层处理
+            throw new IOException("server ignored Range request (200), local=" + local);
+        }
         content = new BufferedInputStream(entity.getContent());
+        FMusicLog.debug(
+            LOGGER,
+            "[FMusic] 连接: Range bytes=" + local
+                + "- -> "
+                + statusCode
+                + " (contentLength="
+                + contentLength
+                + ", total="
+                + totalLength
+                + ")");
     }
 
     private void resetSource() {
@@ -197,11 +228,18 @@ public class FMusicPlayer extends InputStream {
                     continue;
                 }
                 tasks.clear();
+                if (pendingTime > 0) {
+                    // 应用 PLAY 前到达的 POS 缓存, 避免从头播放
+                    nowTask.time = pendingTime;
+                    FMusicLog.debug(LOGGER, "[FMusic] 应用缓存跳转: " + pendingTime + "ms");
+                    pendingTime = 0;
+                }
+                FMusicLog.debug(LOGGER, "[FMusic] 播放任务开始: " + nowTask.url + " time=" + nowTask.time + "ms");
                 try {
                     local = 0;
                     connect();
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    FMusicLog.warn(LOGGER, "[FMusic] 获取音乐失败: " + nowTask.url);
                     FMusicCore.bridge.sendMessage("获取音乐失败");
                     continue;
                 }
@@ -213,13 +251,17 @@ public class FMusicPlayer extends InputStream {
 
                 if (head[0] == 0 && head[1] == 0 && head[2] == 0 && head[3] == 0x1c) {
                     decoder = new M4ADecoder(this);
+                    FMusicLog.debug(LOGGER, "[FMusic] 格式: M4A (AAC)");
                 } else if (head[0] == 'I' && head[1] == 'D' && head[2] == '3') {
                     decoder = new Mp3Decoder(this);
+                    FMusicLog.debug(LOGGER, "[FMusic] 格式: MP3 (ID3)");
                 } else if (head[0] == (byte) 0xFF && (head[1] & 0xE0) == 0xE0) {
                     // MPEG 音频同步字 (0xFFEx/0xFFFx), 不限 128kbps
                     decoder = new Mp3Decoder(this);
+                    FMusicLog.debug(LOGGER, "[FMusic] 格式: MP3 (同步字 0x" + Integer.toHexString(head[1] & 0xFF) + ")");
                 } else {
                     decoder = new OggDecoder(this);
+                    FMusicLog.debug(LOGGER, "[FMusic] 格式: OGG");
                 }
 
                 if (!decoder.set()) {
@@ -234,6 +276,7 @@ public class FMusicPlayer extends InputStream {
                 int channels = decoder.getOutputChannels();
                 if (channels != 1 && channels != 2) continue;
                 if (nowTask.time != 0) {
+                    FMusicLog.debug(LOGGER, "[FMusic] 执行 seek: " + nowTask.time + "ms");
                     decoder.set(nowTask.time);
                 }
 
@@ -248,6 +291,7 @@ public class FMusicPlayer extends InputStream {
                         break;
                     }
                     if (!AL10.alIsSource(index)) {
+                        FMusicLog.warn(LOGGER, "[FMusic] 音频源失效, 触发 reload");
                         setReload();
                         break;
                     }
@@ -297,13 +341,15 @@ public class FMusicPlayer extends InputStream {
                         if (eof && !frozen && AL10.alGetSourcei(index, AL10.AL_SOURCE_STATE) == AL10.AL_STOPPED) {
                             // 解码完毕且缓冲队列真正播完(AL_STOPPED), 自然结束;
                             // 注意不能用 != AL_PLAYING: 暂停(PAUSED)状态下不能视为结束
+                            FMusicLog.debug(LOGGER, "[FMusic] 播放自然结束 time=" + nowTask.time + "ms");
                             break;
                         }
                     } catch (Exception e) {
                         if (!isClose) {
                             decodeErrorCount++;
+                            FMusicLog.warn(LOGGER, "[FMusic] 解码错误 #" + decodeErrorCount + ": " + e.toString());
                             if (decodeErrorCount >= 3) {
-                                e.printStackTrace();
+                                FMusicLog.error(LOGGER, "[FMusic] 解码连续失败, 停止播放", e);
                                 break;
                             }
                             // 单帧解码失败, 尝试继续下一帧
@@ -330,6 +376,7 @@ public class FMusicPlayer extends InputStream {
                 }
 
                 if (reload) {
+                    FMusicLog.warn(LOGGER, "[FMusic] reload 重放: time=" + nowTask.time + "ms, local=" + local);
                     wait = true;
                     if (semaphoreReload.tryAcquire(1, TimeUnit.SECONDS)) {
                         if (reload) {
@@ -345,11 +392,13 @@ public class FMusicPlayer extends InputStream {
                 isPlay = false;
                 frozen = false;
                 decodeErrorCount = 0;
+                FMusicLog.debug(LOGGER, "[FMusic] 任务结束: reload=" + reload + ", isClose=" + isClose + ", eof后队列已停");
 
                 if (!isRun) {
                     return;
                 }
             } catch (Exception e) {
+                FMusicLog.error(LOGGER, "[FMusic] 任务异常, 回到等待: " + e.toString(), e);
                 e.printStackTrace();
             }
         }
@@ -388,6 +437,7 @@ public class FMusicPlayer extends InputStream {
         isClose = true;
         nowTask = null;
         tasks.clear();
+        pendingTime = 0;
     }
 
     public void setMusic(String url) {
@@ -473,8 +523,8 @@ public class FMusicPlayer extends InputStream {
                 return 0;
             }
             // temp == -1: 流被服务器提前关闭?
-            // 若声明了 Content-Length 且未读满, 视为连接被截断, 断点续传重连
-            if (contentLength > 0 && local < contentLength && reconnectCount < 5) {
+            // 若已知文件总长且未读满, 视为连接被截断, 断点续传重连
+            if (totalLength > 0 && local < totalLength && reconnectCount < 5) {
                 reconnectCount++;
                 connect();
                 return read(buf, off, len);
