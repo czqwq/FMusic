@@ -45,6 +45,9 @@ gradlew.bat build
 
 >
 > `FMusic.cfg` (config/ 下) 可配置pause_at_freeze(是否在单人游戏未开启局域网联机的情况下进入Esc菜单时暂停音乐,默认false)
+### 模组依赖
+- [UniMixin](https://github.com/LegacyModdingMC/UniMixins/releases)(尽量下最新版吧?)
+- [GTNHLib](https://github.com/GTNewHorizons/GTNHLib/releases)任意版本(别是1.0.0版本之类的就行)
 
 ## 开发
 

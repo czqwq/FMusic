@@ -3,7 +3,7 @@
 	"modList": [{
 		"modid": "${modId}",
 		"name": "${modName}",
-		"description": "An Music Player in 1.7.10 for GTNH",
+		"description": "A Music Player in 1.7.10 for GTNH",
 		"version": "${modVersion}",
 		"mcversion": "${minecraftVersion}",
 		"url": "https://github.com/czqwq/FMusic",
