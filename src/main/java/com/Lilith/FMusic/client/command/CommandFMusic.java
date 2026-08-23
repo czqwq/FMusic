@@ -9,11 +9,13 @@ import net.minecraft.command.ICommandSender;
 import net.minecraft.util.ChatComponentText;
 
 import com.Lilith.FMusic.Config;
+import com.Lilith.FMusic.client.gui.DelayedGuiDisplayTicker;
+import com.Lilith.FMusic.client.gui.FMusicHudConfigGui;
 
 /**
- * 客户端指令: /fmusic pause_at_freeze &lt;true/false&gt;
- * 仅在单人游戏(未开放局域网)中可执行。
- * 控制按 Esc 暂停游戏时, 音乐是否随之暂停。
+ * 客户端指令:
+ * - /fmusic pause_at_freeze &lt;true/false&gt; 单人游戏(未开放局域网)中, 按 Esc 暂停时音乐是否随之暂停
+ * - /fmusic hudconfig 打开 HUD 可视化配置界面 (拖拽调整各模块位置)
  */
 public class CommandFMusic extends CommandBase {
 
@@ -24,12 +26,12 @@ public class CommandFMusic extends CommandBase {
 
     @Override
     public String getCommandUsage(ICommandSender sender) {
-        return "/fmusic pause_at_freeze <true/false>";
+        return "/fmusic pause_at_freeze <true/false> | /fmusic hudconfig";
     }
 
     @Override
     public boolean canCommandSenderUseCommand(ICommandSender sender) {
-        // 客户端指令, 无需 op 权限; 单人游戏限制在 processPauseAtFreeze 内检查
+        // 客户端指令, 无需 op 权限; 单人游戏限制在业务逻辑内检查
         return true;
     }
 
@@ -37,8 +39,12 @@ public class CommandFMusic extends CommandBase {
     public void processCommand(ICommandSender sender, String[] args) {
         if (args.length >= 1 && args[0].equalsIgnoreCase("pause_at_freeze")) {
             processPauseAtFreeze(sender, args);
+        } else if (args.length >= 1 && args[0].equalsIgnoreCase("hudconfig")) {
+            // 打开 HUD 可视化配置界面 (延迟 1 tick, 照 PowerGoggles 模式)
+            DelayedGuiDisplayTicker.create(new FMusicHudConfigGui(), 1);
         } else {
-            sender.addChatMessage(new ChatComponentText("§e[FMusic]§f用法: /fmusic pause_at_freeze <true/false>"));
+            sender.addChatMessage(
+                new ChatComponentText("§e[FMusic]§f用法: /fmusic pause_at_freeze <true/false> | /fmusic hudconfig"));
         }
     }
 
@@ -58,7 +64,7 @@ public class CommandFMusic extends CommandBase {
         Config.pauseAtFreeze = value;
         Config.save();
         sender.addChatMessage(
-            new ChatComponentText("§e[FMusic]§a已设置 pause_at_freeze = " + value + " (重启或使用 /music reload 重载)"));
+            new ChatComponentText("§e[FMusic]§a已设置 pause_at_freeze = " + value + " (重启或 /music reload 后保持)"));
     }
 
     private boolean canUse() {
@@ -76,8 +82,13 @@ public class CommandFMusic extends CommandBase {
     @Override
     public List<String> addTabCompletionOptions(ICommandSender sender, String[] args) {
         List<String> list = new ArrayList<>();
-        if (args.length == 1 && "pause_at_freeze".startsWith(args[0].toLowerCase())) {
-            list.add("pause_at_freeze");
+        if (args.length == 1) {
+            if ("pause_at_freeze".startsWith(args[0].toLowerCase())) {
+                list.add("pause_at_freeze");
+            }
+            if ("hudconfig".startsWith(args[0].toLowerCase())) {
+                list.add("hudconfig");
+            }
         } else if (args.length == 2 && args[0].equalsIgnoreCase("pause_at_freeze")) {
             for (String s : new String[] { "true", "false" }) {
                 if (s.startsWith(args[1].toLowerCase())) {

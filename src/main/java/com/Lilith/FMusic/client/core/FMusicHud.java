@@ -438,6 +438,13 @@ public class FMusicHud {
     }
 
     /**
+     * 获取当前 HUD 位置信息 (可视化配置界面使用)
+     */
+    public HudPosObj getHudPos() {
+        return save;
+    }
+
+    /**
      * 设置位置信息
      *
      * @param save 位置信息

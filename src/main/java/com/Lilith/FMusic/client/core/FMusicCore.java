@@ -24,6 +24,7 @@ import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 
+import com.Lilith.FMusic.Config;
 import com.Lilith.FMusic.client.core.objs.ConfigObj;
 import com.Lilith.FMusic.codec.CommandType;
 import com.Lilith.FMusic.codec.HudPosObj;
@@ -178,6 +179,13 @@ public class FMusicCore {
     }
 
     /**
+     * 获取当前 HUD (可视化配置界面使用)
+     */
+    public static FMusicHud getHud() {
+        return hud;
+    }
+
+    /**
      * 退出服务器时
      */
     public static void onServerQuit() {
@@ -266,7 +274,10 @@ public class FMusicCore {
                 break;
             case HUD_DATA:
                 MusicPack.StringMusicPack pack8 = (MusicPack.StringMusicPack) pack;
-                boolean fail = hud.setPos(gson.fromJson(pack8.data, HudPosObj.class));
+                HudPosObj hudObj = gson.fromJson(pack8.data, HudPosObj.class);
+                // 本地可视化配置的 HUD 位置优先于服务端下发
+                Config.loadHudPos(hudObj);
+                boolean fail = hud.setPos(hudObj);
                 if (!fail) {
                     bridge.kick();
                 }

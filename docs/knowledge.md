@@ -308,15 +308,46 @@ dependencies {
 - **唱片旋转动画**: picRotateTick **独立**检测 Minecraft.isGamePaused() (不依赖 pause_at_freeze,
   视觉动画总是跟随画面暂停), 游戏暂停即停转, 恢复后继续
 
-## 15. 聊天消息序列化 (按钮修复)
+## 15. FMusic.cfg 历史记录 (模板 Forge 配置)
 
-- 模板遗留的 Config.java 不注册任何配置项 (AllMusic 的配置都在 fmusic_server/ 与 fmusic_client.json)
+- 早期版本: Config.java 不注册配置项, 文件为空时写入固定提示内容; 现已被正式 Forge Configuration 取代
+  (pause_at_freeze + hud_* 位置, 见第 14/16 节)
 - 文件为空/不存在时写入固定提示内容:
   - server config is on ../fmusic_server
   - client config is on ./fmusic_client.json
 - 双端 preInit 都会调用 Config.synchronizeConfiguration (run/server 与 run/client 各一份)
 
-## 16. 注意事项 / 待办
+## 16. HUD 可视化配置界面 (照 PowerGoggles 复现)
+
+- **指令**: /fmusic hudconfig (客户端指令) → DelayedGuiDisplayTicker 延迟 1 tick 打开 GUI
+- **FMusicHudConfigGui** (com.Lilith.FMusic.client.gui):
+  - doesGuiPauseGame=false; GUI 打开时 RenderGameOverlayEvent 不触发 (runTick 的
+    currentScreen==null 分支), 故 drawScreen 里手动 FMusicCore.hudUpdate() 实时渲染 HUD
+  - 每个 enable 的模块 (info/lyric/state/pic) 绘制一个红色拖拽手柄+白十字 (照
+    PowerGogglesGuiHudConfig 的 10x10 手柄), 锚点 = FMusicHud.getPos(0,0,x,y,dir)
+  - mouseClickMove: 鼠标坐标按 HudPosType 反推新 x/y (inversePos) → hud.setPos 实时生效
+  - mouseMovedOrUp: Config.saveHudPos → 写入 config/FMusic.cfg (hud category)
+- **保存**: Forge Configuration hud category 8 个键 (hud_info_x/y, hud_lyric_x/y,
+  hud_state_x/y, hud_pic_x/y, 默认 -1); hasHudPos() 判定是否保存过
+- **本地优先**: FMusicCore.packDo 收到服务端 HUD_DATA 时 Config.loadHudPos(obj) 用本地位置
+  覆盖 x/y (删除 config 中 hud_* 键可恢复服务端配置)
+- **FMusicCore.getHud() / FMusicHud.getHudPos()** 为配置界面暴露访问
+
+## 17. 开发踩坑记录
+
+### replace 静默失败 (hudconfig 分支丢失)
+
+- **教训**: 用 edit/replace 修改文件后必须验证 before/after 差异, 不要盲报成功
+- **案例**: 给 CommandFMusic 加 hudconfig 分支时, 匹配串写了 JS 转义 `\u00a7` 而文件里是
+  实际 `§` 字符 → replace 无匹配静默跳过 → 指令永远走 else 分支显示用法提示
+- **规避**: 涉及转义/Unicode 的修改优先用全量 write 重写; replace 后立即 grep 验证目标内容存在
+
+### 构建 SSL 证书问题
+
+- 现象: 偶发 `SSLHandshakeException: certificate_unknown` (gradle 换 JVM 后信任库不同)
+- 规避: 依赖已缓存时用 `gradlew --offline` 构建绕过网络验证
+
+## 18. 注意事项 / 待办
 
 - 信道/配置/资源域名已全面改为 fmusic 命名 → **与原版 AllMusic 客户端/服务端不互通** (如需互通: 改回 fmusic:channel → allmusic:channel, fmusic_server/ → allmusic_server/)
 - mixins.allmusic_client.json 原配置未复制 (两个声音 mixin 已并入 mixins.FMusic.json, 重复配置会导致重复应用)
