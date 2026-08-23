@@ -45,6 +45,7 @@ import paulscode.sound.libraries.ChannelLWJGLOpenAL;
 public class FMusic implements FMusicBridge {
 
     public static final Logger LOGGER = LogManager.getLogger("FMusic Client");
+
     public static SoundSystem sound;
 
     public static void runMain(Runnable runnable) {

@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 
+import com.Lilith.FMusic.server.FMusicServer;
 import com.Lilith.FMusic.server.core.music.MusicHttpClient;
 import com.Lilith.FMusic.server.core.music.MusicSearch;
 import com.Lilith.FMusic.server.core.music.PlayMusic;
@@ -392,12 +393,27 @@ public class FMusic {
             }
 
             FMusic.side.runTask(() -> {
+                // 该玩家已在收听当前播放 (如单人游戏登录时排队的同步任务在点歌后才执行,
+                // 或重复触发登录事件) → 跳过, 避免重复发送 PLAY 导致音乐从头重播
+                if (PlayMusic.containNowPlay(player1)) {
+                    FMusicServer.LOGGER.debug("[FMusic] [joinPlayNow] " + player1 + " 已在收听, 跳过同步");
+                    return;
+                }
                 SongInfoObj music = PlayMusic.nowPlayMusic;
+                FMusicServer.LOGGER.debug(
+                    "[FMusic] [joinPlayNow] " + player1
+                        + " music="
+                        + (music == null ? "null" : music.getName())
+                        + " url="
+                        + (PlayMusic.url == null ? "null" : PlayMusic.url));
                 if (music != null && PlayMusic.url != null) {
                     FMusic.side.sendHudPos(player1);
                     FMusic.side.sendMusic(player1, PlayMusic.url);
                     FMusic.side.sendPic(player1, music.getPicUrl());
-                    FMusic.side.runTask(() -> FMusic.side.sendPos(player1, (int) PlayMusic.musicNowTime), 20);
+                    // 立即发送跳转位置(与 PLAY 同 tick, 同 channel 包按序到达),
+                    // 客户端会在首帧播放前收到 POS 并 seek, 避免先从头播放闪开头音。
+                    // (原实现延迟 20 tick, 客户端会有约 1 秒的开头播放窗口)
+                    FMusic.side.sendPos(player1, (int) PlayMusic.musicNowTime);
                 }
             });
         });

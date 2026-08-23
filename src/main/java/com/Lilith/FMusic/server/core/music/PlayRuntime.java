@@ -5,6 +5,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import com.Lilith.FMusic.server.FMusicServer;
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
 import com.Lilith.FMusic.server.core.objs.message.ARG;
@@ -239,6 +240,7 @@ public class PlayRuntime {
                         PlayMusic.musicAllTime = PlayMusic.musicLessTime = PlayMusic.nowPlayMusic.getLength()
                             + FMusic.getConfig().fixSongTime;
                         isPlay = true;
+                        FMusicServer.LOGGER.debug("[FMusic] [musicPlayTask] 播放线程发送 PLAY: " + PlayMusic.url);
                         FMusic.side.sendMusic(PlayMusic.url);
                         if (!FMusic.getConfig().mutePlayMessage) {
                             SongInfoObj music = PlayMusic.nowPlayMusic;

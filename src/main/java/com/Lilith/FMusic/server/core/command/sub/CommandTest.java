@@ -1,5 +1,6 @@
 package com.Lilith.FMusic.server.core.command.sub;
 
+import com.Lilith.FMusic.server.FMusicServer;
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
 import com.Lilith.FMusic.server.core.command.ACommand;
@@ -36,6 +37,7 @@ public class CommandTest extends ACommand {
         // 直接播放音频链接 (http/https)
         if (musicID.startsWith("http://") || musicID.startsWith("https://")) {
             FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>正在测试播放 " + musicID);
+            FMusicServer.LOGGER.debug("[FMusic] [CommandTest] " + name + " 测试播放链接: " + musicID);
             FMusic.side.sendMusic(name, musicID);
             return;
         }

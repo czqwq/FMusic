@@ -12,6 +12,9 @@ import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.logging.log4j.LogManager;
+
+import com.Lilith.FMusic.client.core.FMusicLog;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.MP4InputStream;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.Box;
 import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.boxes.BoxTypes;
@@ -38,6 +41,8 @@ import com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.od.Descriptor;
  */
 // TODO: expand javadoc; use generics for subclasses?
 public abstract class Track {
+
+    private static final org.apache.logging.log4j.Logger LOGGER = LogManager.getLogger("FMusic MP4");
 
     protected final TrackHeaderBox tkhd;
     private final MP4InputStream in;
@@ -383,16 +388,35 @@ public abstract class Track {
      * @return the frame's timestamp that the method seeked to
      */
     public double seek(double timestamp) {
-        // find first frame > timestamp
+        // find first frame > timestamp (修复: 原实现 frames.get(i++) 双重自增,
+        // 只检查一半帧且未命中时 currentFrame 不更新, 导致跳转后从头播放闪开头音)
         Frame frame = null;
         for (int i = 0; i < frames.size(); i++) {
-            frame = frames.get(i++);
+            frame = frames.get(i);
             if (frame.getTime() > timestamp) {
                 currentFrame = i;
-                break;
+                FMusicLog.debug(
+                    LOGGER,
+                    "[FMusic] M4A seek: target=" + timestamp
+                        + "s -> frame "
+                        + i
+                        + " (frameTime="
+                        + frame.getTime()
+                        + "s, total="
+                        + frames.size()
+                        + ")");
+                return frame.getTime();
             }
         }
-        return (frame == null) ? -1 : frame.getTime();
+        if (frames.isEmpty()) {
+            currentFrame = 0;
+            FMusicLog.warn(LOGGER, "[FMusic] M4A seek: 帧表为空, target=" + timestamp + "s, 从头开始");
+            return -1;
+        }
+        // 目标时间超过所有帧: 跳到末尾 (避免 currentFrame 保持 0 导致从头播放)
+        currentFrame = frames.size();
+        FMusicLog.warn(LOGGER, "[FMusic] M4A seek: target=" + timestamp + "s 超过末帧, 跳到末尾 (total=" + frames.size() + ")");
+        return -1;
     }
 
     /**

@@ -18,6 +18,8 @@
 
 package com.Lilith.FMusic.client.core.player.decoder.mp3;
 
+import com.Lilith.FMusic.client.FMusic;
+import com.Lilith.FMusic.client.core.FMusicLog;
 import com.Lilith.FMusic.client.core.FMusicPlayer;
 import com.Lilith.FMusic.client.core.player.decoder.BuffPack;
 import com.Lilith.FMusic.client.core.player.decoder.IDecoder;
@@ -158,9 +160,26 @@ public class Mp3Decoder implements DecoderErrors, IDecoder {
     @Override
     public void set(int time) {
         try {
-            long data = ((time / 26) * (long) bitstream.getframesize()) + bitstream.local;
+            FMusicLog.debug(FMusic.LOGGER, "[FMusic] MP3 seek: " + time + "ms");
+            int frameSize = bitstream.getframesize();
+            if (frameSize <= 0) {
+                // 解码器刚构造 (closeFrame 后 framesize=-1) 时不能直接算偏移,
+                // 否则 time/26 * -1 得到负数, seek 会从头/错误位置播放 (闪开头音)
+                FMusicLog.warn(FMusic.LOGGER, "[FMusic] MP3 帧头未就绪 framesize=" + frameSize + ", 重读帧头");
+                Header h = bitstream.readFrame();
+                if (h == null) {
+                    FMusicLog.warn(FMusic.LOGGER, "[FMusic] MP3 重读帧头失败, 放弃 seek");
+                    return;
+                }
+                frameSize = h.framesize;
+            }
+            long data = ((time / 26) * (long) frameSize) + bitstream.local;
+            FMusicLog.debug(
+                FMusic.LOGGER,
+                "[FMusic] MP3 seek: framesize=" + frameSize + ", local=" + bitstream.local + " -> data=" + data);
             player.setLocal(data);
         } catch (Exception e) {
+            FMusicLog.warn(FMusic.LOGGER, "[FMusic] MP3 seek 异常: " + e.toString());
             e.printStackTrace();
         }
     }

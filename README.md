@@ -15,6 +15,7 @@ Minecraft 1.7.10 (Forge) 音乐模组
 - **服务端管理**: 空闲歌单、禁歌/禁人、静音、配置热重载、经济系统接口
 - **直接播放**: `/music test <音频URL>` 可测试播放任意直链 (mp3/flac/ogg/m4a)
 - **暂停跟随**: `/fmusic pause_at_freeze true` (单人游戏) 让按 Esc 暂停时音乐同步暂停
+- **诊断日志开关**: `config/FMusic.cfg` 的 `debug` 键 (默认 false), 开启后输出播放/seek/连接等 debug 日志, `/music reload` 刷新
 - **内置音乐 API**: 网易云音乐 (netapi) 默认启用, 无需额外插件; 也支持 api/ 目录加载外部 jar
 - **Forge 事件**: MusicPlayEvent / MusicAddEvent (可取消)
 - **可点击消息按钮**: 聊天中 [点我选择]/[点我查看] 等按钮可点击执行命令 (1.7.10 兼容序列化)
@@ -44,7 +45,9 @@ gradlew.bat build
 - 播放 VIP 歌曲: 浏览器登录 music.163.com 导出 cookie (JSON) 覆盖 `fmusic_server/cookie.json`, 执行 `/music reload`
 
 >
-> `FMusic.cfg` (config/ 下) 可配置pause_at_freeze(是否在单人游戏未开启局域网联机的情况下进入Esc菜单时暂停音乐,默认false)
+> `FMusic.cfg` (config/ 下) 可配置:
+> - `pause_at_freeze` (默认 false): 单人游戏未开局域网时按 Esc 暂停菜单是否同步暂停音乐
+> - `debug` (默认 false): 是否输出调试用诊断日志
 ### 模组依赖
 - [UniMixin](https://github.com/LegacyModdingMC/UniMixins/releases)(尽量下最新版吧?)
 - [GTNHLib](https://github.com/GTNewHorizons/GTNHLib/releases)任意版本(别是1.0.0版本之类的就行)

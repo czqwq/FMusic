@@ -5,6 +5,8 @@
 
 ---
 
+0.README文件不能涉及过多代码介绍,尽可能使用通俗易懂的语言描述
+
 ## 1. 项目概况
 
 | 项目 | 值 |
@@ -296,6 +298,9 @@ dependencies {
 - **行为**: true 时按 Esc 暂停游戏 → FMusicPlayer.frozen → alSourcePause 暂停音乐;
   恢复游戏 → 播放循环自动 alSourcePlay 恢复 (自然结束判断排除 frozen, 避免暂停时误结束)
 - **/music reload**: 服务端 CommandReload 额外调用 Config.reload() 刷新 FMusic.cfg
+- **debug 键** (diagnostic 开关): FMusic.cfg 新增 `debug` (默认 false),
+  控制所有诊断日志 (FMusicLog, 见 §18) 是否输出; Config.synchronizeConfiguration 加载时同步
+  FMusicLog.enabled, /music reload 同样刷新
 - **踩坑1 (配置不保存)**: Config.save() 若复用 synchronizeConfiguration 会重新 load 并用文件旧值覆盖内存,
   且从未把新值写回 Property → 文件不变、内存丢失。save() 必须独立实现: load → get().set(内存值) → save
 - **踩坑2 (恢复无声)**: 自然结束判断曾用 `state != AL_PLAYING`, 会把 PAUSED(暂停中)误判为结束
@@ -311,7 +316,7 @@ dependencies {
 ## 15. FMusic.cfg 历史记录 (模板 Forge 配置)
 
 - 早期版本: Config.java 不注册配置项, 文件为空时写入固定提示内容; 现已被正式 Forge Configuration 取代
-  (pause_at_freeze + hud_* 位置, 见第 14/16 节)
+  (pause_at_freeze + debug + hud_* 位置, 见第 14/16 节)
 - 文件为空/不存在时写入固定提示内容:
   - server config is on ../fmusic_server
   - client config is on ./fmusic_client.json
@@ -347,10 +352,56 @@ dependencies {
 - 现象: 偶发 `SSLHandshakeException: certificate_unknown` (gradle 换 JVM 后信任库不同)
 - 规避: 依赖已缓存时用 `gradlew --offline` 构建绕过网络验证
 
-## 18. 注意事项 / 待办
+## 18. seek 系列 bug 修复 (闪开头音)
+
+**背景**: 网易云播放为 M4A (AAC, encodeType=aac); 断流/跳转触发重新初始化时
+`decoder.set(time)` seek 失效 → 从头解码 → 闪开头音
+
+| 缺陷 | 修复 |
+|---|---|
+| Track.seek `frames.get(i++)` 双重自增: 只检查一半帧, seek 结果错 1-2 帧 | 改为逐帧检查 (frames.get(i)) |
+| Track.seek 未命中 (time 超界) 时 currentFrame 保持 0 → 从头播放 | 未命中时 currentFrame=frames.size() 跳到末尾 (返回 -1) |
+| Mp3Decoder.set: 刚构造后 framesize=-1 → (time/26)*-1 负数 seek → setLocal(负数) → Range 失效 | framesize<=0 时先 readFrame 取真实帧大小 (h.framesize) 再计算 |
+| OGG/FLAC set(time) 空操作 | 保持行为 (已知限制: 跳转会从头播放) |
+| 断流重连时服务器忽略 Range 返回 200 → 从头播放 | connect() 校验 local>0 && statusCode==200 抛异常, 交由上层 (不会播开头) |
+| read -1 判断用 contentLength (剩余长度, 与 local 不同坐标系) | 新增 totalLength (文件总长) 字段, -1 时用 local < totalLength 判断断流 |
+| joinPlayNow: PLAY(从头) 与 POS(跳转) 间隔 20 tick, 客户端有 1 秒开头播放窗口 | sendPos 与 sendMusic 同 tick 顺序发送, 客户端首帧播放前收到 POS 并 seek |
+
+**Debug 日志**: 曾加入 FMusicPlayer/Track/Mp3Decoder 的 seek/重连/错误日志, 后按需求移除;
+随后按需求重新加回 (重点覆盖网易云 M4A 点歌链路), 并修正 Track 的 Logger 引用与
+java.util.logging.Logger 的 single-type-import 冲突 (改用全限定类型 org.apache.logging.log4j.Logger)
+- **Debug 开关**: 所有诊断日志经 FMusicLog (客户端 client/core/FMusicLog.java) 输出,
+  debug 级别, 受 config/FMusic.cfg 的 debug 键控制 (默认 false); 开启后生效,
+  /music reload 会刷新。各模块保留各自的 Logger: FMusic Player (FMusicPlayer),
+  FMusic Core (FMusicCore), FMusic MP4 (Track), FMusic Client (客户端主类, MP3/OGG/FLAC 解码器复用)。
+  服务端诊断日志 (sendMusic/joinPlayNow/musicPlayTask/CommandTest 来源标记) 用
+  FMusicServer.LOGGER.debug, 不依赖客户端开关 (log4j 默认 info 级别不输出)
+
+### 播放中"莫名从头重播" (joinDelay 单位 bug)
+
+- **现象**: 单人 dev 环境点歌播放, 一段时间后同一首歌从头重播 (日志出现第二次
+  "收到服务端 PLAY", 无广播, 无 POS 生效)
+- **根因**: SideForge.runTask(run, delay) 的 delay 是 **tick** 语义 (Tasks 每 ServerTick 递减),
+  而 joinDelay 默认/配置值 1000 被当作毫秒 → 实际 **1000 tick = 50 秒**。
+  登录时 PlayerLoggedInEvent → joinPlay 排队的 joinPlayNow 在 50 秒后才执行,
+  若玩家在这期间点歌, 执行时 nowPlayMusic 非空 → 重发 PLAY; 且 PLAY+POS 同批到达时
+  客户端 nowTask 尚未弹出, POS 被 setTime 直接丢弃 → 从头播放
+- **修复** (三层):
+  1. 服务端 joinPlayNow: PlayMusic.containNowPlay(player1) 为 true (已在收听) 时跳过同步
+     (新玩家/掉线重连不在集合, 不受影响)
+  2. 客户端 FMusicPlayer: 新增 pendingTime, POS 在 nowTask==null 时缓存,
+     任务弹出时应用 (任何 PLAY+POS 竞态都能正确跳转); closePlayer 时清空
+  3. joinDelay 默认 1000 → 40 (tick, = 2 秒), 并同步修改用户已保存的
+     run/client/fmusic_server/config.json 与 run/server/fmusic_server/config.json
+- **诊断日志保留**: 服务端 sendMusic 两个重载打 [sendMusic] 定向/广播来源日志,
+  joinPlayNow 打 [joinPlayNow] 触发日志, 便于日后定位重复发送来源
+
+## 19. 已知未解问题
+TBD
+
+## 20. 注意事项 / 待办
 
 - 信道/配置/资源域名已全面改为 fmusic 命名 → **与原版 AllMusic 客户端/服务端不互通** (如需互通: 改回 fmusic:channel → allmusic:channel, fmusic_server/ → allmusic_server/)
 - mixins.allmusic_client.json 原配置未复制 (两个声音 mixin 已并入 mixins.FMusic.json, 重复配置会导致重复应用)
 - 运行时配置文件名 fmusic_client.json (客户端核心) / 目录 fmusic_server/ (服务端核心)
-- 模板自带的 Config.java (Forge Configuration) 未使用, 可清理
 - mcmod.info 描述仍是模板示例文案, 可更新
