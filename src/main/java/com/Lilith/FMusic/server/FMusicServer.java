@@ -36,7 +36,14 @@ public class FMusicServer {
         // (click_event/command), MC 1.7.10 只识别旧格式 (clickEvent/value),
         // 因此使用自写的 1.7.10 兼容序列化器
         String json = ChatComponentSerializer.serialize(input);
-        return IChatComponent.Serializer.func_150699_a(json);
+        try {
+            return IChatComponent.Serializer.func_150699_a(json);
+        } catch (Exception e) {
+            // 兜底: 服务器 tick 内解析失败会直接崩服 (如空组件序列化出 {}),
+            // 回退为纯文本聊天消息
+            LOGGER.warn("[FMusic] 聊天JSON解析失败, 回退纯文本: " + json, e);
+            return new net.minecraft.util.ChatComponentText(input.toString());
+        }
     }
 
     public void commonSetup(final FMLPreInitializationEvent event) {
@@ -61,6 +68,7 @@ public class FMusicServer {
 
         ServerCommandManager commandManager = (ServerCommandManager) server.getCommandManager();
         commandManager.registerCommand(new CommandForge());
+        commandManager.registerCommand(new com.Lilith.FMusic.server.bili.command.BiliCommand());
     }
 
     public void onServerStopping(FMLServerStoppingEvent event) {

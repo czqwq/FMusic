@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 
-import com.Lilith.FMusic.server.FMusicServer;
 import com.Lilith.FMusic.server.core.music.MusicHttpClient;
 import com.Lilith.FMusic.server.core.music.MusicSearch;
 import com.Lilith.FMusic.server.core.music.PlayMusic;
@@ -285,6 +284,24 @@ public class FMusic {
             e.printStackTrace();
         }
 
+        // 注册内置音乐API: qqmusic (QQ音乐) / kugou (酷狗音乐)
+        try {
+            IMusicApi api = new com.Lilith.FMusic.server.api.qqmusic.QQMusicApiMain();
+            MUSIC_APIS.put(api.getId(), api);
+            FMusic.log.data("<gold>[FMusic]<yellow>注册内置音乐API：" + api.getId());
+        } catch (Exception e) {
+            FMusic.log.data("<gold>[FMusic]<red>内置音乐API(QQMusic)注册失败");
+            e.printStackTrace();
+        }
+        try {
+            IMusicApi api = new com.Lilith.FMusic.server.api.kugou.KugouApiMain();
+            MUSIC_APIS.put(api.getId(), api);
+            FMusic.log.data("<gold>[FMusic]<yellow>注册内置音乐API：" + api.getId());
+        } catch (Exception e) {
+            FMusic.log.data("<gold>[FMusic]<red>内置音乐API(Kugou)注册失败");
+            e.printStackTrace();
+        }
+
         List<IMusicApi> list = MusicApiLoader.loadFromDirectory(apis);
         for (IMusicApi item : list) {
             FMusic.log.data("<gold>[FMusic]<yellow>注册音乐API：" + item.getId());
@@ -293,6 +310,14 @@ public class FMusic {
 
         if (MUSIC_APIS.isEmpty()) {
             FMusic.log.data("<gold>[FMusic]<red>没有注册音乐");
+        }
+
+        // B站点歌 (BiliMusicBridge, 直播间弹幕点歌; 配置 room-id 后自动连接)
+        try {
+            com.Lilith.FMusic.server.bili.BiliMusicBridge.start();
+        } catch (Exception e) {
+            log.data("<gold>[FMusic]<red>B站点歌启动失败");
+            e.printStackTrace();
         }
 
         log.data("<gold>[FMusic]<yellow>已启动-" + version);
@@ -305,6 +330,7 @@ public class FMusic {
         isRun = false;
         PlayRuntime.stop();
         SaveTask.stop();
+        com.Lilith.FMusic.server.bili.BiliMusicBridge.stop();
         side.sendStop();
         log.data("<gold>[FMusic]<white><yellow>已停止，感谢使用");
     }
@@ -344,6 +370,10 @@ public class FMusic {
                 cookie = new ArrayList<>();
                 saveCookie();
             }
+
+            // 刷新 Kugou/QQ 独立 cookie 文件缓存 (/music reload 时生效)
+            com.Lilith.FMusic.server.api.kugou.KugouHttpClient.clearCookieCache();
+            com.Lilith.FMusic.server.api.qqmusic.QQMusicHttpClient.clearCookieCache();
 
             if (!FMusic.configVersion.equalsIgnoreCase(config.version)) {
                 log.data("<gold>[FMusic]<red>请及时更新配置文件");
@@ -393,27 +423,12 @@ public class FMusic {
             }
 
             FMusic.side.runTask(() -> {
-                // 该玩家已在收听当前播放 (如单人游戏登录时排队的同步任务在点歌后才执行,
-                // 或重复触发登录事件) → 跳过, 避免重复发送 PLAY 导致音乐从头重播
-                if (PlayMusic.containNowPlay(player1)) {
-                    FMusicServer.LOGGER.debug("[FMusic] [joinPlayNow] " + player1 + " 已在收听, 跳过同步");
-                    return;
-                }
                 SongInfoObj music = PlayMusic.nowPlayMusic;
-                FMusicServer.LOGGER.debug(
-                    "[FMusic] [joinPlayNow] " + player1
-                        + " music="
-                        + (music == null ? "null" : music.getName())
-                        + " url="
-                        + (PlayMusic.url == null ? "null" : PlayMusic.url));
                 if (music != null && PlayMusic.url != null) {
                     FMusic.side.sendHudPos(player1);
                     FMusic.side.sendMusic(player1, PlayMusic.url);
                     FMusic.side.sendPic(player1, music.getPicUrl());
-                    // 立即发送跳转位置(与 PLAY 同 tick, 同 channel 包按序到达),
-                    // 客户端会在首帧播放前收到 POS 并 seek, 避免先从头播放闪开头音。
-                    // (原实现延迟 20 tick, 客户端会有约 1 秒的开头播放窗口)
-                    FMusic.side.sendPos(player1, (int) PlayMusic.musicNowTime);
+                    FMusic.side.runTask(() -> FMusic.side.sendPos(player1, (int) PlayMusic.musicNowTime), 20);
                 }
             });
         });

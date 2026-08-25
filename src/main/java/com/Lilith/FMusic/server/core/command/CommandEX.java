@@ -298,17 +298,22 @@ public class CommandEX {
                 && !FMusic.side.checkPermission(sender, PermissionList.PERMISSION_ADD_MUSIC))
                 FMusic.side.sendMessage(sender, FMusic.getMessage().command.noPer);
             else {
-                switch (FMusic.getConfig().defaultAddMusic) {
-                    case 1:
-                        searchMusic(sender, name, args, true);
-                        break;
-                    case 0:
-                    default:
-                        if (args.length == 1) {
-                            SaveTask.task(() -> addMusic(sender, name, FMusic.getConfig().defaultApi, args[0]));
-                        } else if (args.length == 2) {
-                            SaveTask.task(() -> addMusic(sender, name, args[0], args[1]));
-                        }
+                // /music <api> <id|url>: 指定已注册音源 (qqmusic/kugou/netapi) 直接解析点歌
+                if (args.length == 2 && FMusic.MUSIC_APIS.containsKey(args[0])) {
+                    SaveTask.task(() -> addMusic(sender, name, args[0], args[1]));
+                } else {
+                    switch (FMusic.getConfig().defaultAddMusic) {
+                        case 1:
+                            searchMusic(sender, name, args, true);
+                            break;
+                        case 0:
+                        default:
+                            if (args.length == 1) {
+                                SaveTask.task(() -> addMusic(sender, name, FMusic.getConfig().defaultApi, args[0]));
+                            } else if (args.length == 2) {
+                                SaveTask.task(() -> addMusic(sender, name, args[0], args[1]));
+                            }
+                    }
                 }
             }
         } catch (Exception e) {
@@ -330,6 +335,8 @@ public class CommandEX {
             if (checkAdmin(sender, name)) {
                 arguments.addAll(admin);
             }
+            // 已注册音源 (qqmusic/kugou/netapi): /music <api> <id|url>
+            arguments.addAll(FMusic.MUSIC_APIS.keySet());
             if (MusicSearch.getSearch(name) != null) {
                 return search;
             }
@@ -339,6 +346,7 @@ public class CommandEX {
                 if (checkAdmin(sender, name)) {
                     arguments.addAll(admin);
                 }
+                arguments.addAll(FMusic.MUSIC_APIS.keySet());
                 if (arg[0] == null || arg[0].isEmpty()) {
                     if (MusicSearch.getSearch(name) != null) {
                         return search;

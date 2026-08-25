@@ -352,6 +352,27 @@ dependencies {
 - 现象: 偶发 `SSLHandshakeException: certificate_unknown` (gradle 换 JVM 后信任库不同)
 - 规避: 依赖已缓存时用 `gradlew --offline` 构建绕过网络验证
 
+### 空组件序列化 "{}" 崩服 (/music search)
+
+- 现象: `/music search <api> <歌名>` 后服务器 tick 崩溃
+  "Don't know how to turn {} into a Component" (IChatComponent$Serializer)
+- 根因: MusicSearch.showSearch 发送空字符串分隔行 (sendMessage(sender, ""))
+  → FMusic.side.miniMessage("") 得到空组件 → ChatComponentSerializer.writeComponent 输出 "{}"
+  → MC 1.7.10 IChatComponent.Serializer 无法解析空对象 → 异常在
+  ServerTickEvent → Tasks.tick 路径直接崩服 (无 try-catch 包裹)
+- 修复 (两层):
+  1. ChatComponentSerializer: 空组件 (first 仍为 true) 时补 "text":"", 输出 {"text":""} 而非 {}
+  2. FMusicServer.parse: try-catch 兜底, 解析失败回退 ChatComponentText(input.toString()),
+     防止 tick 崩服 (兜底会打印 TextComponentImpl{...} 调试串, 仅日志场景可见)
+- **二次失误 ({"text":})**: 修 "{}" 时用 JS 模板字符串写引号转义出错, 先写成空字符串 ""
+  → 序列化输出 {"text":} (key 有值无) → 仍解析失败, 兜底把 adventure 的 input.toString()
+  调试串 (TextComponentImpl{...}) 发给玩家。正确写法: Java 源码 prop(sb, first, "text", "\"\"")
+  (值是两个 " 字符) → 输出 {"text":""}。写含引号的 Java 字符串字面量时, 必须查看产物文件
+  确认转义 (JS 模板字符串中的 \" 不是转义)
+- 教训: 服务器 tick 路径 (runTask → Tasks.tick) 内任何异常都会崩服, parse 等边界必须防御;
+  之前未触发是因为测试都在用直链 (/music test URL) 不走 search 流程
+
+
 ## 18. seek 系列 bug 修复 (闪开头音)
 
 **背景**: 网易云播放为 M4A (AAC, encodeType=aac); 断流/跳转触发重新初始化时
@@ -397,7 +418,15 @@ java.util.logging.Logger 的 single-type-import 冲突 (改用全限定类型 or
   joinPlayNow 打 [joinPlayNow] 触发日志, 便于日后定位重复发送来源
 
 ## 19. 已知未解问题
-TBD
+
+### 播放中途"卡开头音" (低优先级, 难修)
+
+- 现象: 单人游戏放歌 (M4A/网易云) 播放中途偶发短暂播放文件开头音频后跳回断点
+- 已修复相关: 服务端"播放中途莫名从头重播" (登录 50 秒后 joinPlayNow 重发 PLAY) 已在 §18 修复;
+  本节的"卡开头音"是 seek 后闪一下开头, 与完整重播不同, 仍偶发
+- 剩余嫌疑: 客户端源失效 (alIsSource=false → reload → 从头连接再 seek)、断流重连时服务器对
+  Range 的响应行为 (200 全量已加防护拒绝)、OpenAL 源被 MC 声音系统重建/paulscode 干预
+- 状态: 已加 Range 200 防护与 seek 修复后仍偶发, 根因未完全锁定, 标记为低优先级已知问题
 
 ## 20. 注意事项 / 待办
 
@@ -405,3 +434,52 @@ TBD
 - mixins.allmusic_client.json 原配置未复制 (两个声音 mixin 已并入 mixins.FMusic.json, 重复配置会导致重复应用)
 - 运行时配置文件名 fmusic_client.json (客户端核心) / 目录 fmusic_server/ (服务端核心)
 - mcmod.info 描述仍是模板示例文案, 可更新
+
+## 21. 内置音乐 API 扩展源 (QQMusic / Kugou) 与 B站点歌
+
+### 来源与集成方式 (均以源码集成, release jar 不可行: 原版 jar 依赖 com.coloryr.allmusic.* 包名, 与本模组 com.Lilith.FMusic.* 不兼容)
+
+- **QQMusic** (AllMusic_QQMusic-master, ds.haaa, 5 类) → `com.Lilith.FMusic.server.api.qqmusic`
+- **Kugou** (AllMusic_Kugou-master, ds.haaa, 6 类) → `com.Lilith.FMusic.server.api.kugou`
+- **BiliMusicBridge** (BiliMusicBridge-master, common 模块, 32 类) → `com.Lilith.FMusic.server.bili`
+- 适配: package/import 机械替换 + 少量签名适配 (coloryr → com.Lilith.FMusic / libs.org.apache.hc → org.apache.hc / AllMusic. → FMusic.)
+- IMusicApi 接口签名与原版一致, SongInfoObj/LyricSave 等类完全兼容 → 适配零成本
+- 注册: FMusic.start() 中 netapi → qqmusic → kugou 顺序注册进 MUSIC_APIS, api/ 目录外部 jar 后加载可覆盖内置
+- **切换音源**: fmusic_server/config.json 的 `defaultApi` (netapi/qqmusic/kugou), /music reload 生效
+
+### B站点歌 (BiliMusicBridge 移植, 不是音乐源)
+
+- 监听直播间弹幕 "点歌XXX" → 默认音乐源搜索第一首 → 入队
+- AllMusicBridge 反射层重写为类型化直接调用 (FMusicApi/PlayMusic.addTask/BanSave/FMusic.side.onMusicAdd)
+- PluginSettings YAML → Gson (模组无 snakeyaml); 配置 fmusic_server/bili/config.json (room-id 填直播间号)
+- /bilimusic 命令 (status/reload/reconnect/request/help); /music reload 一并重载; 生命周期挂 FMusic.start/stop
+
+### QQ 音乐直链解析与 /music <api> 用法
+
+- getMusicId 正则: `songmid=<mid>` 参数 / `songid=<数字>` 参数 (SONGID_PARAM, 如 i.y.qq.com/v8/playsong.html?songid=xxx) /
+  `/song/<mid>` 与 `/songDetail/<mid>` 路径 (SONG_PATH) / 纯 mid / 纯数字 ID
+- checkId 全串匹配: 数字 1-20 位或字母数字 10-32 位; 无法解析时返回原 arg → "请输入歌曲数字ID"
+- **/music <api> <id|url>** (CommandEX): 已注册音源名 (qqmusic/kugou/netapi, Tab 补全显示) 作为前缀,
+  不依赖 defaultAddMusic 配置 (defaultAddMusic=1 时原本会被当搜索词), 不走搜索流程直接解析入队
+- 酷狗注册 id 为 `kugou` (不是 kugoumusic)
+
+### cookie 文件独立 (前缀命名, 网易云不变)
+
+- 网易云 netapi: fmusic_server/cookie.json (原有, 不变)
+- QQMusic: fmusic_server/QQMusic_cookie.json (不存在自动新建空列表 [])
+- Kugou: fmusic_server/Kugou_cookie.json (不存在自动新建空列表 [])
+- B站点歌: fmusic_server/bili/cookie.json (bili 子目录内, 无前缀)
+- 读取: 各 HttpClient 的 ownCookies() 懒加载 + 文件修改时间戳缓存, 始终优先独立文件 (不回退共享)
+- 重载: /music reload → FMusic.init → clearCookieCache() (KugouHttpClient/QQMusicHttpClient) 清缓存
+
+### shadow relocate 位置 (已知)
+
+- **产物 jar 中 shadow 依赖位于 `com/Lilith/FMusic/shadow/...`** (如 com/Lilith/FMusic/shadow/org/apache/hc/...)
+- 机制: gradle.properties `relocateShadowedDependencies=true` → gtnhconvention 按 `modGroup` (com.Lilith.FMusic)
+  自动生成 relocate 前缀 `com.Lilith.FMusic.shadow`
+- **build.gradle.kts 没有显式 relocate 配置**: 源码直接写原包名 (org.apache.hc 等), 构建时重写字节码
+
+### 注意
+
+- BiliMusicBridge Cookie 仅用于弹幕发送与部分接口鉴权; 收听直播弹幕点歌不需要 Cookie
+- 三来源许可证: QQMusic/Kugou GPL-3.0 (同 AllMusic); BiliMusicBridge MIT

@@ -20,7 +20,6 @@ import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
@@ -40,8 +39,6 @@ import io.netty.buffer.ByteBuf;
  * FMusic核心
  */
 public class FMusicCore {
-
-    private static final Logger LOGGER = LogManager.getLogger("FMusic Core");
 
     public static final CommandType[] types = CommandType.values();
 
@@ -258,7 +255,6 @@ public class FMusicCore {
                 break;
             case PLAY:
                 MusicPack.StringMusicPack pack5 = (MusicPack.StringMusicPack) pack;
-                FMusicLog.debug(LOGGER, "[FMusic] 收到服务端 PLAY: " + pack5.data + " (当前 isPlay=" + isPlay() + ")");
                 stopPlaying();
                 player.setMusic(pack5.data);
                 break;
@@ -267,7 +263,6 @@ public class FMusicCore {
                 hud.setImg(pack6.data);
                 break;
             case STOP:
-                FMusicLog.debug(LOGGER, "[FMusic] 收到服务端 STOP");
                 stopPlaying();
                 break;
             case CLEAR:

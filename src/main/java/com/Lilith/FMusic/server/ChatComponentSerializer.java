@@ -103,6 +103,13 @@ public class ChatComponentSerializer {
             first = false;
         }
 
+        if (first) {
+            // 空组件 (如 miniMessage("") 的结果): 输出空文本而非 "{}",
+            // 否则 MC 1.7.10 IChatComponent.Serializer 抛
+            // "Don't know how to turn {} into a Component" (服务器 tick 崩溃)
+            prop(sb, first, "text", "\"\"");
+        }
+
         sb.append('}');
     }
 
