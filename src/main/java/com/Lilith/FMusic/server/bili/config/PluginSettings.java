@@ -114,10 +114,10 @@ public final class PluginSettings {
         Messages messages = new Messages(
             config.getBoolean("messages.broadcast-success", true),
             config.getBoolean("messages.broadcast-failure", false),
-            text(config.getString("messages.success", null), "&d[B站点歌] &f{user} &7点了 &b{song} &7- &f{artist}"),
-            text(config.getString("messages.not-found", null), "&c[B站点歌] 没有搜索到：{keyword}"),
-            text(config.getString("messages.queue-full", null), "&c[B站点歌] 点歌队列已满。"),
-            text(config.getString("messages.rejected", null), "&c[B站点歌] 请求未加入队列：{reason}"));
+            text(config.getString("messages.success", null), "§d[B站点歌] §f{user} §7点了 §b{song} §7- §f{artist}"),
+            text(config.getString("messages.not-found", null), "§c[B站点歌] 没有搜索到：{keyword}"),
+            text(config.getString("messages.queue-full", null), "§c[B站点歌] 点歌队列已满。"),
+            text(config.getString("messages.rejected", null), "§c[B站点歌] 请求未加入队列：{reason}"));
 
         return new PluginSettings(
             roomId,

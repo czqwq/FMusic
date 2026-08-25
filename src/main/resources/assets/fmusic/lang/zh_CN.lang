@@ -13,34 +13,34 @@ fmusic.cmd.current=§e[FMusic]§f当前 pause_at_freeze = %s (使用 /fmusic pau
 fmusic.cmd.set=§e[FMusic]§a已设置 pause_at_freeze = %s (重启或 /music reload 后保持)
 
 # B站点歌
-bili.cmd.not_enabled=&cB站点歌尚未启用 (fmusic_server/bili/config.json)
-bili.cmd.noperm=&c你没有权限。
-bili.cmd.reloaded=&aBiliMusicBridge 已重载。
-bili.cmd.reload_fail=&c重载失败，请查看控制台。
-bili.cmd.client_null=&c直播客户端尚未初始化。
-bili.cmd.reconnected=&a已请求重新连接 B站直播间。
-bili.cmd.request_usage=&e用法：/%s request <歌曲名>
-bili.cmd.request_ok=&a手动点歌已提交。
-bili.cmd.request_fail=&c无法提交手动点歌。
-bili.cmd.status_title=&d&lBiliMusicBridge 状态
-bili.cmd.status_platform=&7运行平台：&f%s
-bili.cmd.status_room=&7配置房间：&f%s
-bili.cmd.status_realroom=&7真实房间：&f%s
-bili.cmd.status_conn=&7连接状态：&f%s
-bili.cmd.status_host=&7弹幕节点：&f%s
-bili.cmd.status_allmusic=&7AllMusic：&f%s
-bili.cmd.status_cookie=&7Cookie 项：&f%s
-bili.cmd.status_danmaku=&7弹幕数量：&f%s
-bili.cmd.status_stats=&7点歌统计：&f接收 %s / 提交 %s / 成功 %s / 失败 %s / 等待 %s
-bili.cmd.status_error=&7最近错误：&c%s
+bili.cmd.not_enabled=§cB站点歌尚未启用 (fmusic_server/bili/config.json)
+bili.cmd.noperm=§c你没有权限。
+bili.cmd.reloaded=§aBiliMusicBridge 已重载。
+bili.cmd.reload_fail=§c重载失败，请查看控制台。
+bili.cmd.client_null=§c直播客户端尚未初始化。
+bili.cmd.reconnected=§a已请求重新连接 B站直播间。
+bili.cmd.request_usage=§e用法：/%s request <歌曲名>
+bili.cmd.request_ok=§a手动点歌已提交。
+bili.cmd.request_fail=§c无法提交手动点歌。
+bili.cmd.status_title=§d§lBiliMusicBridge 状态
+bili.cmd.status_platform=§7运行平台：§f%s
+bili.cmd.status_room=§7配置房间：§f%s
+bili.cmd.status_realroom=§7真实房间：§f%s
+bili.cmd.status_conn=§7连接状态：§f%s
+bili.cmd.status_host=§7弹幕节点：§f%s
+bili.cmd.status_allmusic=§7AllMusic：§f%s
+bili.cmd.status_cookie=§7Cookie 项：§f%s
+bili.cmd.status_danmaku=§7弹幕数量：§f%s
+bili.cmd.status_stats=§7点歌统计：§f接收 %s / 提交 %s / 成功 %s / 失败 %s / 等待 %s
+bili.cmd.status_error=§7最近错误：§c%s
 bili.cmd.enabled=已连接
 bili.cmd.available=已连接
 bili.cmd.unavailable=不可用
 bili.cmd.not_init=未初始化
-bili.cmd.help_status=&e/%s status &7- 查看状态
-bili.cmd.help_reconnect=&e/%s reconnect &7- 重连直播间
-bili.cmd.help_request=&e/%s request <歌曲名> &7- 手动点歌
-bili.cmd.help_reload=&e/%s reload &7- 重载配置与 Cookie
+bili.cmd.help_status=§e/%s status §7- 查看状态
+bili.cmd.help_reconnect=§e/%s reconnect §7- 重连直播间
+bili.cmd.help_request=§e/%s request <歌曲名> §7- 手动点歌
+bili.cmd.help_reload=§e/%s reload §7- 重载配置与 Cookie
 
 # API 兜底文本
 fmusic.api.unknown_song=未知歌曲
