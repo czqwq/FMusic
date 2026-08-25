@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.music;
+import net.minecraft.util.StatCollector;
 
 import java.io.InputStream;
 import java.time.Instant;
@@ -80,7 +81,7 @@ public class MusicHttpClient {
             int httpCode = response.getCode();
             HttpEntity entity = response.getEntity();
             if (entity == null) {
-                FMusic.log.data("<gold>[FMusic]<red>获取网页错误");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.web_fetch_err"));
                 return null;
             }
             InputStream inputStream = entity.getContent();
@@ -96,7 +97,7 @@ public class MusicHttpClient {
             // 注意：需要调用者关闭 InputStream
             return inputStream;
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>获取网页错误");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.web_fetch_err"));
             e.printStackTrace();
         }
         return null;

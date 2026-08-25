@@ -1,0 +1,301 @@
+# FMusic localization (en_US)
+# Player feedback
+fmusic.player.fetch_fail=Failed to fetch music
+fmusic.player.unsupported=This file format is not supported
+fmusic.player.source_fail=Failed to create audio source
+fmusic.player.no_seek=Seeking is not supported for this format
+fmusic.core.img_error=Image parse error
+
+# /fmusic command (client)
+fmusic.cmd.usage=\u00a7e[FMusic]\u00a7fUsage: /fmusic pause_at_freeze <true/false> | /fmusic hudconfig
+fmusic.cmd.single_only=\u00a7e[FMusic]\u00a7cThis command is only available in singleplayer (without LAN)
+fmusic.cmd.current=\u00a7e[FMusic]\u00a7fCurrent pause_at_freeze = %s (use /fmusic pause_at_freeze <true/false> to change)
+fmusic.cmd.set=\u00a7e[FMusic]\u00a7apause_at_freeze set to %s (kept after restart or /music reload)
+
+# BiliMusicBridge
+bili.cmd.not_enabled=\u0026cBiliMusicBridge is not enabled (fmusic_server/bili/config.json)
+bili.cmd.noperm=\u0026cYou do not have permission.
+bili.cmd.reloaded=\u0026aBiliMusicBridge reloaded.
+bili.cmd.reload_fail=\u0026cReload failed, check the console.
+bili.cmd.client_null=\u0026cLive client is not initialized.
+bili.cmd.reconnected=\u0026aReconnect to the Bilibili room requested.
+bili.cmd.request_usage=\u0026eUsage: /%s request <song name>
+bili.cmd.request_ok=\u0026aManual song request submitted.
+bili.cmd.request_fail=\u0026cUnable to submit manual song request.
+bili.cmd.status_title=\u0026d\u0026lBiliMusicBridge Status
+bili.cmd.status_platform=\u00267Platform: \u0026f%s
+bili.cmd.status_room=\u00267Configured room: \u0026f%s
+bili.cmd.status_realroom=\u00267Real room: \u0026f%s
+bili.cmd.status_conn=\u00267Connection: \u0026f%s
+bili.cmd.status_host=\u00267Danmaku host: \u0026f%s
+bili.cmd.status_allmusic=\u00267FMusic: \u0026f%s
+bili.cmd.status_cookie=\u00267Cookie entries: \u0026f%s
+bili.cmd.status_danmaku=\u00267Danmaku count: \u0026f%s
+bili.cmd.status_stats=\u00267Requests: received \u0026f%s \u00267/ submitted \u0026f%s \u00267/ success \u0026f%s \u0026f/ failed \u0026f%s \u0026f/ pending \u0026f%s
+bili.cmd.status_error=\u00267Last error: \u0026c%s
+bili.cmd.enabled=connected
+bili.cmd.available=available
+bili.cmd.unavailable=unavailable
+bili.cmd.not_init=not initialized
+bili.cmd.help_status=\u0026e/%s status \u00267- view status
+bili.cmd.help_reconnect=\u0026e/%s reconnect \u00267- reconnect to the room
+bili.cmd.help_request=\u0026e/%s request <song name> \u00267- manually request a song
+bili.cmd.help_reload=\u0026e/%s reload \u00267- reload config and cookies
+
+# API fallback text
+fmusic.api.unknown_song=Unknown Song
+fmusic.api.unknown_artist=Unknown Artist
+fmusic.api.kugou.album=Kugou Music
+fmusic.api.qqmusic.album=QQ Music
+fmusic.bili.prefix=Bilibili viewer
+fmusic.bili.request_prefix=Request
+
+# Player debug logs (FMusicLog)
+fmusic.log.player.seek_cached=[FMusic] Seek requested while not playing, cached
+fmusic.log.player.seek_request=[FMusic] Seek requested
+fmusic.log.player.seek_applied=[FMusic] Applied cached seek: %s ms
+fmusic.log.player.task_start=[FMusic] Playback task started: %s time=%s ms
+fmusic.log.player.fetch_fail=[FMusic] Failed to fetch music: %s
+fmusic.log.player.fmt_m4a=[FMusic] Format: M4A (AAC)
+fmusic.log.player.fmt_mp3_id3=[FMusic] Format: MP3 (ID3)
+fmusic.log.player.fmt_mp3_sync=[FMusic] Format: MP3 (sync word 0x%s)
+fmusic.log.player.fmt_ogg=[FMusic] Format: OGG
+fmusic.log.player.seek_exec=[FMusic] Executing seek: %s ms
+fmusic.log.player.source_lost=[FMusic] Audio source lost, triggering reload
+fmusic.log.player.play_end=[FMusic] Playback finished naturally at %s ms
+fmusic.log.player.decode_err=[FMusic] Decode error #%s: %s
+fmusic.log.player.decode_fail=[FMusic] Repeated decode failures, stopping playback
+fmusic.log.player.reload_replay=[FMusic] Reload replay: time=%s ms, local=%s
+fmusic.log.player.task_end=[FMusic] Task ended: reload=%s, isClose=%s
+fmusic.log.player.task_exception=[FMusic] Task exception, back to waiting: %s
+fmusic.log.player.connect=[FMusic] Connect: Range bytes=%s- -> %s (contentLength=%s, total=%s)
+fmusic.log.player.recv_play=[FMusic] Received PLAY from server: %s (isPlay=%s)
+fmusic.log.player.recv_stop=[FMusic] Received STOP from server
+fmusic.log.player.m4a_seek=[FMusic] M4A seek: target=%s s -> frame %s (frameTime=%s s, total=%s)
+fmusic.log.player.m4a_seek_empty=[FMusic] M4A seek: frame table empty, target=%s s, start from beginning
+fmusic.log.player.m4a_seek_overflow=[FMusic] M4A seek: target=%s s beyond last frame, jump to end (total=%s)
+fmusic.log.player.mp3_seek=[FMusic] MP3 seek: %s ms
+fmusic.log.player.mp3_frame=[FMusic] MP3 frame header not ready framesize=%s, re-reading
+fmusic.log.player.mp3_frame_fail=[FMusic] MP3 frame header re-read failed, abort seek
+fmusic.log.player.mp3_data=[FMusic] MP3 seek: framesize=%s, local=%s -> data=%s
+fmusic.log.player.mp3_exception=[FMusic] MP3 seek exception: %s
+fmusic.log.player.no_seek_log=[FMusic] Seeking not supported, ignoring seek %s ms
+
+# Kugou API logs
+fmusic.log.kugou.init=<yellow>Initializing Kugou Music API
+fmusic.log.kugou.hash_error=<red>Kugou hash format error: %s
+fmusic.log.kugou.keyword_empty=<red>Kugou search keyword is empty
+fmusic.log.kugou.result_empty=<red>Kugou search result is empty: %s
+fmusic.log.kugou.list_import_error=<red>Kugou playlist import error
+fmusic.log.kugou.playlist_error=<red>Kugou playlist parse error: %s
+fmusic.log.kugou.complex_fallback=<yellow>Kugou complex search unavailable, falling back to old web search: %s
+fmusic.log.kugou.complex_parse_fail=<yellow>Kugou complex web search parse failed: %s
+fmusic.log.kugou.web_search_ok=<green>Kugou web search success: %s, count=%s
+fmusic.log.kugou.web_result_empty=<red>Kugou web search result is empty: %s
+fmusic.log.kugou.web_parse_error=<red>Kugou web search parse error
+fmusic.log.kugou.no_list=<yellow>Kugou search API returned no list: %s
+fmusic.log.kugou.no_cache=<yellow>Kugou web playback missing search cache: %s
+fmusic.log.kugou.no_album_id=<yellow>Kugou web playback missing album_audio_id/MixSongID: %s
+fmusic.log.kugou.detail_error=<red>Kugou Web song detail parse error: %s
+fmusic.log.kugou.wwwapi_fail=<yellow>Kugou wwwapi playback failed, trying www web API
+fmusic.log.kugou.member_parse_error=<red>Kugou Web member playback parse error: %s
+fmusic.log.kugou.android_no_mid=<red>Kugou Android playback missing mid or dfid, please re-export Cookie
+fmusic.log.kugou.android_no_kugoo_id=<yellow>Kugou Android playback KugooID not found, requesting as anonymous
+fmusic.log.kugou.android_no_token=<yellow>Kugou Android playback missing t/token, paid songs may not be available
+fmusic.log.kugou.android_parse_error=<red>Kugou Android playback parse error: %s
+fmusic.log.kugou.member_url_ok=<green>Kugou Web member full playback URL obtained: %s
+fmusic.log.kugou.member_fallback=<yellow>Kugou Web member did not return a playback URL, trying Android fallback API: %s
+fmusic.log.kugou.android_url_ok=<green>Kugou Android full playback URL obtained: %s
+fmusic.log.kugou.android_fallback=<yellow>Kugou Android did not return a playback URL, trying legacy Web API: %s
+fmusic.log.kugou.web_url_ok=<green>Kugou Web full playback URL obtained: %s
+fmusic.log.kugou.url_empty=<yellow>Kugou full playback URL is empty: %s
+fmusic.log.kugou.lyric_empty=<yellow>Kugou lyric candidates are empty: %s
+fmusic.log.kugou.lyric_error=<red>Kugou lyric download parse error
+
+fmusic.log.kugou.get_create_fail=<red>Kugou GET request creation failed: %s
+fmusic.log.kugou.member_req_create_fail=<red>Kugou Web member playback request creation failed
+fmusic.log.kugou.android_req_create_fail=<red>Kugou Android playback request creation failed
+fmusic.log.kugou.member_req_fail=<red>Kugou Web member playback request failed
+fmusic.log.kugou.android_req_fail=<red>Kugou Android playback request failed
+fmusic.log.kugou.cookie_loaded=<gray>Kugou Cookie loaded: %s
+fmusic.log.kugou.cookie_empty=<yellow>Kugou Cookie Header is empty
+fmusic.log.kugou.empty_entity=<red>Kugou returned empty entity, HTTP=%s
+
+fmusic.log.qq.init=<yellow>Initializing QQ Music API
+fmusic.log.qq.song_empty=<red>QQ Music song info empty: %s
+fmusic.log.qq.play_url_null=<red>QQ Music play URL empty, song info returns null: %s
+fmusic.log.qq.keyword_empty=<red>QQ Music search keyword is empty
+fmusic.log.qq.result_empty=<red>QQ Music search result is empty: %s
+fmusic.log.qq.no_valid_song=<red>QQ Music no valid song after parse: %s
+fmusic.log.qq.list_error=<red>QQ Music playlist fetch error
+fmusic.log.qq.smartbox_empty_try_musicu=<yellow>QQ Music smartbox empty, trying musicu API
+fmusic.log.qq.musicu_empty_try_old=<yellow>QQ Music musicu empty, trying legacy API
+fmusic.log.qq.guest_keyword_empty=<red>QQ Music guest search keyword is empty
+fmusic.log.qq.smartbox_req_fail=<red>QQ Music smartbox request failed
+fmusic.log.qq.smartbox_empty=<yellow>QQ Music smartbox result empty, keyword=%s, return=%s
+fmusic.log.qq.smartbox_ok=<green>QQ Music smartbox search success: %s, count=%s
+fmusic.log.qq.smartbox_parse_error=<red>QQ Music smartbox parse error
+fmusic.log.qq.musicu_req_fail=<red>QQ Music musicu search request failed
+fmusic.log.qq.musicu_ok=<green>QQ Music musicu search success: %s, count=%s
+fmusic.log.qq.musicu_parse_error=<red>QQ Music musicu search parse error
+fmusic.log.qq.old_req_fail=<red>QQ Music legacy search request failed
+fmusic.log.qq.old_empty=<red>QQ Music legacy search empty too, keyword=%s, return=%s
+fmusic.log.qq.old_ok=<green>QQ Music legacy search success: %s, count=%s
+fmusic.log.qq.old_parse_error=<red>QQ Music legacy search parse error
+fmusic.log.qq.playlist_error=<red>QQ Music playlist parse error: %s
+fmusic.log.qq.detail_req_fail=<red>QQ Music song detail request failed: %s
+fmusic.log.qq.detail_empty=<red>QQ Music song detail empty: %s, return=%s
+fmusic.log.qq.detail_parse_error=<red>QQ Music song detail parse error: %s
+fmusic.log.qq.play_url_parse_error=<red>QQ Music play URL parse error: %s
+fmusic.log.qq.play_url_req_fail=<red>QQ Music play URL request failed: %s
+fmusic.log.qq.midurlinfo_empty=<red>QQ Music midurlinfo empty: %s, return=%s
+fmusic.log.qq.play_url_ok=<green>QQ Music play URL obtained: songmid=%s, media_mid=%s, filename=%s
+fmusic.log.qq.lyric_req_fail=<red>QQ Music lyric request failed: %s
+fmusic.log.qq.lyric_empty=<yellow>QQ Music lyric empty: %s, return=%s
+fmusic.log.qq.lyric_parse_error=<red>QQ Music lyric parse error: %s
+fmusic.log.qq.http_get=<gray>QQ Music GET: %s
+fmusic.log.qq.http_get_fail=<red>QQ Music GET request failed: %s
+fmusic.log.qq.http_post=<gray>QQ Music POST: %s
+fmusic.log.qq.http_post_body=<gray>QQ Music POST Body: %s
+fmusic.log.qq.http_post_fail=<red>QQ Music POST request failed: %s
+fmusic.log.qq.cookie_injected=<gray>QQ Music Cookie injected: %s
+fmusic.log.qq.guest_no_cookie=<gray>QQ Music guest search, no Cookie
+fmusic.log.qq.cookie_empty=<yellow>QQ Music Cookie empty, requesting as not logged in
+fmusic.log.qq.cookie_read_fail=<red>QQ Music Cookie read failed
+fmusic.log.qq.empty_entity=<red>QQ Music returned empty entity, HTTP=%s
+fmusic.log.qq.http_body=<gray>QQ Music HTTP=%s return: %s
+fmusic.log.qq.server_error=<red>QQ Music server returned error: %s
+
+fmusic.log.bili.live_fail=[Bilibili] Live connection failed
+fmusic.log.bili.live_fail_detail=[Bilibili] Live connection failed: %s
+fmusic.log.bili.room_offline=[Bilibili] Room %s is currently offline; listening will continue
+fmusic.log.bili.host_failed=[Bilibili] Danmaku host failed %s: %s
+fmusic.log.bili.malformed=[Bilibili] Ignored malformed Bilibili message: %s
+fmusic.log.bili.invalid_json=[Bilibili] Invalid danmaku JSON: %s
+fmusic.log.bili.danmaku=[Bilibili] Danmaku %s: %s
+fmusic.log.bili.search_fail=[Bilibili] FMusic default API search failed for: %s - %s
+fmusic.log.bili.queue_fail=[Bilibili] FMusic queue operation failed: %s
+fmusic.log.bili.request_ignored=[Bilibili] Ignored song request from %s: %s
+fmusic.log.bili.queue_full=[Bilibili] Song request work queue is full; dropped: %s
+fmusic.log.bili.invalid_config=[Bilibili] Invalid config; Bilibili danmaku cannot start
+fmusic.log.bili.set_room_id=[Bilibili] Set room-id in %s before connecting
+fmusic.log.bili.enabled=[Bilibili] Enabled on %s
+fmusic.log.bili.disabled=[Bilibili] Disabled
+fmusic.log.bili.reload_fail=[Bilibili] Unable to reload invalid config
+fmusic.log.bili.cookie_load_fail=[Bilibili] Unable to load Bilibili cookie file: %s
+fmusic.log.bili.debug_prefix=[debug] %s
+fmusic.log.bili.broadcast=[FMusic][Bilibili] %s
+fmusic.log.bili.log_prefix=[Bilibili] %s
+
+fmusic.log.server.send_music_direct=[FMusic] [sendMusic] Direct PLAY -> %s: %s
+fmusic.log.server.send_music_broadcast=[FMusic] [sendMusic] Broadcast PLAY: %s
+fmusic.log.server.join_skip=[FMusic] [joinPlayNow] %s already listening, skip sync
+fmusic.log.server.join_now=[FMusic] [joinPlayNow] %s music=%s url=%s
+fmusic.log.server.play_task=[FMusic] [musicPlayTask] Play thread sending PLAY: %s
+fmusic.log.server.test_url=[FMusic] [CommandTest] %s testing play URL: %s
+
+fmusic.log.core.config_wrong=<gold>[FMusic]<red>Invalid config.json, overwritten
+fmusic.log.core.message_wrong=<gold>[FMusic]<red>Invalid message.json, overwritten
+fmusic.log.core.config_wrong_default=<gold>[FMusic]<red>Invalid config.json, using defaults
+fmusic.log.core.message_wrong_default=<gold>[FMusic]<red>Invalid message.json, using defaults
+fmusic.log.core.config_save_err=<gold>[FMusic]<red>Failed to save config.json
+fmusic.log.core.message_save_err=<gold>[FMusic]<red>Failed to save message.json
+fmusic.log.core.cookie_save_err=<gold>[FMusic]<red>Failed to save cookie.json
+fmusic.log.core.api_registered=<gold>[FMusic]<yellow>Registered built-in music API: %s
+fmusic.log.core.api_reg_fail=<gold>[FMusic]<red>Failed to register built-in music API
+fmusic.log.core.api_reg_qq_fail=<gold>[FMusic]<red>Failed to register music API (QQMusic)
+fmusic.log.core.api_reg_kugou_fail=<gold>[FMusic]<red>Failed to register music API (Kugou)
+fmusic.log.core.api_external=<gold>[FMusic]<yellow>Registered music API: %s
+fmusic.log.core.no_api=<gold>[FMusic]<red>No music API registered
+fmusic.log.core.bili_start_fail=<gold>[FMusic]<red>Failed to start Bilibili danmaku song request
+fmusic.log.core.started=<gold>[FMusic]<yellow>Started - %s
+fmusic.log.core.stopped=<gold>[FMusic]<white><yellow>Stopped, thanks for using
+fmusic.log.core.lang_version_wrong=<gold>[FMusic]<red>Language file version mismatch, delete and reload
+fmusic.log.core.config_update=<gold>[FMusic]<red>Please update your config file
+fmusic.log.core.config_read_err=<gold>[FMusic]<red>Failed to read config file
+fmusic.log.core.start_fail=<gold>[FMusic]<red>Startup failed
+fmusic.log.core.web_fetch_err=<gold>[FMusic]<red>Failed to fetch web page
+fmusic.log.core.search_thread_start=Song search thread started
+fmusic.log.core.search_error=Song search error
+fmusic.log.core.search_thread_stop=Song search thread stopped
+fmusic.log.core.task_thread_start=Song processing thread started
+fmusic.log.core.task_error=Song processing error
+fmusic.log.core.task_thread_stop=Song processing thread stopped
+fmusic.log.core.song_parse_err=<gold>[FMusic]<red>Song info parse error
+fmusic.log.core.play_thread_start=Song play thread started
+fmusic.log.core.play_error=<red>Song play error
+fmusic.log.core.play_thread_stop=Song play thread stopped
+fmusic.log.core.ban_wrong=<gold>[FMusic]<red>Invalid ban.json, overwritten
+fmusic.log.core.ban_save_err=<gold>[FMusic]<red>Failed to save ban.json
+fmusic.log.core.hud_save_err=<gold>[FMusic]<red>Failed to save hud.json
+fmusic.log.core.hud_wrong=<gold>[FMusic]<red>Invalid hud.json, overwritten
+fmusic.log.core.player_save_err=<gold>[FMusic]<red>Failed to save player info
+fmusic.log.core.music_list_save_err=<gold>[FMusic]<red>Failed to save music.json
+fmusic.log.core.music_list_wrong=<gold>[FMusic]<red>Invalid music.json, overwritten
+fmusic.log.core.db_thread_start=Database thread started
+fmusic.log.core.db_thread_stop=Database thread stopped
+fmusic.log.core.data_send_err=<gold>[FMusic]<red>Data send error
+fmusic.log.core.api_load=<gold>[FMusic]<yellow>Trying to load API: %s
+fmusic.log.core.hud_clear_err=<gold>[FMusic]<red>Failed to clear HUD
+fmusic.log.core.stop_send_err=<gold>[FMusic]<red>Failed to send stop packet
+fmusic.log.core.music_send_err=<gold>[FMusic]<red>Failed to send music packet
+fmusic.log.core.lyric_send_err=<gold>[FMusic]<red>Failed to send lyric packet
+fmusic.log.core.lyric_info_send_err=<gold>[FMusic]<red>Failed to send lyric info
+fmusic.log.core.hud_pos_send_err=<gold>[FMusic]<red>Failed to send HUD position
+fmusic.log.core.img_send_err=<gold>[FMusic]<red>Failed to send image packet
+
+fmusic.cmd.wrong_cmd=<gold>[FMusic]<white>Wrong command
+fmusic.cmd.addlist_ok=<gold>[FMusic]<white>Playlist added to idle list: %s
+fmusic.cmd.addlist_invalid=<gold>[FMusic]<white>Please enter a valid playlist ID
+fmusic.cmd.music_api=<gold>[FMusic]<white>Music API 
+fmusic.cmd.invalid_id=<gold>[FMusic]<white>Please enter a valid ID
+fmusic.cmd.ban_ok=<gold>[FMusic]<white>API %s: banned %s
+fmusic.cmd.ban_player_ok=<gold>[FMusic]<white>Banned player %s from requesting
+fmusic.cmd.unban_ok=<gold>[FMusic]<white>API %s: unbanned %s
+fmusic.cmd.unbanplayer_ok=<gold>[FMusic]<white>Unbanned player %s from requesting
+fmusic.cmd.clearban_ok=<gold>[FMusic]<white>Banned song list cleared
+fmusic.cmd.clearbanplayer_ok=<gold>[FMusic]<white>Banned player list cleared
+fmusic.cmd.clearlist_ok=<gold>[FMusic]<white>Idle playlist cleared
+fmusic.cmd.delete_invalid=<gold>[FMusic]<white>Please enter a valid index
+fmusic.cmd.delete_too_big=<gold>[FMusic]<white>Index out of range
+fmusic.cmd.delete_ok=<gold>[FMusic]<white>Deleted index %s
+fmusic.cmd.mute_cancel=<gold>[FMusic]<white>Unmuted player: %s
+fmusic.cmd.mute_set=<gold>[FMusic]<white>Muted player: %s
+fmusic.cmd.next_ok=<gold>[FMusic]<white>Forced to next song
+fmusic.cmd.reload_ok=<gold>[FMusic]<white>Config reloaded
+fmusic.cmd.stop_ok=<gold>[FMusic]<white>Stopped playback for player: %s
+fmusic.cmd.test_playing=<gold>[FMusic]<white>Testing playback %s
+fmusic.cmd.test_parsing=<gold>[FMusic]<white>Testing parse %s
+fmusic.cmd.test_parse_fail=<gold>[FMusic]<white>Test parse failed
+fmusic.cmd.test_song_name=<gold>[FMusic]<white>Song name %s
+fmusic.cmd.test_song_author=<gold>[FMusic]<white>Song author %s
+fmusic.cmd.test_play_url=<gold>[FMusic]<white>Play URL %s
+fmusic.cmd.test_parse_err=<gold>[FMusic]<white>Test parse error
+fmusic.cmd.test_invalid=<gold>[FMusic]<white>Test parse failed: invalid song ID or URL
+
+fmusic.ui.hudconfig_tip=§eDrag handles to adjust HUD position, release to save, Esc to close
+fmusic.cfg.pause_desc=Whether pausing the game (Esc) pauses music in singleplayer
+fmusic.cfg.music_desc=Music config: server in ../fmusic_server, client in ./fmusic_client.json
+
+fmusic.log.netapi.no_md5=No such MD5 algorithm!
+fmusic.log.netapi.ktv_unsupported=Unsupported KTV lyric
+fmusic.log.netapi.contact_dev=Please contact the developer with the music ID
+fmusic.log.netapi.server_error=<gold>[FMusic]<red>Server returned error: %s
+fmusic.log.netapi.init=<gold>[FMusic]<yellow>Initializing music crawler
+fmusic.log.netapi.init_fail=<gold>[FMusic]<red>Failed to initialize net api
+fmusic.log.netapi.copyright_fail=<gold>[FMusic]<red>Copyright lookup failed
+fmusic.log.netapi.song_empty=<gold>[FMusic]<red>Song info is empty
+fmusic.log.netapi.play_parse_err=<gold>[FMusic]<red>Play URL parse error: %s
+fmusic.log.netapi.list_error=<gold>[FMusic]<red>Song list fetch error
+fmusic.log.netapi.lyric_retry=<gold>[FMusic]<red>Lyric parse error, retry #%s
+fmusic.log.netapi.lyric_fail=<gold>[FMusic]<red>Lyric parse failed
+fmusic.log.netapi.lyric_parse_err=<gold>[FMusic]<red>Lyric parse error
+fmusic.log.netapi.search_error=<gold>[FMusic]<red>Song search error
+
+fmusic.api.kugou.playlist_fail_check=Kugou playlist fetch failed, check the playlist ID, URL or access permission
+fmusic.api.kugou.playlist_fail_input=Kugou playlist fetch failed, enter playlist ID, URL or comma-separated song hashes
+fmusic.api.qqmusic.playlist_fail_check=QQ Music playlist fetch failed, check the playlist ID, URL or access permission
+fmusic.api.qqmusic.playlist_fail_input=QQ Music playlist fetch failed, enter playlist ID, URL or comma-separated songmids
+fmusic.log.core.player_request=<gold>[FMusic]<yellow>Player: %s requested: %s
+
+fmusic.log.qq.http_req_fail=<red>QQ Music request failed: %s

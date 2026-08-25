@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,7 +31,7 @@ public class CommandBan extends ACommand {
             api = FMusic.MUSIC_APIS.get(args[1]);
             musicID = args[2];
         } else {
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>错误的指令");
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.wrong_cmd"));
         }
 
         if (api == null) {
@@ -40,9 +41,9 @@ public class CommandBan extends ACommand {
 
         if (api.checkId(musicID)) {
             BanSave.addBanMusic(musicID, api.getId());
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>音乐API " + api.getId() + " 已禁止点歌" + musicID);
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.ban_ok", api.getId(), musicID));
         } else {
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>请输入有效的ID");
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.invalid_id"));
         }
     }
 

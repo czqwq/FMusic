@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.api.qqmusic;
+import net.minecraft.util.StatCollector;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -32,7 +33,7 @@ public class QQMusicApiMain implements IMusicApi {
     private volatile boolean isUpdate;
 
     public QQMusicApiMain() {
-        QQMusicHttpClient.log("<yellow>正在初始化QQ音乐API");
+        QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.init"));
     }
 
     @Override
@@ -108,22 +109,22 @@ public class QQMusicApiMain implements IMusicApi {
             }
         }
         if (song == null) {
-            QQMusicHttpClient.log("<red>QQ音乐歌曲信息获取为空：" + id);
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.song_empty", id));
             return null;
         }
         String playUrl = QQMusicClient.getPlayUrl(song);
         if (playUrl == null || playUrl.isEmpty()) {
-            QQMusicHttpClient.log("<red>QQ音乐正式播放链接为空，歌曲信息返回null：" + song.realId());
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.play_url_null", song.realId()));
             return null;
         }
         boolean trial = false;
         return new SongInfoObj(
-            empty(song.singer, "未知歌手"),
+            empty(song.singer, StatCollector.translateToLocal("fmusic.api.unknown_artist")),
             empty(song.name, song.realId()),
             song.realId(),
             null,
             player,
-            empty(song.album, "QQ音乐"),
+            empty(song.album, StatCollector.translateToLocal("fmusic.api.qqmusic.album")),
             isList,
             song.lengthMs(),
             song.picUrl(),
@@ -137,12 +138,12 @@ public class QQMusicApiMain implements IMusicApi {
         List<SearchMusicObj> resData = new ArrayList<>();
         String keyword = joinKeyword(name, isDefault);
         if (keyword.isEmpty()) {
-            QQMusicHttpClient.log("<red>QQ音乐搜索关键字为空");
+            QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.keyword_empty"));
             return null;
         }
         List<QQSong> songs = QQMusicClient.search(keyword, 30);
         if (songs == null || songs.isEmpty()) {
-            QQMusicHttpClient.log("<red>QQ音乐搜索结果为空：" + keyword);
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.result_empty", keyword));
             return null;
         }
         for (QQSong temp : songs) {
@@ -154,11 +155,11 @@ public class QQMusicApiMain implements IMusicApi {
                 new SearchMusicObj(
                     temp.realId(),
                     empty(temp.name, temp.realId()),
-                    empty(temp.singer, "未知歌手"),
-                    empty(temp.album, "QQ音乐")));
+                    empty(temp.singer, StatCollector.translateToLocal("fmusic.api.unknown_artist")),
+                    empty(temp.album, StatCollector.translateToLocal("fmusic.api.qqmusic.album"))));
         }
         if (resData.isEmpty()) {
-            QQMusicHttpClient.log("<red>QQ音乐搜索解析后无有效歌曲：" + keyword);
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.no_valid_song", keyword));
             return null;
         }
         int maxpage = Math.max(1, (resData.size() + 9) / 10);
@@ -175,7 +176,7 @@ public class QQMusicApiMain implements IMusicApi {
                     QQMusicClient.PlaylistInfo playlist = QQMusicClient.getPlaylist(value);
                     if (playlist == null || playlist.getSongIds()
                         .isEmpty()) {
-                        FMusic.side.sendMessageTask(sender, "QQ音乐歌单获取失败，请检查歌单ID、网址或访问权限");
+                        FMusic.side.sendMessageTask(sender, StatCollector.translateToLocal("fmusic.api.qqmusic.playlist_fail_check"));
                         return;
                     }
                     MusicListSave.addIdleList(playlist.getSongIds(), getId());
@@ -199,10 +200,10 @@ public class QQMusicApiMain implements IMusicApi {
                         sender,
                         FMusic.getMessage().musicPlay.listMusic.get.replace(ARG.name, "QQMusic"));
                 } else {
-                    FMusic.side.sendMessageTask(sender, "QQ音乐歌单获取失败，请输入歌单ID、歌单网址或逗号分隔的songmid");
+                    FMusic.side.sendMessageTask(sender, StatCollector.translateToLocal("fmusic.api.qqmusic.playlist_fail_input"));
                 }
             } catch (Exception e) {
-                QQMusicHttpClient.log("<red>QQ音乐列表获取错误");
+                QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.list_error"));
                 if (QQSong.debug) {
                     e.printStackTrace();
                 }

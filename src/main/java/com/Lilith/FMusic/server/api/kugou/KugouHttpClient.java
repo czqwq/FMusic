@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.api.kugou;
+import net.minecraft.util.StatCollector;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -70,7 +71,7 @@ public final class KugouHttpClient {
             logRequestParameters("酷狗Web", baseUrl, params);
             return execute(request, "酷狗音乐GET请求失败：" + baseUrl);
         } catch (Exception e) {
-            log("<red>酷狗音乐GET请求创建失败：" + baseUrl);
+            log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.get_create_fail", baseUrl));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -84,7 +85,7 @@ public final class KugouHttpClient {
             logRequestParameters("酷狗Web会员", WEB_SONGINFO_URL, params);
             return executeWebSongInfo(url);
         } catch (Exception e) {
-            log("<red>酷狗Web会员播放请求创建失败");
+            log(StatCollector.translateToLocal("fmusic.log.kugou.member_req_create_fail"));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -98,7 +99,7 @@ public final class KugouHttpClient {
             logRequestParameters("酷狗Android", ANDROID_PLAY_URL, params);
             return executeAndroid(url, params);
         } catch (Exception e) {
-            log("<red>酷狗Android播放请求创建失败");
+            log(StatCollector.translateToLocal("fmusic.log.kugou.android_req_create_fail"));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -204,7 +205,7 @@ public final class KugouHttpClient {
             logResponseBody("酷狗Web会员", body);
             return new HttpResObj(body, ok);
         } catch (Exception e) {
-            log("<red>酷狗Web会员播放请求失败");
+            log(StatCollector.translateToLocal("fmusic.log.kugou.member_req_fail"));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -266,7 +267,7 @@ public final class KugouHttpClient {
             logResponseBody("酷狗Android", body);
             return new HttpResObj(body, ok);
         } catch (Exception e) {
-            log("<red>酷狗Android播放请求失败");
+            log(StatCollector.translateToLocal("fmusic.log.kugou.android_req_fail"));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -311,10 +312,10 @@ public final class KugouHttpClient {
             String summary = cookieDiagnosticsForLog(cookie);
             if (!summary.equals(lastCookieSummary)) {
                 lastCookieSummary = summary;
-                log("<gray>酷狗音乐Cookie已加载：" + summary);
+                log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.cookie_loaded", summary));
             }
         } else {
-            log("<yellow>酷狗音乐Cookie Header为空");
+            log(StatCollector.translateToLocal("fmusic.log.kugou.cookie_empty"));
         }
     }
 
@@ -744,7 +745,7 @@ public final class KugouHttpClient {
             int httpCode = response.getCode();
             HttpEntity entity = response.getEntity();
             if (entity == null) {
-                log("<red>酷狗音乐返回空实体，HTTP=" + httpCode);
+                log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.empty_entity", httpCode));
                 return null;
             }
 

@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.Config;
 import com.Lilith.FMusic.server.core.FMusic;
@@ -13,6 +14,6 @@ public class CommandReload extends ACommand {
         Config.reload();
         // B站点歌配置 (fmusic_server/bili/config.json)
         com.Lilith.FMusic.server.bili.BiliMusicBridge.reload();
-        FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>已重读配置文件");
+        FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.reload_ok"));
     }
 }

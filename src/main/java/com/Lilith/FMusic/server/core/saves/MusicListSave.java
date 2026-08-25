@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.saves;
+import net.minecraft.util.StatCollector;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -38,7 +39,7 @@ public class MusicListSave {
             write.close();
             out.close();
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>配置文件music.json保存错误");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.music_list_save_err"));
             e.printStackTrace();
         }
     }
@@ -46,7 +47,7 @@ public class MusicListSave {
     public static void musicListCheck() {
         if (musicObj == null || musicObj.check()) {
             musicObj = MusicListObj.make();
-            FMusic.log.data("<gold>[FMusic]<red>配置文件music.json错误，已覆盖");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.music_list_wrong"));
             saveMusicList();
         }
     }

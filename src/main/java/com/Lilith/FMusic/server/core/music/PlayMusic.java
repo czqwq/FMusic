@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.music;
+import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -219,7 +220,7 @@ public class PlayMusic {
     }
 
     private static void task() {
-        FMusic.log.data("歌曲处理线程启动");
+        FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.task_thread_start"));
         while (FMusic.isRun) {
             try {
                 PlayerAddMusicObj obj = tasks.poll();
@@ -231,7 +232,7 @@ public class PlayMusic {
                 }
                 Thread.sleep(10);
             } catch (Exception e) {
-                FMusic.log.data("歌曲处理出现问题");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.task_error"));
                 e.printStackTrace();
             }
         }
@@ -242,7 +243,7 @@ public class PlayMusic {
         clearVote();
         clearPush();
 
-        FMusic.log.data("歌曲处理线程关闭");
+        FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.task_thread_stop"));
     }
 
     /**
@@ -259,7 +260,7 @@ public class PlayMusic {
             String text = FMusic.getMessage().musicPlay.checkMusic.replace(ARG.musicId, id);
             FMusic.side.sendMessageTask(sender, text);
         }
-        FMusic.log.data("<gold>[FMusic]<yellow>玩家：" + player + " 点歌：" + id);
+        FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.core.player_request", player, id));
         try {
             SongInfoObj info = api.getMusic(id, player, isList);
             if (info == null) {
@@ -307,7 +308,7 @@ public class PlayMusic {
             if (isList) {
                 error++;
             }
-            FMusic.log.data("<gold>[FMusic]<red>歌曲信息解析错误");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.song_parse_err"));
             e.printStackTrace();
         }
     }

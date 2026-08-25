@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
@@ -24,7 +25,7 @@ public class CommandUnban extends ACommand {
             api = FMusic.MUSIC_APIS.get(args[1]);
             musicID = args[2];
         } else {
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>错误的指令");
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.wrong_cmd"));
         }
 
         if (api == null) {
@@ -37,9 +38,9 @@ public class CommandUnban extends ACommand {
         if (api.checkId(musicID)) {
             api.setList(musicID, sender);
             BanSave.removeBanMusic(args[1], api.getId());
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>音乐API " + api.getId() + "已解封点歌" + musicID);
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.unban_ok", api.getId(), musicID));
         } else {
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>请输入有效的ID");
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.invalid_id"));
         }
     }
 }

@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.saves;
+import net.minecraft.util.StatCollector;
 
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -28,7 +29,7 @@ public class SaveTask {
     }
 
     private static void run() {
-        FMusic.log.data("数据库线程启动");
+        FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.db_thread_start"));
         Runnable runnable;
         while (FMusic.isRun) {
             try {
@@ -44,6 +45,6 @@ public class SaveTask {
                 e.printStackTrace();
             }
         }
-        FMusic.log.data("数据库线程关闭");
+        FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.db_thread_stop"));
     }
 }

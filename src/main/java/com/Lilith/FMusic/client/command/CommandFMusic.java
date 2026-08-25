@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.Config;
 import com.Lilith.FMusic.client.gui.DelayedGuiDisplayTicker;
@@ -44,27 +45,25 @@ public class CommandFMusic extends CommandBase {
             DelayedGuiDisplayTicker.create(new FMusicHudConfigGui(), 1);
         } else {
             sender.addChatMessage(
-                new ChatComponentText("§e[FMusic]§f用法: /fmusic pause_at_freeze <true/false> | /fmusic hudconfig"));
+                new ChatComponentText(StatCollector.translateToLocal("fmusic.cmd.usage")));
         }
     }
 
     private void processPauseAtFreeze(ICommandSender sender, String[] args) {
         if (!canUse()) {
-            sender.addChatMessage(new ChatComponentText("§e[FMusic]§c该指令仅在单人游戏(未开放局域网)中可用"));
+            sender.addChatMessage(new ChatComponentText(StatCollector.translateToLocal("fmusic.cmd.single_only")));
             return;
         }
         if (args.length < 2) {
             sender.addChatMessage(
-                new ChatComponentText(
-                    "§e[FMusic]§f当前 pause_at_freeze = " + Config.pauseAtFreeze
-                        + " (使用 /fmusic pause_at_freeze <true/false> 设置)"));
+                new ChatComponentText(StatCollector.translateToLocalFormatted("fmusic.cmd.current", Config.pauseAtFreeze)));
             return;
         }
         boolean value = Boolean.parseBoolean(args[1]);
         Config.pauseAtFreeze = value;
         Config.save();
         sender.addChatMessage(
-            new ChatComponentText("§e[FMusic]§a已设置 pause_at_freeze = " + value + " (重启或 /music reload 后保持)"));
+            new ChatComponentText(StatCollector.translateToLocalFormatted("fmusic.cmd.set", value)));
     }
 
     private boolean canUse() {

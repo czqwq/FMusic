@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.netapi;
+import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,11 +28,11 @@ public class NetiApiMain implements IMusicApi {
     private boolean isUpdate;
 
     public NetiApiMain() {
-        FMusic.log.data("<gold>[FMusic]<yellow>正在初始化网络爬虫");
+        FMusic.log.data(StatCollector.translateToLocal("fmusic.log.netapi.init"));
 
         HttpResObj res = NetApiHttpClient.get("https://music.163.com", "");
         if (res == null || !res.ok) {
-            FMusic.log.data("<gold>[FMusic]<red>初始化net api失败");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.netapi.init_fail"));
         }
     }
 
@@ -81,7 +82,7 @@ public class NetiApiMain implements IMusicApi {
                 res = NetApiHttpClient
                     .post("https://music.163.com/weapi/song/enhance/player/url", params, EncryptType.WEAPI, null);
                 if (res == null || !res.ok) {
-                    FMusic.log.data("<gold>[FMusic]<red>版权检索失败");
+                    FMusic.log.data(StatCollector.translateToLocal("fmusic.log.netapi.copyright_fail"));
                     return null;
                 }
                 TrialInfoObj obj = FMusic.gson.fromJson(res.data, TrialInfoObj.class);
@@ -145,7 +146,7 @@ public class NetiApiMain implements IMusicApi {
                     null,
                     getId());
             } else {
-                FMusic.log.data("<gold>[FMusic]<red>歌曲信息获取为空");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.netapi.song_empty"));
             }
         }
         return info;
@@ -169,7 +170,7 @@ public class NetiApiMain implements IMusicApi {
                 TrialInfoObj obj = FMusic.gson.fromJson(res.data, TrialInfoObj.class);
                 return obj.getUrl();
             } catch (Exception e) {
-                FMusic.log.data("<gold>[FMusic]<red>播放连接解析错误：" + res.data);
+                FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.netapi.play_parse_err", res.data));
                 e.printStackTrace();
             }
         }
@@ -198,7 +199,7 @@ public class NetiApiMain implements IMusicApi {
                     sender,
                     FMusic.getMessage().musicPlay.listMusic.get.replace(ARG.name, obj.getName()));
             } catch (Exception e) {
-                FMusic.log.data("<gold>[FMusic]<red>歌曲列表获取错误");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.netapi.list_error"));
                 e.printStackTrace();
             }
             isUpdate = false;
@@ -235,7 +236,7 @@ public class NetiApiMain implements IMusicApi {
                 LyricDecoder docoder = new LyricDecoder();
                 for (int times = 0; times < 3; times++) {
                     if (docoder.check(obj)) {
-                        FMusic.log.data("<gold>[FMusic]<red>歌词解析错误，正在进行第" + times + "重试");
+                        FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.netapi.lyric_retry", times));
                     } else {
                         if (docoder.isHave) {
                             lyric.setHaveLyric(FMusic.getConfig().sendLyric);
@@ -248,9 +249,9 @@ public class NetiApiMain implements IMusicApi {
                     }
                     Thread.sleep(1000);
                 }
-                FMusic.log.data("<gold>[FMusic]<red>歌词解析失败");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.netapi.lyric_fail"));
             } catch (Exception e) {
-                FMusic.log.data("<gold>[FMusic]<red>歌词解析错误");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.netapi.lyric_parse_err"));
                 e.printStackTrace();
             }
         }
@@ -297,10 +298,10 @@ public class NetiApiMain implements IMusicApi {
                         temp.getAlbum());
                     resData.add(item);
                 }
-                maxpage = res1.size() / 10;
+                maxpage = Math.max(1, (res1.size() + 9) / 10);
                 return new SearchPageObj(resData, maxpage, getId());
             } else {
-                FMusic.log.data("<gold>[FMusic]<red>歌曲搜索出现错误");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.netapi.search_error"));
 
             }
         }

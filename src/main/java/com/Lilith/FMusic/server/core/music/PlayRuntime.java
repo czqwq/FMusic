@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.music;
+import net.minecraft.util.StatCollector;
 
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -192,7 +193,7 @@ public class PlayRuntime {
     }
 
     private static void musicPlayTask() {
-        FMusic.log.data("歌曲播放线程启动");
+        FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.play_thread_start"));
         while (FMusic.isRun) {
             try {
                 if (PlayMusic.getListSize() == 0) {
@@ -240,7 +241,7 @@ public class PlayRuntime {
                         PlayMusic.musicAllTime = PlayMusic.musicLessTime = PlayMusic.nowPlayMusic.getLength()
                             + FMusic.getConfig().fixSongTime;
                         isPlay = true;
-                        FMusicServer.LOGGER.debug("[FMusic] [musicPlayTask] 播放线程发送 PLAY: " + PlayMusic.url);
+                        FMusicServer.LOGGER.debug(StatCollector.translateToLocalFormatted("fmusic.log.server.play_task", PlayMusic.url));
                         FMusic.side.sendMusic(PlayMusic.url);
                         if (!FMusic.getConfig().mutePlayMessage) {
                             SongInfoObj music = PlayMusic.nowPlayMusic;
@@ -290,10 +291,10 @@ public class PlayRuntime {
                     clear();
                 }
             } catch (Exception e) {
-                FMusic.log.data("<red>歌曲播放出现错误");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.play_error"));
                 e.printStackTrace();
             }
         }
-        FMusic.log.data("歌曲播放线程停止");
+        FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.play_thread_stop"));
     }
 }

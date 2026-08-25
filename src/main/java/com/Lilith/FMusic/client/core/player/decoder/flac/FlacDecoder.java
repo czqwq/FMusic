@@ -17,6 +17,8 @@
 
 package com.Lilith.FMusic.client.core.player.decoder.flac;
 
+import net.minecraft.util.StatCollector;
+
 import java.io.IOException;
 
 import com.Lilith.FMusic.client.FMusic;
@@ -200,7 +202,7 @@ public final class FlacDecoder implements AutoCloseable, IDecoder {
 
     @Override
     public void set(int time) {
-        FMusicLog.warn(FMusic.LOGGER, "[FMusic] FLAC 不支持中间播放, 忽略 seek " + time + "ms");
-        FMusicCore.bridge.sendMessage("不支持中间播放");
+        FMusicLog.warn(FMusic.LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.no_seek_log", time));
+        FMusicCore.bridge.sendMessage(StatCollector.translateToLocal("fmusic.player.no_seek"));
     }
 }

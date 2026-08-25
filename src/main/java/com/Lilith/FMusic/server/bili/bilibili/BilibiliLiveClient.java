@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.bili.bilibili;
+import net.minecraft.util.StatCollector;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -147,9 +148,9 @@ public final class BilibiliLiveClient {
                 reconnectCount.incrementAndGet();
                 lastError = safeMessage(e);
                 if (settings.debug) {
-                    plugin.log(Level.WARNING, "Bilibili live connection failed", e);
+                    plugin.log(Level.WARNING, StatCollector.translateToLocal("fmusic.log.bili.live_fail"), e);
                 } else {
-                    plugin.warning("Bilibili live connection failed: " + lastError);
+                    plugin.warning(StatCollector.translateToLocalFormatted("fmusic.log.bili.live_fail_detail", lastError));
                 }
             } finally {
                 closeSocketIfCurrent(myEpoch);
@@ -185,7 +186,7 @@ public final class BilibiliLiveClient {
         RoomInfo room = api.resolveRoom(settings.roomId);
         realRoomId.set(room.realRoomId);
         if (room.liveStatus == 0) {
-            plugin.warning("Bilibili room " + room.realRoomId + " is currently offline; listening will continue.");
+            plugin.warning(StatCollector.translateToLocalFormatted("fmusic.log.bili.room_offline", room.realRoomId));
         }
         api.ensureDeviceIds();
         DanmuInfo danmuInfo = api.getDanmuInfo(room.realRoomId);
@@ -213,7 +214,7 @@ public final class BilibiliLiveClient {
                 }
                 last = e;
                 closeSocketIfCurrent(myEpoch);
-                plugin.debug("Danmaku host failed " + server.host + ": " + safeMessage(e));
+                plugin.debug(StatCollector.translateToLocalFormatted("fmusic.log.bili.host_failed", server.host, safeMessage(e)));
             }
         }
         if (last instanceof Exception) {
@@ -326,7 +327,7 @@ public final class BilibiliLiveClient {
                 processPacket(packet);
             }
         } catch (Exception e) {
-            plugin.debug("Ignored malformed Bilibili message: " + safeMessage(e));
+            plugin.debug(StatCollector.translateToLocalFormatted("fmusic.log.bili.malformed", safeMessage(e)));
         }
     }
 
@@ -349,7 +350,7 @@ public final class BilibiliLiveClient {
             JsonValue body = Json.parse(new String(data, Strings.UTF_8));
             processCommand(body);
         } catch (IllegalArgumentException e) {
-            plugin.debug("Invalid danmaku JSON: " + e.getMessage());
+            plugin.debug(StatCollector.translateToLocalFormatted("fmusic.log.bili.invalid_json", e.getMessage()));
         }
     }
 
@@ -366,13 +367,13 @@ public final class BilibiliLiveClient {
         long uid = user.get(0)
             .asLong(0L);
         String username = user.get(1)
-            .asString("未知");
+            .asString(StatCollector.translateToLocal("fmusic.api.unknown_artist"));
         if (text.isEmpty()) {
             return;
         }
         danmakuCount.incrementAndGet();
         requests.acceptDanmaku(new DanmakuMessage(uid, username, text, System.currentTimeMillis()));
-        plugin.debug("Danmaku " + username + ": " + text);
+        plugin.debug(StatCollector.translateToLocalFormatted("fmusic.log.bili.danmaku", username, text));
     }
 
     private byte[][] prefixPatterns(PluginSettings settings) {

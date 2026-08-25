@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.netapi;
+import net.minecraft.util.StatCollector;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -45,7 +46,7 @@ public class NetApiHttpClient {
                 int httpCode = response.getCode();
                 HttpEntity entity = response.getEntity();
                 if (entity == null) {
-                    FMusic.log.data("<gold>[FMusic]<red>获取网页错误");
+                    FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.web_fetch_err"));
                     return null;
                 }
                 InputStream inputStream = entity.getContent();
@@ -60,14 +61,14 @@ public class NetApiHttpClient {
                 EntityUtils.consume(entity);
                 String data1 = result.toString(StandardCharsets.UTF_8.toString());
                 if (!ok) {
-                    FMusic.log.data("<gold>[FMusic]<red>服务器返回错误：" + data1);
+                    FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.netapi.server_error", data1));
                 }
                 // 保存 cookies
                 MusicHttpClient.saveCookies(cookieStore);
                 return new HttpResObj(data1, ok);
             }
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>获取网页错误");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.web_fetch_err"));
             e.printStackTrace();
         }
         return null;
@@ -160,7 +161,7 @@ public class NetApiHttpClient {
                 int httpCode = response.getCode();
                 HttpEntity entity = response.getEntity();
                 if (entity == null) {
-                    FMusic.log.data("<gold>[FMusic]<red>获取网页错误");
+                    FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.web_fetch_err"));
                     return null;
                 }
                 InputStream inputStream = entity.getContent();
@@ -174,14 +175,14 @@ public class NetApiHttpClient {
                 String data1 = result.toString(StandardCharsets.UTF_8.toString());
                 EntityUtils.consume(entity);
                 if (!ok) {
-                    FMusic.log.data("<gold>[FMusic]<red>服务器返回错误：" + data1);
+                    FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.netapi.server_error", data1));
                 }
                 // 保存 cookies
                 MusicHttpClient.saveCookies(cookieStore);
                 return new HttpResObj(data1, ok);
             }
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>获取网页错误");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.web_fetch_err"));
             e.printStackTrace();
         }
         return null;

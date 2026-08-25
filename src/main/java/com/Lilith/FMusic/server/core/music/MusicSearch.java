@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.music;
+import net.minecraft.util.StatCollector;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,7 +24,7 @@ public class MusicSearch {
     private static final Queue<PlayerAddMusicObj> tasks = new ConcurrentLinkedQueue<>();
 
     private static void task() {
-        FMusic.log.data("歌曲搜索线程启动");
+        FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.search_thread_start"));
         while (FMusic.isRun) {
             try {
                 PlayerAddMusicObj obj = tasks.poll();
@@ -46,13 +47,13 @@ public class MusicSearch {
                 }
                 Thread.sleep(100);
             } catch (Exception e) {
-                FMusic.log.data("搜歌出现问题");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.search_error"));
                 e.printStackTrace();
             }
         }
         searchSave.clear();
         tasks.clear();
-        FMusic.log.data("歌曲搜索线程停止");
+        FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.search_thread_stop"));
     }
 
     public static void start() {

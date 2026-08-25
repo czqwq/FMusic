@@ -1,5 +1,7 @@
 package com.Lilith.FMusic.client.core.player.decoder.ogg;
 
+import net.minecraft.util.StatCollector;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteOrder;
@@ -374,7 +376,7 @@ public class OggDecoder implements IDecoder {
 
     @Override
     public void set(int time) {
-        FMusicLog.warn(FMusic.LOGGER, "[FMusic] OGG 不支持中间播放, 忽略 seek " + time + "ms");
-        FMusicCore.bridge.sendMessage("不支持中间播放");
+        FMusicLog.warn(FMusic.LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.no_seek_log", time));
+        FMusicCore.bridge.sendMessage(StatCollector.translateToLocal("fmusic.player.no_seek"));
     }
 }

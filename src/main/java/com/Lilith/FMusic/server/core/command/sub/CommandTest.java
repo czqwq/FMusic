@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.FMusicServer;
 import com.Lilith.FMusic.server.core.FMusic;
@@ -25,7 +26,7 @@ public class CommandTest extends ACommand {
             api = FMusic.MUSIC_APIS.get(args[1]);
             musicID = args[2];
         } else {
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>错误的指令");
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.wrong_cmd"));
             return;
         }
 
@@ -36,30 +37,30 @@ public class CommandTest extends ACommand {
 
         // 直接播放音频链接 (http/https)
         if (musicID.startsWith("http://") || musicID.startsWith("https://")) {
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>正在测试播放 " + musicID);
-            FMusicServer.LOGGER.debug("[FMusic] [CommandTest] " + name + " 测试播放链接: " + musicID);
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_playing", musicID));
+            FMusicServer.LOGGER.debug(StatCollector.translateToLocalFormatted("fmusic.log.server.test_url", name, musicID));
             FMusic.side.sendMusic(name, musicID);
             return;
         }
 
         if (api.checkId(musicID)) {
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>正在测试解析 " + musicID);
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_parsing", musicID));
             try {
                 SongInfoObj info = api.getMusic(musicID, "test", false);
                 if (info == null) {
-                    FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>测试解析失败");
+                    FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.test_parse_fail"));
                     return;
                 }
-                FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>音乐名称 " + info.getName());
-                FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>音乐作者 " + info.getAuthor());
+                FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_song_name", info.getName()));
+                FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_song_author", info.getAuthor()));
                 String url = api.getPlayUrl(musicID);
-                FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>播放地址 " + url);
+                FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_play_url", url));
             } catch (Exception e) {
-                FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>测试解析错误");
+                FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.test_parse_err"));
                 e.printStackTrace();
             }
         } else {
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>测试解析失败: 无效的音乐ID或链接");
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.test_invalid"));
         }
     }
 }

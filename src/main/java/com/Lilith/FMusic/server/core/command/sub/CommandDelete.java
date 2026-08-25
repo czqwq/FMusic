@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -20,17 +21,17 @@ public class CommandDelete extends ACommand {
         if (!args[1].isEmpty() && Function.isInteger(args[1])) {
             int music = Integer.parseInt(args[1]);
             if (music == 0) {
-                FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>请输入有效的序列ID");
+                FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.delete_invalid"));
                 return;
             }
             if (music > PlayMusic.getListSize()) {
-                FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>序列号过大");
+                FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.delete_too_big"));
                 return;
             }
             PlayMusic.remove(music - 1);
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>已删除序列" + music);
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.delete_ok", music));
         } else {
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>请输入有效的序列ID");
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.delete_invalid"));
         }
     }
 

@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.command.ACommand;
@@ -9,6 +10,6 @@ public class CommandClearBanPlayerList extends ACommand {
     @Override
     public void execute(Object sender, String name, String[] args) {
         BanSave.clearBanPlayer();
-        FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>禁止玩家点歌列表已清空");
+        FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.clearbanplayer_ok"));
     }
 }

@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,12 +31,12 @@ public class CommandMute extends ACommand {
                 String finalName = args[1];
                 if (BanSave.checkMutePlayer(finalName)) {
                     BanSave.removeMutePlayer(finalName);
-                    FMusic.side.sendMessage(sender, "已取消玩家：" + finalName + "的静音");
+                    FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.mute_cancel", finalName));
                 } else {
                     BanSave.addMutePlayer(finalName);
                     FMusic.side.sendStop(finalName);
                     FMusic.side.clearHud(finalName);
-                    FMusic.side.sendMessage(sender, "已设置玩家：" + finalName + "的静音");
+                    FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.mute_set", finalName));
                 }
             }
         } else {

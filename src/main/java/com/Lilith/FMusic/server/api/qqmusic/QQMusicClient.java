@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.api.qqmusic;
+import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -24,7 +25,7 @@ public class QQMusicClient {
             if (guestList != null && !guestList.isEmpty()) {
                 return guestList;
             }
-            QQMusicHttpClient.log("<yellow>QQ音乐游客联想搜索为空，尝试musicu搜索接口");
+            QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.smartbox_empty_try_musicu"));
         }
 
         List<QQSong> list = searchMusicu(keyword, limit, guest);
@@ -33,7 +34,7 @@ public class QQMusicClient {
             return list;
         }
 
-        QQMusicHttpClient.log("<yellow>QQ音乐musicu搜索为空，尝试旧搜索接口");
+        QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.musicu_empty_try_old"));
         return searchOld(keyword, limit, guest);
     }
 
@@ -43,7 +44,7 @@ public class QQMusicClient {
         try {
             if (keyword == null || keyword.trim()
                 .isEmpty()) {
-                QQMusicHttpClient.log("<red>QQ音乐游客搜索关键字为空");
+                QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.guest_keyword_empty"));
                 return null;
             }
 
@@ -56,7 +57,7 @@ public class QQMusicClient {
 
             HttpResObj res = QQMusicHttpClient.getAnonymous(url);
             if (res == null || !res.ok || res.data == null || res.data.isEmpty()) {
-                QQMusicHttpClient.log("<red>QQ音乐游客联想搜索请求失败");
+                QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.smartbox_req_fail"));
                 return null;
             }
 
@@ -67,7 +68,7 @@ public class QQMusicClient {
 
             if (arr == null || arr.size() == 0) {
                 QQMusicHttpClient
-                    .log("<yellow>QQ音乐游客联想搜索结果为空，keyword=" + keyword + "，返回=" + QQMusicHttpClient.cut(res.data, 1000));
+                    .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.smartbox_empty", keyword, QQMusicHttpClient.cut(res.data, 1000)));
                 return null;
             }
 
@@ -84,9 +85,9 @@ public class QQMusicClient {
                 }
             }
 
-            QQMusicHttpClient.log("<green>QQ音乐游客联想搜索成功：" + keyword + "，数量=" + list.size());
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.smartbox_ok", keyword, list.size()));
         } catch (Exception e) {
-            QQMusicHttpClient.log("<red>QQ音乐游客联想搜索解析错误");
+            QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.smartbox_parse_error"));
             if (QQSong.debug) {
                 e.printStackTrace();
             }
@@ -102,7 +103,7 @@ public class QQMusicClient {
         try {
             if (keyword == null || keyword.trim()
                 .isEmpty()) {
-                QQMusicHttpClient.log("<red>QQ音乐搜索关键字为空");
+                QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.keyword_empty"));
                 return null;
             }
 
@@ -137,7 +138,7 @@ public class QQMusicClient {
             HttpResObj res = guest ? QQMusicHttpClient.postJsonAnonymous(QQMusicHttpClient.MUSICU_URL, body)
                 : QQMusicHttpClient.postJson(QQMusicHttpClient.MUSICU_URL, body);
             if (res == null || !res.ok || res.data == null || res.data.isEmpty()) {
-                QQMusicHttpClient.log("<red>QQ音乐musicu搜索请求失败");
+                QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.musicu_req_fail"));
                 return null;
             }
 
@@ -162,9 +163,9 @@ public class QQMusicClient {
                 }
             }
 
-            QQMusicHttpClient.log("<green>QQ音乐musicu搜索成功：" + keyword + "，数量=" + list.size());
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.musicu_ok", keyword, list.size()));
         } catch (Exception e) {
-            QQMusicHttpClient.log("<red>QQ音乐musicu搜索解析错误");
+            QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.musicu_parse_error"));
             if (QQSong.debug) {
                 e.printStackTrace();
             }
@@ -215,7 +216,7 @@ public class QQMusicClient {
 
             HttpResObj res = guest ? QQMusicHttpClient.getAnonymous(url) : QQMusicHttpClient.get(url);
             if (res == null || !res.ok || res.data == null || res.data.isEmpty()) {
-                QQMusicHttpClient.log("<red>QQ音乐旧搜索请求失败");
+                QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.old_req_fail"));
                 return null;
             }
 
@@ -226,7 +227,7 @@ public class QQMusicClient {
 
             if (arr == null || arr.size() == 0) {
                 QQMusicHttpClient
-                    .log("<red>QQ音乐旧搜索也为空，keyword=" + keyword + "，返回=" + QQMusicHttpClient.cut(res.data, 1000));
+                    .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.old_empty", keyword, QQMusicHttpClient.cut(res.data, 1000)));
                 return null;
             }
 
@@ -242,9 +243,9 @@ public class QQMusicClient {
                 }
             }
 
-            QQMusicHttpClient.log("<green>QQ音乐旧搜索成功：" + keyword + "，数量=" + list.size());
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.old_ok", keyword, list.size()));
         } catch (Exception e) {
-            QQMusicHttpClient.log("<red>QQ音乐旧搜索解析错误");
+            QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.old_parse_error"));
             if (QQSong.debug) {
                 e.printStackTrace();
             }
@@ -371,7 +372,7 @@ public class QQMusicClient {
             }
             return new PlaylistInfo(name, new ArrayList<>(songIds));
         } catch (Exception e) {
-            QQMusicHttpClient.log("<red>QQ音乐歌单解析错误：" + id);
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.playlist_error", id));
             if (QQSong.debug) {
                 e.printStackTrace();
             }
@@ -403,7 +404,7 @@ public class QQMusicClient {
 
             HttpResObj res = QQMusicHttpClient.postJson(QQMusicHttpClient.MUSICU_URL, FMusic.gson.toJson(req));
             if (res == null || !res.ok || res.data == null || res.data.isEmpty()) {
-                QQMusicHttpClient.log("<red>QQ音乐歌曲详情请求失败：" + id);
+                QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.detail_req_fail", id));
                 return null;
             }
 
@@ -413,7 +414,7 @@ public class QQMusicClient {
             JsonObject track = QQSong.getObj(data, "track_info");
 
             if (track == null) {
-                QQMusicHttpClient.log("<red>QQ音乐歌曲详情为空：" + id + "，返回=" + QQMusicHttpClient.cut(res.data, 1000));
+                QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.detail_empty", id, QQMusicHttpClient.cut(res.data, 1000)));
                 return null;
             }
 
@@ -425,7 +426,7 @@ public class QQMusicClient {
 
             return song;
         } catch (Exception e) {
-            QQMusicHttpClient.log("<red>QQ音乐歌曲信息解析错误：" + id);
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.detail_parse_error", id));
             if (QQSong.debug) {
                 e.printStackTrace();
             }
@@ -449,7 +450,7 @@ public class QQMusicClient {
             }
             return getPlayUrl(song);
         } catch (Exception e) {
-            QQMusicHttpClient.log("<red>QQ音乐播放链接解析错误：" + id);
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.play_url_parse_error", id));
             if (QQSong.debug) {
                 e.printStackTrace();
             }
@@ -503,7 +504,7 @@ public class QQMusicClient {
 
             HttpResObj res = QQMusicHttpClient.postJson(QQMusicHttpClient.MUSICU_URL, FMusic.gson.toJson(req));
             if (res == null || !res.ok || res.data == null || res.data.isEmpty()) {
-                QQMusicHttpClient.log("<red>QQ音乐播放链接请求失败：" + songMid);
+                QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.play_url_req_fail", songMid));
                 return null;
             }
 
@@ -516,7 +517,7 @@ public class QQMusicClient {
                 || !midurlinfo.get(0)
                     .isJsonObject()) {
                 QQMusicHttpClient
-                    .log("<red>QQ音乐播放链接 midurlinfo 为空：" + songMid + "，返回=" + QQMusicHttpClient.cut(res.data, 1000));
+                    .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.midurlinfo_empty", songMid, QQMusicHttpClient.cut(res.data, 1000)));
                 return null;
             }
 
@@ -530,7 +531,7 @@ public class QQMusicClient {
 
             if (purl != null && !purl.isEmpty() && result == 0) {
                 QQMusicHttpClient
-                    .log("<green>QQ音乐播放链接获取成功：songmid=" + songMid + "，media_mid=" + mediaMid + "，filename=" + filename);
+                    .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.play_url_ok", songMid, mediaMid, filename));
                 return host + purl;
             }
 
@@ -547,7 +548,7 @@ public class QQMusicClient {
             return null;
         } catch (Exception e) {
             String id = song == null ? "null" : song.realId();
-            QQMusicHttpClient.log("<red>QQ音乐播放链接解析错误：" + id);
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.play_url_parse_error", id));
             if (QQSong.debug) {
                 e.printStackTrace();
             }
@@ -606,7 +607,7 @@ public class QQMusicClient {
 
             HttpResObj res = QQMusicHttpClient.get(url);
             if (res == null || !res.ok || res.data == null || res.data.isEmpty()) {
-                QQMusicHttpClient.log("<red>QQ音乐歌词请求失败：" + id);
+                QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.lyric_req_fail", id));
                 return null;
             }
 
@@ -614,12 +615,12 @@ public class QQMusicClient {
             String lyric = QQSong.getString(root, "lyric");
 
             if (lyric == null || lyric.isEmpty()) {
-                QQMusicHttpClient.log("<yellow>QQ音乐歌词为空：" + id + "，返回=" + QQMusicHttpClient.cut(res.data, 1000));
+                QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.lyric_empty", id, QQMusicHttpClient.cut(res.data, 1000)));
             }
 
             return lyric;
         } catch (Exception e) {
-            QQMusicHttpClient.log("<red>QQ音乐歌词解析错误：" + id);
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.lyric_parse_error", id));
             if (QQSong.debug) {
                 e.printStackTrace();
             }

@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.netapi;
+import net.minecraft.util.StatCollector;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -132,7 +133,7 @@ public class CryptoUtil {
             digest.update(plainText.getBytes(StandardCharsets.UTF_8));
             secretBytes = digest.digest();
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException("没有这个md5算法！");
+            throw new RuntimeException(StatCollector.translateToLocal("fmusic.log.netapi.no_md5"));
         }
         return byteArrToHex(secretBytes);
     }

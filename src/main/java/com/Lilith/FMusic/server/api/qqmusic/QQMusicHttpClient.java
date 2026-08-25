@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.api.qqmusic;
+import net.minecraft.util.StatCollector;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -50,10 +51,10 @@ public class QQMusicHttpClient {
         try {
             HttpGet request = new HttpGet(url);
             setHeaders(request, includeCookie);
-            log("<gray>QQ音乐GET: " + url);
-            return execute(request, "QQ音乐GET请求失败：" + url);
+            log(StatCollector.translateToLocalFormatted("fmusic.log.qq.http_get", url));
+            return execute(request, StatCollector.translateToLocalFormatted("fmusic.log.qq.http_req_fail", url));
         } catch (Exception e) {
-            log("<red>QQ音乐GET请求失败：" + url);
+            log(StatCollector.translateToLocalFormatted("fmusic.log.qq.http_get_fail", url));
             if (QQSong.debug) {
                 e.printStackTrace();
             }
@@ -79,11 +80,11 @@ public class QQMusicHttpClient {
             setHeaders(request, includeCookie);
             request.setHeader("Content-Type", "application/json;charset=UTF-8");
             request.setEntity(new StringEntity(json, ContentType.APPLICATION_JSON));
-            log("<gray>QQ音乐POST: " + url);
-            log("<gray>QQ音乐POST Body: " + cut(json, 1200));
-            return execute(request, "QQ音乐POST请求失败：" + url);
+            log(StatCollector.translateToLocalFormatted("fmusic.log.qq.http_post", url));
+            log(StatCollector.translateToLocalFormatted("fmusic.log.qq.http_post_body", cut(json, 1200)));
+            return execute(request, StatCollector.translateToLocalFormatted("fmusic.log.qq.http_req_fail", url));
         } catch (Exception e) {
-            log("<red>QQ音乐POST请求失败：" + url);
+            log(StatCollector.translateToLocalFormatted("fmusic.log.qq.http_post_fail", url));
             if (QQSong.debug) {
                 e.printStackTrace();
             }
@@ -102,11 +103,11 @@ public class QQMusicHttpClient {
         String cookie = includeCookie ? buildCookieHeader() : "";
         if (!cookie.isEmpty()) {
             request.setHeader("Cookie", cookie);
-            log("<gray>QQ音乐Cookie已注入，cookie：" + cookie);
+            log(StatCollector.translateToLocalFormatted("fmusic.log.qq.cookie_injected", cookie));
         } else if (!includeCookie) {
-            log("<gray>QQ音乐使用游客搜索请求，不注入Cookie");
+            log(StatCollector.translateToLocal("fmusic.log.qq.guest_no_cookie"));
         } else {
-            log("<yellow>QQ音乐Cookie为空，将以未登录状态请求");
+            log(StatCollector.translateToLocal("fmusic.log.qq.cookie_empty"));
         }
     }
 
@@ -210,7 +211,7 @@ public class QQMusicHttpClient {
 
             return builder.toString();
         } catch (Exception e) {
-            log("<red>QQ音乐Cookie读取失败");
+            log(StatCollector.translateToLocal("fmusic.log.qq.cookie_read_fail"));
             if (QQSong.debug) {
                 e.printStackTrace();
             }
@@ -263,7 +264,7 @@ public class QQMusicHttpClient {
             HttpEntity entity = response.getEntity();
 
             if (entity == null) {
-                log("<red>QQ音乐返回空实体，HTTP=" + httpCode);
+                log(StatCollector.translateToLocalFormatted("fmusic.log.qq.empty_entity", httpCode));
                 return null;
             }
 
@@ -271,10 +272,10 @@ public class QQMusicHttpClient {
             EntityUtils.consume(entity);
 
             boolean ok = httpCode >= 200 && httpCode < 300;
-            log("<gray>QQ音乐HTTP=" + httpCode + " 返回：" + cut(body, 1200));
+            log(StatCollector.translateToLocalFormatted("fmusic.log.qq.http_body", httpCode, cut(body, 1200)));
 
             if (!ok) {
-                log("<red>QQ音乐服务器返回错误：" + cut(body, 1200));
+                log(StatCollector.translateToLocalFormatted("fmusic.log.qq.server_error", cut(body, 1200)));
             }
 
             return new HttpResObj(body, ok);

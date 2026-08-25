@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.saves;
+import net.minecraft.util.StatCollector;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -41,7 +42,7 @@ public class HudSave {
             write.close();
             out.close();
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>配置文件hud.json保存错误");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.hud_save_err"));
             e.printStackTrace();
         }
     }
@@ -49,7 +50,7 @@ public class HudSave {
     public static void defaultHudCheck() {
         if (defaultHud == null || defaultHud.check()) {
             defaultHud = HudPosObj.make();
-            FMusic.log.data("<gold>[FMusic]<red>配置文件hud.json错误，已覆盖");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.hud_wrong"));
             saveDefaultHud();
         }
     }
@@ -105,7 +106,7 @@ public class HudSave {
             write.write(data);
             write.close();
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>玩家信息保存错误");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.player_save_err"));
             e.printStackTrace();
         }
     }

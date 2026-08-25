@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.api.kugou;
+import net.minecraft.util.StatCollector;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -33,7 +34,7 @@ public class KugouApiMain implements IMusicApi {
     private volatile boolean isUpdate;
 
     public KugouApiMain() {
-        KugouHttpClient.log("<yellow>正在初始化酷狗音乐API");
+        KugouHttpClient.log(StatCollector.translateToLocal("fmusic.log.kugou.init"));
     }
 
     @Override
@@ -111,7 +112,7 @@ public class KugouApiMain implements IMusicApi {
     public SongInfoObj getMusic(String id, String player, boolean isList) {
         id = getMusicId(id);
         if (!checkId(id)) {
-            KugouHttpClient.log("<red>酷狗音乐hash格式错误：" + id);
+            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.hash_error", id));
             return null;
         }
         KugouSong song = KugouClient.getSong(id);
@@ -123,12 +124,12 @@ public class KugouApiMain implements IMusicApi {
         // AllMusic 核心会在真正开始播放时调用 getPlayUrl(id)；若此处也请求，
         // 成功场景会重复请求短时效 URL，并增加接口限流/风控概率。
         return new SongInfoObj(
-            empty(song.singer, "未知歌手"),
+            empty(song.singer, StatCollector.translateToLocal("fmusic.api.unknown_artist")),
             empty(song.name, id),
             id,
             null,
             player,
-            empty(song.album, "酷狗音乐"),
+            empty(song.album, StatCollector.translateToLocal("fmusic.api.kugou.album")),
             isList,
             song.durationMs,
             song.picUrl(),
@@ -141,12 +142,12 @@ public class KugouApiMain implements IMusicApi {
     public SearchPageObj search(String[] name, boolean isDefault) {
         String keyword = joinKeyword(name, isDefault);
         if (keyword.isEmpty()) {
-            KugouHttpClient.log("<red>酷狗音乐搜索关键字为空");
+            KugouHttpClient.log(StatCollector.translateToLocal("fmusic.log.kugou.keyword_empty"));
             return null;
         }
         List<KugouSong> songs = KugouClient.search(keyword, 30);
         if (songs == null || songs.isEmpty()) {
-            KugouHttpClient.log("<red>酷狗音乐搜索结果为空：" + keyword);
+            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.result_empty", keyword));
             return null;
         }
         List<SearchMusicObj> result = new ArrayList<>();
@@ -159,8 +160,8 @@ public class KugouApiMain implements IMusicApi {
                 new SearchMusicObj(
                     song.realId(),
                     empty(song.name, song.realId()),
-                    empty(song.singer, "未知歌手"),
-                    empty(song.album, "酷狗音乐")));
+                    empty(song.singer, StatCollector.translateToLocal("fmusic.api.unknown_artist")),
+                    empty(song.album, StatCollector.translateToLocal("fmusic.api.kugou.album"))));
         }
         if (result.isEmpty()) {
             return null;
@@ -179,7 +180,7 @@ public class KugouApiMain implements IMusicApi {
                     KugouClient.PlaylistInfo playlist = KugouClient.getPlaylist(value);
                     if (playlist == null || playlist.getSongIds()
                         .isEmpty()) {
-                        FMusic.side.sendMessageTask(sender, "酷狗音乐歌单获取失败，请检查歌单ID、网址或访问权限");
+                        FMusic.side.sendMessageTask(sender, StatCollector.translateToLocal("fmusic.api.kugou.playlist_fail_check"));
                         return;
                     }
                     MusicListSave.addIdleList(playlist.getSongIds(), getId());
@@ -203,10 +204,10 @@ public class KugouApiMain implements IMusicApi {
                         sender,
                         FMusic.getMessage().musicPlay.listMusic.get.replace(ARG.name, "Kugou"));
                 } else {
-                    FMusic.side.sendMessageTask(sender, "酷狗音乐歌单获取失败，请输入歌单ID、歌单网址或逗号分隔的歌曲hash");
+                    FMusic.side.sendMessageTask(sender, StatCollector.translateToLocal("fmusic.api.kugou.playlist_fail_input"));
                 }
             } catch (Exception e) {
-                KugouHttpClient.log("<red>酷狗音乐列表导入错误");
+                KugouHttpClient.log(StatCollector.translateToLocal("fmusic.log.kugou.list_import_error"));
                 if (KugouSong.debug) {
                     e.printStackTrace();
                 }

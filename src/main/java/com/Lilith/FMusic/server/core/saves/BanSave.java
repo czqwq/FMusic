@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.saves;
+import net.minecraft.util.StatCollector;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -40,7 +41,7 @@ public class BanSave {
     private static void banCheck() {
         if (ban == null || ban.check()) {
             ban = BanObj.make();
-            FMusic.log.data("<gold>[FMusic]<red>配置文件ban.json错误，已覆盖");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.ban_wrong"));
             saveBan();
         }
     }
@@ -54,7 +55,7 @@ public class BanSave {
             write.close();
             out.close();
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>配置文件ban.json保存错误");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.ban_save_err"));
             e.printStackTrace();
         }
     }

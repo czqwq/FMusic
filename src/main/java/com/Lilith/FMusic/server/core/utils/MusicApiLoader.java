@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.utils;
+import net.minecraft.util.StatCollector;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,7 +26,7 @@ public class MusicApiLoader {
         if (jarFiles == null) return instances;
 
         for (File jarFile : jarFiles) {
-            FMusic.log.data("<gold>[FMusic]<yellow>尝试加载api：" + jarFile.getName());
+            FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.core.api_load", jarFile.getName()));
             instances.addAll(loadFromJar(jarFile));
         }
         return instances;

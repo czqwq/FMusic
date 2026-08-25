@@ -19,6 +19,7 @@
 package com.Lilith.FMusic.client.core.player.decoder.mp3;
 
 import com.Lilith.FMusic.client.FMusic;
+import net.minecraft.util.StatCollector;
 import com.Lilith.FMusic.client.core.FMusicLog;
 import com.Lilith.FMusic.client.core.FMusicPlayer;
 import com.Lilith.FMusic.client.core.player.decoder.BuffPack;
@@ -160,15 +161,15 @@ public class Mp3Decoder implements DecoderErrors, IDecoder {
     @Override
     public void set(int time) {
         try {
-            FMusicLog.debug(FMusic.LOGGER, "[FMusic] MP3 seek: " + time + "ms");
+            FMusicLog.debug(FMusic.LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.mp3_seek", time));
             int frameSize = bitstream.getframesize();
             if (frameSize <= 0) {
                 // 解码器刚构造 (closeFrame 后 framesize=-1) 时不能直接算偏移,
                 // 否则 time/26 * -1 得到负数, seek 会从头/错误位置播放 (闪开头音)
-                FMusicLog.warn(FMusic.LOGGER, "[FMusic] MP3 帧头未就绪 framesize=" + frameSize + ", 重读帧头");
+                FMusicLog.warn(FMusic.LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.mp3_frame", frameSize));
                 Header h = bitstream.readFrame();
                 if (h == null) {
-                    FMusicLog.warn(FMusic.LOGGER, "[FMusic] MP3 重读帧头失败, 放弃 seek");
+                    FMusicLog.warn(FMusic.LOGGER, StatCollector.translateToLocal("fmusic.log.player.mp3_frame_fail"));
                     return;
                 }
                 frameSize = h.framesize;
@@ -176,10 +177,10 @@ public class Mp3Decoder implements DecoderErrors, IDecoder {
             long data = ((time / 26) * (long) frameSize) + bitstream.local;
             FMusicLog.debug(
                 FMusic.LOGGER,
-                "[FMusic] MP3 seek: framesize=" + frameSize + ", local=" + bitstream.local + " -> data=" + data);
+                StatCollector.translateToLocalFormatted("fmusic.log.player.mp3_data", frameSize, bitstream.local, data));
             player.setLocal(data);
         } catch (Exception e) {
-            FMusicLog.warn(FMusic.LOGGER, "[FMusic] MP3 seek 异常: " + e.toString());
+            FMusicLog.warn(FMusic.LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.mp3_exception", e.toString()));
             e.printStackTrace();
         }
     }

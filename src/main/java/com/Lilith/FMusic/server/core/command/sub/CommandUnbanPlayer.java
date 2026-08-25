@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,7 +18,7 @@ public class CommandUnbanPlayer implements ICommand {
             return;
         }
         BanSave.removeBanPlayer(args[1]);
-        FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>已解封玩家" + args[1] + "点歌");
+        FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.unbanplayer_ok", args[1]));
     }
 
     @Override

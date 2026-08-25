@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.client.gui;
+import net.minecraft.util.StatCollector;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
@@ -70,7 +71,7 @@ public class FMusicHudConfigGui extends GuiScreen {
 
         // 顶部提示
         FontRenderer font = Minecraft.getMinecraft().fontRenderer;
-        String tip = "\u00a7e拖拽手柄调整 HUD 位置, 松开鼠标保存, Esc 关闭";
+        String tip = StatCollector.translateToLocal("fmusic.ui.hudconfig_tip");
         font.drawStringWithShadow(tip, (width - font.getStringWidth(tip)) / 2, 5, 0xFFFFFF);
 
         super.drawScreen(x, y, partial);

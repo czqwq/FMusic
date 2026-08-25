@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.netapi;
+import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -170,8 +171,8 @@ public class LyricDecoder {
                 try {
                     temp5 = (Integer.parseInt(temp8[1]) / 10 * 10);
                 } catch (Exception e) {
-                    FMusic.log.data("不支持的Ktv歌词");
-                    FMusic.log.data("请带上音乐ID联系开发者");
+                    FMusic.log.data(StatCollector.translateToLocal("fmusic.log.netapi.ktv_unsupported"));
+                    FMusic.log.data(StatCollector.translateToLocal("fmusic.log.netapi.contact_dev"));
                     return null;
                 }
 

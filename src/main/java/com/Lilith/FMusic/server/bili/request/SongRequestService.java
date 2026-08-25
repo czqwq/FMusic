@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.bili.request;
+import net.minecraft.util.StatCollector;
 
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -54,7 +55,7 @@ public final class SongRequestService {
         }
         RequestGate.Decision decision = gate.checkAndMark(request, settings.songRequest, System.currentTimeMillis());
         if (decision != RequestGate.Decision.ACCEPTED) {
-            plugin.debug("Ignored song request from " + request.username + ": " + decision);
+            plugin.debug(StatCollector.translateToLocalFormatted("fmusic.log.bili.request_ignored", request.username, decision));
             return true;
         }
         return submit(request);
@@ -123,7 +124,7 @@ public final class SongRequestService {
             return true;
         } catch (RejectedExecutionException e) {
             failed.incrementAndGet();
-            plugin.warning("Bilibili song request work queue is full; dropped: " + request.keyword);
+            plugin.warning(StatCollector.translateToLocalFormatted("fmusic.log.bili.queue_full", request.keyword));
             return false;
         }
     }

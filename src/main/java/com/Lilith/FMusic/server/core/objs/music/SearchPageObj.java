@@ -39,6 +39,10 @@ public class SearchPageObj {
 
     public int getIndex() {
         int a = resData.size() - page * 10;
+        // 防御: 页码越界 (如某些 API 传了错误 maxpage) 时返回 0, 避免循环负数
+        if (a < 0) {
+            return 0;
+        }
         return Math.min(a, 10);
     }
 

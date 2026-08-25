@@ -1,6 +1,8 @@
 package com.Lilith.FMusic.server.bili.allmusic;
 
 import com.Lilith.FMusic.server.FMusicServer;
+
+import net.minecraft.util.StatCollector;
 import com.Lilith.FMusic.server.bili.BiliMusicBridge;
 import com.Lilith.FMusic.server.bili.config.PluginSettings;
 import com.Lilith.FMusic.server.bili.request.SongRequest;
@@ -93,11 +95,11 @@ public final class AllMusicBridge {
                 return;
             }
             SearchMusicObj res = page.getRes(0);
-            String name = res == null ? "未知歌曲" : res.name;
-            String artist = res == null ? "未知歌手" : res.author;
+            String name = res == null ? StatCollector.translateToLocal("fmusic.api.unknown_song") : res.name;
+            String artist = res == null ? StatCollector.translateToLocal("fmusic.api.unknown_artist") : res.author;
             selection = new SongSelection(id, apiId, name, artist);
         } catch (Exception e) {
-            plugin.warning("FMusic default API search failed for: " + request.keyword + " - " + e);
+            plugin.warning(StatCollector.translateToLocalFormatted("fmusic.log.bili.search_fail", request.keyword, e));
             callback.complete(QueueResult.failure(QueueResult.Status.SEARCH_FAILED, safeMessage(e)));
             return;
         }
@@ -117,7 +119,7 @@ public final class AllMusicBridge {
                 try {
                     callback.complete(queueDirect(request, selection, api, settings));
                 } catch (Exception e) {
-                    plugin.warning("FMusic queue operation failed: " + e);
+                    plugin.warning(StatCollector.translateToLocalFormatted("fmusic.log.bili.queue_fail", e));
                     callback.complete(QueueResult.failure(QueueResult.Status.INTERNAL_ERROR, safeMessage(e)));
                 }
             }

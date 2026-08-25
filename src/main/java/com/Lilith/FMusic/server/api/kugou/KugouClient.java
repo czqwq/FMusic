@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.api.kugou;
+import net.minecraft.util.StatCollector;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -96,7 +97,7 @@ public final class KugouClient {
             }
             return new PlaylistInfo(name, new ArrayList<>(songIds));
         } catch (Exception e) {
-            KugouHttpClient.log("<red>酷狗音乐歌单解析错误：" + id);
+            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.playlist_error", id));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -130,7 +131,7 @@ public final class KugouClient {
         int size = limit <= 0 ? 30 : Math.min(limit, 100);
         List<KugouSong> songs = searchComplexWeb(keyword.trim(), size);
         if (songs == null || songs.isEmpty()) {
-            KugouHttpClient.log("<yellow>酷狗复杂搜索不可用，降级到旧网页搜索：" + keyword);
+            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.complex_fallback", keyword));
             songs = searchWeb(keyword.trim(), size);
         }
         return songs == null || songs.isEmpty() ? null : songs;
@@ -185,7 +186,7 @@ public final class KugouClient {
                 return result;
             }
         } catch (Exception e) {
-            KugouHttpClient.log("<yellow>酷狗复杂网页搜索解析失败：" + keyword);
+            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.complex_parse_fail", keyword));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -210,12 +211,12 @@ public final class KugouClient {
             HttpResObj response = KugouHttpClient.getWeb(KugouHttpClient.WEB_SEARCH_URL, params);
             List<KugouSong> result = parseSearchResponse(response);
             if (result != null && !result.isEmpty()) {
-                KugouHttpClient.log("<green>酷狗音乐网页搜索成功：" + keyword + "，数量=" + result.size());
+                KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.web_search_ok", keyword, result.size()));
                 return result;
             }
-            KugouHttpClient.log("<red>酷狗音乐网页搜索结果为空：" + keyword);
+            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.web_result_empty", keyword));
         } catch (Exception e) {
-            KugouHttpClient.log("<red>酷狗音乐网页搜索解析错误");
+            KugouHttpClient.log(StatCollector.translateToLocal("fmusic.log.kugou.web_parse_error"));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -233,7 +234,7 @@ public final class KugouClient {
         JsonObject root = parseObj(response.data);
         JsonArray items = searchItems(root);
         if (items == null || items.size() == 0) {
-            KugouHttpClient.log("<yellow>酷狗音乐搜索接口无列表，返回=" + KugouHttpClient.cut(response.data, 1000));
+            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.no_list", KugouHttpClient.cut(response.data, 1000)));
             return null;
         }
 
@@ -299,7 +300,7 @@ public final class KugouClient {
     private static KugouSong requestWebDetail(String hash, KugouSong known) {
         try {
             if (known == null) {
-                KugouHttpClient.log("<yellow>酷狗网页播放缺少搜索缓存：" + hash);
+                KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.no_cache", hash));
                 return null;
             }
 
@@ -309,7 +310,7 @@ public final class KugouClient {
             long albumId = known.albumIdNumber();
             long albumAudioId = known.albumAudioIdNumber();
             if (albumAudioId <= 0) {
-                KugouHttpClient.log("<yellow>酷狗网页播放缺少album_audio_id/MixSongID：" + hash);
+                KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.no_album_id", hash));
                 return null;
             }
 
@@ -378,7 +379,7 @@ public final class KugouClient {
             }
             return song;
         } catch (Exception e) {
-            KugouHttpClient.log("<red>酷狗音乐Web歌曲详情解析错误：" + hash);
+            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.detail_error", hash));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -392,7 +393,7 @@ public final class KugouClient {
             return response;
         }
 
-        KugouHttpClient.log("<yellow>酷狗wwwapi网页播放失败，尝试www网页接口");
+        KugouHttpClient.log(StatCollector.translateToLocal("fmusic.log.kugou.wwwapi_fail"));
         return KugouHttpClient.getWeb(KugouHttpClient.WEB_DETAIL_ALT_URL, params);
     }
 
@@ -530,7 +531,7 @@ public final class KugouClient {
             result.trial = KugouSong.bool(data, false, "is_free_part", "is_trial") || isKnownTrialUrl(result.playUrl);
             return result;
         } catch (Exception e) {
-            KugouHttpClient.log("<red>酷狗Web会员播放解析错误：" + known.realId());
+            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.member_parse_error", known.realId()));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -554,14 +555,14 @@ public final class KugouClient {
             }
             String token = firstCookieValue("token", "t");
             if ("-".equals(mid) || "-".equals(dfid)) {
-                KugouHttpClient.log("<red>酷狗Android播放缺少mid或dfid，请重新导出Cookie");
+                KugouHttpClient.log(StatCollector.translateToLocal("fmusic.log.kugou.android_no_mid"));
                 return null;
             }
             if ("0".equals(userId)) {
-                KugouHttpClient.log("<yellow>酷狗Android播放未找到KugooID，将按匿名账号请求");
+                KugouHttpClient.log(StatCollector.translateToLocal("fmusic.log.kugou.android_no_kugoo_id"));
             }
             if (token.isEmpty()) {
-                KugouHttpClient.log("<yellow>酷狗Android播放未找到t/token，付费歌曲可能无法获取");
+                KugouHttpClient.log(StatCollector.translateToLocal("fmusic.log.kugou.android_no_token"));
             }
             String clientTime = String.valueOf(System.currentTimeMillis() / 1000L);
 
@@ -674,7 +675,7 @@ public final class KugouClient {
             result.trial = isKnownTrialUrl(result.playUrl) || isTrial(root);
             return result;
         } catch (Exception e) {
-            KugouHttpClient.log("<red>酷狗Android播放解析错误：" + known.realId());
+            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.android_parse_error", known.realId()));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -744,12 +745,12 @@ public final class KugouClient {
                     if (isUsablePlayUrl(webVip)) {
                         String url = normalizeUrl(webVip.playUrl);
                         cachePlayUrl(id, url);
-                        KugouHttpClient.log("<green>酷狗音乐Web会员完整播放链接获取成功：" + id);
+                        KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.member_url_ok", id));
                         return url;
                     }
                 }
 
-                KugouHttpClient.log("<yellow>酷狗Web会员未返回正式播放链接，尝试Android备用接口：" + id);
+                KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.member_fallback", id));
                 KugouSong android = requestAndroidPlay(song);
                 if (android != null) {
                     android = merge(android, song);
@@ -757,12 +758,12 @@ public final class KugouClient {
                     if (isUsablePlayUrl(android)) {
                         String url = normalizeUrl(android.playUrl);
                         cachePlayUrl(id, url);
-                        KugouHttpClient.log("<green>酷狗音乐Android完整播放链接获取成功：" + id);
+                        KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.android_url_ok", id));
                         return url;
                     }
                 }
 
-                KugouHttpClient.log("<yellow>酷狗Android未返回正式播放链接，尝试旧Web兼容接口：" + id);
+                KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.android_fallback", id));
                 KugouSong detail = getWebDetail(id, song);
                 if (detail != null) {
                     detail = merge(detail, song);
@@ -770,12 +771,12 @@ public final class KugouClient {
                     if (isUsablePlayUrl(detail)) {
                         String url = normalizeUrl(detail.playUrl);
                         cachePlayUrl(id, url);
-                        KugouHttpClient.log("<green>酷狗音乐Web完整播放链接获取成功：" + id);
+                        KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.web_url_ok", id));
                         return url;
                     }
                 }
 
-                KugouHttpClient.log("<yellow>酷狗音乐正式播放链接为空：" + id);
+                KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.url_empty", id));
                 return null;
             }
         } finally {
@@ -822,7 +823,7 @@ public final class KugouClient {
         if (candidate != null) {
             return downloadLyric(candidate, false);
         }
-        KugouHttpClient.log("<yellow>酷狗音乐歌词候选为空：" + id);
+        KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.lyric_empty", id));
         return null;
     }
 
@@ -900,7 +901,7 @@ public final class KugouClient {
             }
             return decodeBase64Lyric(content);
         } catch (Exception e) {
-            KugouHttpClient.log("<red>酷狗音乐歌词下载解析错误");
+            KugouHttpClient.log(StatCollector.translateToLocal("fmusic.log.kugou.lyric_error"));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }

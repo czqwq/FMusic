@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.bili.platform;
+import net.minecraft.util.StatCollector;
 
 import java.io.File;
 import java.util.logging.Level;
@@ -39,17 +40,17 @@ public final class ForgeBridgePlatform implements BridgePlatform {
 
     @Override
     public void broadcast(String legacyMessage) {
-        FMusicServer.LOGGER.info("[FMusic][B站点歌] " + legacyMessage);
+        FMusicServer.LOGGER.info(StatCollector.translateToLocalFormatted("fmusic.log.bili.broadcast", legacyMessage));
     }
 
     @Override
     public void log(Level level, String message, Throwable throwable) {
         if (throwable != null) {
-            FMusicServer.LOGGER.warn("[B站点歌] " + message, throwable);
+            FMusicServer.LOGGER.warn(StatCollector.translateToLocalFormatted("fmusic.log.bili.log_prefix", message), throwable);
         } else if (level.intValue() >= Level.WARNING.intValue()) {
-            FMusicServer.LOGGER.warn("[B站点歌] " + message);
+            FMusicServer.LOGGER.warn(StatCollector.translateToLocalFormatted("fmusic.log.bili.log_prefix", message));
         } else {
-            FMusicServer.LOGGER.info("[B站点歌] " + message);
+            FMusicServer.LOGGER.info(StatCollector.translateToLocalFormatted("fmusic.log.bili.log_prefix", message));
         }
     }
 

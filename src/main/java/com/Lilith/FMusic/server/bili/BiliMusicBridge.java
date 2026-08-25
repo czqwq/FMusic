@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.bili;
+import net.minecraft.util.StatCollector;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -40,7 +41,7 @@ public final class BiliMusicBridge {
             saveDefaultConfig();
             settings = PluginSettings.load(configFile());
         } catch (Exception e) {
-            log(Level.SEVERE, "Invalid config.json; B站点歌 cannot start", e);
+            log(Level.SEVERE, StatCollector.translateToLocal("fmusic.log.bili.invalid_config"), e);
             return false;
         }
 
@@ -52,9 +53,9 @@ public final class BiliMusicBridge {
         if (settings.autoConnect && settings.roomId > 0L) {
             liveClient.start();
         } else if (settings.roomId <= 0L) {
-            warning("Set room-id in " + configFile().getPath() + " before connecting.");
+            warning(StatCollector.translateToLocalFormatted("fmusic.log.bili.set_room_id", configFile().getPath()));
         }
-        info("BiliMusicBridge enabled on " + platform.platformName() + ".");
+        info(StatCollector.translateToLocalFormatted("fmusic.log.bili.enabled", platform.platformName()));
         return true;
     }
 
@@ -64,7 +65,7 @@ public final class BiliMusicBridge {
         if (allMusicBridge != null) {
             allMusicBridge.invalidate();
         }
-        info("BiliMusicBridge disabled.");
+        info(StatCollector.translateToLocal("fmusic.log.bili.disabled"));
     }
 
     public synchronized boolean reloadBridge() {
@@ -75,7 +76,7 @@ public final class BiliMusicBridge {
         try {
             settings = PluginSettings.load(configFile());
         } catch (Exception e) {
-            log(Level.SEVERE, "Unable to reload invalid config.json", e);
+            log(Level.SEVERE, StatCollector.translateToLocal("fmusic.log.bili.reload_fail"), e);
             return false;
         }
         if (allMusicBridge == null) {
@@ -103,7 +104,7 @@ public final class BiliMusicBridge {
                         .getName()
                     + " (values are never logged).");
         } catch (IOException | IllegalArgumentException e) {
-            log(Level.SEVERE, "Unable to load Bilibili cookie file: " + newCookieStore.file(), e);
+            log(Level.SEVERE, StatCollector.translateToLocalFormatted("fmusic.log.bili.cookie_load_fail", newCookieStore.file()), e);
             return false;
         }
         SongRequestService newRequestService = new SongRequestService(this, allMusicBridge);
@@ -158,7 +159,7 @@ public final class BiliMusicBridge {
     public void debug(String message) {
         PluginSettings current = settings;
         if (current != null && current.debug) {
-            info("[debug] " + message);
+            info(StatCollector.translateToLocalFormatted("fmusic.log.bili.debug_prefix", message));
         }
     }
 

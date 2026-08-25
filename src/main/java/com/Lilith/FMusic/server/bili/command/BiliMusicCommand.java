@@ -6,6 +6,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
+import net.minecraft.util.StatCollector;
+
 import com.Lilith.FMusic.server.bili.BiliMusicBridge;
 import com.Lilith.FMusic.server.bili.bilibili.BilibiliLiveClient;
 import com.Lilith.FMusic.server.bili.request.SongRequestService;
@@ -24,7 +26,7 @@ public final class BiliMusicCommand {
             return;
         }
         if (!sender.hasPermission("bilimusic.admin")) {
-            sender.sendMessage("&c你没有权限。");
+            sender.sendMessage(StatCollector.translateToLocal("bili.cmd.noperm"));
             return;
         }
         String[] values = args == null ? new String[0] : args;
@@ -35,27 +37,31 @@ public final class BiliMusicCommand {
         }
         if ("reload".equals(sub)) {
             boolean success = plugin.reloadBridge();
-            sender.sendMessage(success ? "&aBiliMusicBridge 已重载。" : "&c重载失败，请查看控制台。");
+            sender.sendMessage(success
+                ? StatCollector.translateToLocal("bili.cmd.reloaded")
+                : StatCollector.translateToLocal("bili.cmd.reload_fail"));
             return;
         }
         if ("reconnect".equals(sub)) {
             BilibiliLiveClient client = plugin.getLiveClient();
             if (client == null) {
-                sender.sendMessage("&c直播客户端尚未初始化。");
+                sender.sendMessage(StatCollector.translateToLocal("bili.cmd.client_null"));
             } else {
                 client.reconnect();
-                sender.sendMessage("&a已请求重新连接 B站直播间。");
+                sender.sendMessage(StatCollector.translateToLocal("bili.cmd.reconnected"));
             }
             return;
         }
         if ("request".equals(sub)) {
             if (values.length < 2) {
-                sender.sendMessage("&e用法：/" + label + " request <歌曲名>");
+                sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.request_usage", label));
                 return;
             }
             SongRequestService service = plugin.getRequestService();
             boolean submitted = service != null && service.submitManual(sender.name(), join(values, 1));
-            sender.sendMessage(submitted ? "&a手动点歌已提交。" : "&c无法提交手动点歌。");
+            sender.sendMessage(submitted
+                ? StatCollector.translateToLocal("bili.cmd.request_ok")
+                : StatCollector.translateToLocal("bili.cmd.request_fail"));
             return;
         }
         help(sender, label);
@@ -81,49 +87,39 @@ public final class BiliMusicCommand {
     private void status(CommandAudience sender) {
         BilibiliLiveClient client = plugin.getLiveClient();
         SongRequestService service = plugin.getRequestService();
-        sender.sendMessage("&d&lBiliMusicBridge 状态");
-        sender.sendMessage(
-            "&7运行平台：&f" + plugin.getPlatform()
-                .platformName());
-        sender.sendMessage("&7配置房间：&f" + plugin.getSettings().roomId);
-        sender.sendMessage("&7真实房间：&f" + (client == null ? 0 : client.realRoomId()));
-        sender.sendMessage(
-            "&7连接状态：&f" + (client == null ? "未初始化"
-                : client.state()
-                    .name()));
-        sender.sendMessage(
-            "&7弹幕节点：&f" + (client == null || client.connectedHost()
-                .isEmpty() ? "-" : client.connectedHost()));
-        sender.sendMessage(
-            "&7AllMusic：&f" + (plugin.getAllMusicBridge()
-                .available() ? "已连接" : "不可用"));
-        sender.sendMessage(
-            "&7Cookie 项：&f" + (plugin.getCookieStore() == null ? 0
-                : plugin.getCookieStore()
-                    .snapshot()
-                    .size()));
-        sender.sendMessage("&7弹幕数量：&f" + (client == null ? 0 : client.danmakuCount()));
-        sender.sendMessage(
-            "&7点歌统计：&f接收 " + (service == null ? 0 : service.receivedCount())
-                + " / 提交 "
-                + (service == null ? 0 : service.acceptedCount())
-                + " / 成功 "
-                + (service == null ? 0 : service.succeededCount())
-                + " / 失败 "
-                + (service == null ? 0 : service.failedCount())
-                + " / 等待 "
-                + (service == null ? 0 : service.pending()));
+        sender.sendMessage(StatCollector.translateToLocal("bili.cmd.status_title"));
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_platform",
+            plugin.getPlatform().platformName()));
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_room", plugin.getSettings().roomId));
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_realroom", client == null ? 0 : client.realRoomId()));
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_conn",
+            client == null ? StatCollector.translateToLocal("bili.cmd.not_init") : client.state().name()));
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_host",
+            client == null || client.connectedHost().isEmpty() ? "-" : client.connectedHost()));
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_allmusic",
+            plugin.getAllMusicBridge().available()
+                ? StatCollector.translateToLocal("bili.cmd.available")
+                : StatCollector.translateToLocal("bili.cmd.unavailable")));
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_cookie",
+            plugin.getCookieStore() == null ? 0 : plugin.getCookieStore().snapshot().size()));
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_danmaku", client == null ? 0 : client.danmakuCount()));
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_stats",
+            service == null ? 0 : service.receivedCount(),
+            service == null ? 0 : service.acceptedCount(),
+            service == null ? 0 : service.succeededCount(),
+            service == null ? 0 : service.failedCount(),
+            service == null ? 0 : service.pending()));
         if (client != null && !client.lastError()
             .isEmpty()) {
-            sender.sendMessage("&7最近错误：&c" + client.lastError());
+            sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_error", client.lastError()));
         }
     }
 
     private static void help(CommandAudience sender, String label) {
-        sender.sendMessage("&e/" + label + " status &7- 查看状态");
-        sender.sendMessage("&e/" + label + " reconnect &7- 重连直播间");
-        sender.sendMessage("&e/" + label + " request <歌曲名> &7- 手动点歌");
-        sender.sendMessage("&e/" + label + " reload &7- 重载配置与 Cookie");
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.help_status", label));
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.help_reconnect", label));
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.help_request", label));
+        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.help_reload", label));
     }
 
     private static String join(String[] values, int start) {

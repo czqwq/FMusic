@@ -1,4 +1,5 @@
 package com.Lilith.FMusic;
+import net.minecraft.util.StatCollector;
 
 import java.io.File;
 
@@ -41,7 +42,7 @@ public class Config {
                 Configuration.CATEGORY_GENERAL,
                 PAUSE_AT_FREEZE,
                 false,
-                "单人游戏中暂停(按Esc)时是否暂停音乐播放\n" + "音乐配置: 服务端在 ../fmusic_server, 客户端在 ./fmusic_client.json")
+                StatCollector.translateToLocal("fmusic.cfg.pause_desc") + "\n" + StatCollector.translateToLocal("fmusic.cfg.music_desc"))
             .getBoolean();
 
         // HUD 可视化配置 (与 PowerGoggles 相同的 Forge Configuration 模式)

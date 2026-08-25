@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -16,7 +17,7 @@ public class CommandStop extends ACommand {
     public void execute(Object sender, String name, String[] args) {
         if (args.length == 2 && CommandEX.checkAdmin(sender, name)) {
             name = args[1];
-            FMusic.side.sendMessage(sender, "已停止玩家：" + name + "的音乐播放");
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.stop_ok", name));
         } else {
             FMusic.side.sendMessage(sender, FMusic.getMessage().musicPlay.stopPlaying);
         }

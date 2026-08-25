@@ -483,3 +483,37 @@ java.util.logging.Logger 的 single-type-import 冲突 (改用全限定类型 or
 
 - BiliMusicBridge Cookie 仅用于弹幕发送与部分接口鉴权; 收听直播弹幕点歌不需要 Cookie
 - 三来源许可证: QQMusic/Kugou GPL-3.0 (同 AllMusic); BiliMusicBridge MIT
+
+## 22. 本地化体系 (zh_CN / en_US lang)
+
+### 机制
+- 语言文件: `src/main/resources/assets/fmusic/lang/zh_CN.lang` + `en_US.lang`
+  (MC 1.7.10 命名 zh_CN/en_US; 客户端按游戏语言加载, 服务端(单人集成服务器)跟随客户端语言,
+  dedicated 服务器为 en_US)
+- 代码使用: `net.minecraft.util.StatCollector.translateToLocal("key")` /
+  `translateToLocalFormatted("key", args)` (%s 占位)
+- 找不到 key 时 MC 返回 key 原文 (不会崩溃)
+
+### key 分类
+| 前缀 | 内容 |
+|---|---|
+| fmusic.player.* | 播放器反馈消息 |
+| fmusic.core.img_error | 图片解析错误 |
+| fmusic.cmd.* | 客户端 /fmusic 与命令反馈 |
+| bili.cmd.* | B站点歌命令反馈 (status/reload/request/help) |
+| fmusic.bili.* | B站前缀/听众名 |
+| fmusic.api.* | API fallback 文本 (未知歌曲/歌手/专辑名/歌单提示) |
+| fmusic.log.player.* | 客户端播放器/解码器 debug 日志 |
+| fmusic.log.kugou.* / fmusic.log.qq.* | 酷狗/QQ API 日志 |
+| fmusic.log.bili.* | B站点歌日志 |
+| fmusic.log.netapi.* | 网易云 API 日志 |
+| fmusic.log.core.* | 服务端核心日志 (配置/线程/发送) |
+| fmusic.log.server.* | 服务端 debug 标签 ([sendMusic]/[joinPlayNow]...) |
+| fmusic.ui.* / fmusic.cfg.* | HUD 配置界面提示 / FMusic.cfg 注释 |
+
+### 范围与取舍
+- 已提取: 全部用户可见消息 + 命令反馈 + 新增模块日志 + 客户端日志 + netapi + 服务端核心日志
+- **未提取 (有意)**: objs/message 包的默认消息模板 (message.json 默认值, 支持用户改配置本地化;
+  若走 translateToLocal, dedicated 服务端(恒 en_US)首次生成会得到英文默认消息)
+- **未提取 (待办)**: Kugou/QQ 的少量复杂多行日志 (含敏感信息处理逻辑: 不打印可转发凭据等),
+  约 40 条, 处理需谨慎保持安全逻辑

@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.api.qqmusic;
+import net.minecraft.util.StatCollector;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -82,7 +83,7 @@ public class QQSong {
         song.name = firstNotEmpty(getString(item, "name"), getString(item, "songname"));
         song.singer = getString(item, "singer");
         if (song.singer == null || song.singer.isEmpty()) {
-            song.singer = "未知歌手";
+            song.singer = StatCollector.translateToLocal("fmusic.api.unknown_artist");
         }
         song.album = firstNotEmpty(getString(item, "album"), getString(item, "albumname"));
         song.albumMid = firstNotEmpty(getString(item, "albummid"), getString(item, "album_mid"));
@@ -117,7 +118,7 @@ public class QQSong {
 
     private static String joinSingers(JsonArray singers) {
         if (singers == null || singers.size() == 0) {
-            return "未知歌手";
+            return StatCollector.translateToLocal("fmusic.api.unknown_artist");
         }
         StringBuilder builder = new StringBuilder();
         for (int i = 0; i < singers.size(); i++) {
@@ -132,7 +133,7 @@ public class QQSong {
             }
         }
         if (builder.length() == 0) {
-            return "未知歌手";
+            return StatCollector.translateToLocal("fmusic.api.unknown_artist");
         }
         return builder.substring(0, builder.length() - 1);
     }

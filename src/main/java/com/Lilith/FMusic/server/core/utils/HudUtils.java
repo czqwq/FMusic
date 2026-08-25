@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.utils;
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.codec.HudBasePosObj;
 import com.Lilith.FMusic.codec.HudPosObj;
@@ -253,7 +254,7 @@ public class HudUtils {
             try {
                 FMusic.side.sendHudPos(player);
             } catch (Exception e1) {
-                FMusic.log.data("<gold>[FMusic]<red>数据发送发生错误");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.data_send_err"));
                 e1.printStackTrace();
             }
         });

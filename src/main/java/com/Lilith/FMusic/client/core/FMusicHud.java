@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.client.core;
+import net.minecraft.util.StatCollector;
 
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -386,7 +387,7 @@ public class FMusicHud {
             imageNeedUpload = true;
         } catch (Exception e) {
             e.printStackTrace();
-            FMusicCore.bridge.sendMessage("图片解析错误");
+            FMusicCore.bridge.sendMessage(StatCollector.translateToLocal("fmusic.core.img_error"));
             haveImg = false;
         }
     }

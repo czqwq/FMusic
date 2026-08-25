@@ -1,0 +1,301 @@
+# FMusic 本地化 (zh_CN)
+# 播放器反馈
+fmusic.player.fetch_fail=获取音乐失败
+fmusic.player.unsupported=不支持这样的文件播放
+fmusic.player.source_fail=音频源创建失败
+fmusic.player.no_seek=不支持中间播放
+fmusic.core.img_error=图片解析错误
+
+# /fmusic 指令 (客户端)
+fmusic.cmd.usage=§e[FMusic]§f用法: /fmusic pause_at_freeze <true/false> | /fmusic hudconfig
+fmusic.cmd.single_only=§e[FMusic]§c该指令仅在单人游戏(未开放局域网)中可用
+fmusic.cmd.current=§e[FMusic]§f当前 pause_at_freeze = %s (使用 /fmusic pause_at_freeze <true/false> 设置)
+fmusic.cmd.set=§e[FMusic]§a已设置 pause_at_freeze = %s (重启或 /music reload 后保持)
+
+# B站点歌
+bili.cmd.not_enabled=&cB站点歌尚未启用 (fmusic_server/bili/config.json)
+bili.cmd.noperm=&c你没有权限。
+bili.cmd.reloaded=&aBiliMusicBridge 已重载。
+bili.cmd.reload_fail=&c重载失败，请查看控制台。
+bili.cmd.client_null=&c直播客户端尚未初始化。
+bili.cmd.reconnected=&a已请求重新连接 B站直播间。
+bili.cmd.request_usage=&e用法：/%s request <歌曲名>
+bili.cmd.request_ok=&a手动点歌已提交。
+bili.cmd.request_fail=&c无法提交手动点歌。
+bili.cmd.status_title=&d&lBiliMusicBridge 状态
+bili.cmd.status_platform=&7运行平台：&f%s
+bili.cmd.status_room=&7配置房间：&f%s
+bili.cmd.status_realroom=&7真实房间：&f%s
+bili.cmd.status_conn=&7连接状态：&f%s
+bili.cmd.status_host=&7弹幕节点：&f%s
+bili.cmd.status_allmusic=&7AllMusic：&f%s
+bili.cmd.status_cookie=&7Cookie 项：&f%s
+bili.cmd.status_danmaku=&7弹幕数量：&f%s
+bili.cmd.status_stats=&7点歌统计：&f接收 %s / 提交 %s / 成功 %s / 失败 %s / 等待 %s
+bili.cmd.status_error=&7最近错误：&c%s
+bili.cmd.enabled=已连接
+bili.cmd.available=已连接
+bili.cmd.unavailable=不可用
+bili.cmd.not_init=未初始化
+bili.cmd.help_status=&e/%s status &7- 查看状态
+bili.cmd.help_reconnect=&e/%s reconnect &7- 重连直播间
+bili.cmd.help_request=&e/%s request <歌曲名> &7- 手动点歌
+bili.cmd.help_reload=&e/%s reload &7- 重载配置与 Cookie
+
+# API 兜底文本
+fmusic.api.unknown_song=未知歌曲
+fmusic.api.unknown_artist=未知歌手
+fmusic.api.kugou.album=酷狗音乐
+fmusic.api.qqmusic.album=QQ音乐
+fmusic.bili.prefix=B站观众
+fmusic.bili.request_prefix=点歌
+
+# 播放器调试日志 (FMusicLog)
+fmusic.log.player.seek_cached=[FMusic] 跳转请求: 播放未开始, 已缓存
+fmusic.log.player.seek_request=[FMusic] 跳转请求
+fmusic.log.player.seek_applied=[FMusic] 应用缓存跳转: %s ms
+fmusic.log.player.task_start=[FMusic] 播放任务开始: %s time=%s ms
+fmusic.log.player.fetch_fail=[FMusic] 获取音乐失败: %s
+fmusic.log.player.fmt_m4a=[FMusic] 格式: M4A (AAC)
+fmusic.log.player.fmt_mp3_id3=[FMusic] 格式: MP3 (ID3)
+fmusic.log.player.fmt_mp3_sync=[FMusic] 格式: MP3 (同步字 0x%s)
+fmusic.log.player.fmt_ogg=[FMusic] 格式: OGG
+fmusic.log.player.seek_exec=[FMusic] 执行 seek: %s ms
+fmusic.log.player.source_lost=[FMusic] 音频源失效, 触发 reload
+fmusic.log.player.play_end=[FMusic] 播放自然结束 time=%s ms
+fmusic.log.player.decode_err=[FMusic] 解码错误 #%s: %s
+fmusic.log.player.decode_fail=[FMusic] 解码连续失败, 停止播放
+fmusic.log.player.reload_replay=[FMusic] reload 重放: time=%s ms, local=%s
+fmusic.log.player.task_end=[FMusic] 任务结束: reload=%s, isClose=%s
+fmusic.log.player.task_exception=[FMusic] 任务异常, 回到等待: %s
+fmusic.log.player.connect=[FMusic] 连接: Range bytes=%s- -> %s (contentLength=%s, total=%s)
+fmusic.log.player.recv_play=[FMusic] 收到服务端 PLAY: %s (当前 isPlay=%s)
+fmusic.log.player.recv_stop=[FMusic] 收到服务端 STOP
+fmusic.log.player.m4a_seek=[FMusic] M4A seek: target=%s s -> frame %s (frameTime=%s s, total=%s)
+fmusic.log.player.m4a_seek_empty=[FMusic] M4A seek: 帧表为空, target=%s s, 从头开始
+fmusic.log.player.m4a_seek_overflow=[FMusic] M4A seek: target=%s s 超过末帧, 跳到末尾 (total=%s)
+fmusic.log.player.mp3_seek=[FMusic] MP3 seek: %s ms
+fmusic.log.player.mp3_frame=[FMusic] MP3 帧头未就绪 framesize=%s, 重读帧头
+fmusic.log.player.mp3_frame_fail=[FMusic] MP3 重读帧头失败, 放弃 seek
+fmusic.log.player.mp3_data=[FMusic] MP3 seek: framesize=%s, local=%s -> data=%s
+fmusic.log.player.mp3_exception=[FMusic] MP3 seek 异常: %s
+fmusic.log.player.no_seek_log=[FMusic] 不支持中间播放, 忽略 seek %s ms
+
+# Kugou API logs
+fmusic.log.kugou.init=<yellow>正在初始化酷狗音乐API
+fmusic.log.kugou.hash_error=<red>酷狗音乐hash格式错误：%s
+fmusic.log.kugou.keyword_empty=<red>酷狗音乐搜索关键字为空
+fmusic.log.kugou.result_empty=<red>酷狗音乐搜索结果为空：%s
+fmusic.log.kugou.list_import_error=<red>酷狗音乐列表导入错误
+fmusic.log.kugou.playlist_error=<red>酷狗音乐歌单解析错误：%s
+fmusic.log.kugou.complex_fallback=<yellow>酷狗复杂搜索不可用，降级到旧网页搜索：%s
+fmusic.log.kugou.complex_parse_fail=<yellow>酷狗复杂网页搜索解析失败：%s
+fmusic.log.kugou.web_search_ok=<green>酷狗音乐网页搜索成功：%s，数量=%s
+fmusic.log.kugou.web_result_empty=<red>酷狗音乐网页搜索结果为空：%s
+fmusic.log.kugou.web_parse_error=<red>酷狗音乐网页搜索解析错误
+fmusic.log.kugou.no_list=<yellow>酷狗音乐搜索接口无列表，返回=%s
+fmusic.log.kugou.no_cache=<yellow>酷狗网页播放缺少搜索缓存：%s
+fmusic.log.kugou.no_album_id=<yellow>酷狗网页播放缺少album_audio_id/MixSongID：%s
+fmusic.log.kugou.detail_error=<red>酷狗音乐Web歌曲详情解析错误：%s
+fmusic.log.kugou.wwwapi_fail=<yellow>酷狗wwwapi网页播放失败，尝试www网页接口
+fmusic.log.kugou.member_parse_error=<red>酷狗Web会员播放解析错误：%s
+fmusic.log.kugou.android_no_mid=<red>酷狗Android播放缺少mid或dfid，请重新导出Cookie
+fmusic.log.kugou.android_no_kugoo_id=<yellow>酷狗Android播放未找到KugooID，将按匿名账号请求
+fmusic.log.kugou.android_no_token=<yellow>酷狗Android播放未找到t/token，付费歌曲可能无法获取
+fmusic.log.kugou.android_parse_error=<red>酷狗Android播放解析错误：%s
+fmusic.log.kugou.member_url_ok=<green>酷狗音乐Web会员完整播放链接获取成功：%s
+fmusic.log.kugou.member_fallback=<yellow>酷狗Web会员未返回正式播放链接，尝试Android备用接口：%s
+fmusic.log.kugou.android_url_ok=<green>酷狗音乐Android完整播放链接获取成功：%s
+fmusic.log.kugou.android_fallback=<yellow>酷狗Android未返回正式播放链接，尝试旧Web兼容接口：%s
+fmusic.log.kugou.web_url_ok=<green>酷狗音乐Web完整播放链接获取成功：%s
+fmusic.log.kugou.url_empty=<yellow>酷狗音乐正式播放链接为空：%s
+fmusic.log.kugou.lyric_empty=<yellow>酷狗音乐歌词候选为空：%s
+fmusic.log.kugou.lyric_error=<red>酷狗音乐歌词下载解析错误
+
+fmusic.log.kugou.get_create_fail=<red>酷狗音乐GET请求创建失败：%s
+fmusic.log.kugou.member_req_create_fail=<red>酷狗Web会员播放请求创建失败
+fmusic.log.kugou.android_req_create_fail=<red>酷狗Android播放请求创建失败
+fmusic.log.kugou.member_req_fail=<red>酷狗Web会员播放请求失败
+fmusic.log.kugou.android_req_fail=<red>酷狗Android播放请求失败
+fmusic.log.kugou.cookie_loaded=<gray>酷狗音乐Cookie已加载：%s
+fmusic.log.kugou.cookie_empty=<yellow>酷狗音乐Cookie Header为空
+fmusic.log.kugou.empty_entity=<red>酷狗音乐返回空实体，HTTP=%s
+
+fmusic.log.qq.init=<yellow>正在初始化QQ音乐API
+fmusic.log.qq.song_empty=<red>QQ音乐歌曲信息获取为空：%s
+fmusic.log.qq.play_url_null=<red>QQ音乐正式播放链接为空，歌曲信息返回null：%s
+fmusic.log.qq.keyword_empty=<red>QQ音乐搜索关键字为空
+fmusic.log.qq.result_empty=<red>QQ音乐搜索结果为空：%s
+fmusic.log.qq.no_valid_song=<red>QQ音乐搜索解析后无有效歌曲：%s
+fmusic.log.qq.list_error=<red>QQ音乐列表获取错误
+fmusic.log.qq.smartbox_empty_try_musicu=<yellow>QQ音乐游客联想搜索为空，尝试musicu搜索接口
+fmusic.log.qq.musicu_empty_try_old=<yellow>QQ音乐musicu搜索为空，尝试旧搜索接口
+fmusic.log.qq.guest_keyword_empty=<red>QQ音乐游客搜索关键字为空
+fmusic.log.qq.smartbox_req_fail=<red>QQ音乐游客联想搜索请求失败
+fmusic.log.qq.smartbox_empty=<yellow>QQ音乐游客联想搜索结果为空，keyword=%s，返回=%s
+fmusic.log.qq.smartbox_ok=<green>QQ音乐游客联想搜索成功：%s，数量=%s
+fmusic.log.qq.smartbox_parse_error=<red>QQ音乐游客联想搜索解析错误
+fmusic.log.qq.musicu_req_fail=<red>QQ音乐musicu搜索请求失败
+fmusic.log.qq.musicu_ok=<green>QQ音乐musicu搜索成功：%s，数量=%s
+fmusic.log.qq.musicu_parse_error=<red>QQ音乐musicu搜索解析错误
+fmusic.log.qq.old_req_fail=<red>QQ音乐旧搜索请求失败
+fmusic.log.qq.old_empty=<red>QQ音乐旧搜索也为空，keyword=%s，返回=%s
+fmusic.log.qq.old_ok=<green>QQ音乐旧搜索成功：%s，数量=%s
+fmusic.log.qq.old_parse_error=<red>QQ音乐旧搜索解析错误
+fmusic.log.qq.playlist_error=<red>QQ音乐歌单解析错误：%s
+fmusic.log.qq.detail_req_fail=<red>QQ音乐歌曲详情请求失败：%s
+fmusic.log.qq.detail_empty=<red>QQ音乐歌曲详情为空：%s，返回=%s
+fmusic.log.qq.detail_parse_error=<red>QQ音乐歌曲信息解析错误：%s
+fmusic.log.qq.play_url_parse_error=<red>QQ音乐播放链接解析错误：%s
+fmusic.log.qq.play_url_req_fail=<red>QQ音乐播放链接请求失败：%s
+fmusic.log.qq.midurlinfo_empty=<red>QQ音乐播放链接 midurlinfo 为空：%s，返回=%s
+fmusic.log.qq.play_url_ok=<green>QQ音乐播放链接获取成功：songmid=%s，media_mid=%s，filename=%s
+fmusic.log.qq.lyric_req_fail=<red>QQ音乐歌词请求失败：%s
+fmusic.log.qq.lyric_empty=<yellow>QQ音乐歌词为空：%s，返回=%s
+fmusic.log.qq.lyric_parse_error=<red>QQ音乐歌词解析错误：%s
+fmusic.log.qq.http_get=<gray>QQ音乐GET: %s
+fmusic.log.qq.http_get_fail=<red>QQ音乐GET请求失败：%s
+fmusic.log.qq.http_post=<gray>QQ音乐POST: %s
+fmusic.log.qq.http_post_body=<gray>QQ音乐POST Body: %s
+fmusic.log.qq.http_post_fail=<red>QQ音乐POST请求失败：%s
+fmusic.log.qq.cookie_injected=<gray>QQ音乐Cookie已注入，cookie：%s
+fmusic.log.qq.guest_no_cookie=<gray>QQ音乐使用游客搜索请求，不注入Cookie
+fmusic.log.qq.cookie_empty=<yellow>QQ音乐Cookie为空，将以未登录状态请求
+fmusic.log.qq.cookie_read_fail=<red>QQ音乐Cookie读取失败
+fmusic.log.qq.empty_entity=<red>QQ音乐返回空实体，HTTP=%s
+fmusic.log.qq.http_body=<gray>QQ音乐HTTP=%s 返回：%s
+fmusic.log.qq.server_error=<red>QQ音乐服务器返回错误：%s
+
+fmusic.log.bili.live_fail=[B站点歌] 直播连接失败
+fmusic.log.bili.live_fail_detail=[B站点歌] 直播连接失败: %s
+fmusic.log.bili.room_offline=[B站点歌] 房间 %s 当前未开播; 继续监听
+fmusic.log.bili.host_failed=[B站点歌] 弹幕节点失效 %s: %s
+fmusic.log.bili.malformed=[B站点歌] 忽略格式错误的B站消息: %s
+fmusic.log.bili.invalid_json=[B站点歌] 无效的弹幕JSON: %s
+fmusic.log.bili.danmaku=[B站点歌] 弹幕 %s: %s
+fmusic.log.bili.search_fail=[B站点歌] FMusic 默认音源搜索失败: %s - %s
+fmusic.log.bili.queue_fail=[B站点歌] FMusic 入队操作失败: %s
+fmusic.log.bili.request_ignored=[B站点歌] 忽略点歌请求 %s: %s
+fmusic.log.bili.queue_full=[B站点歌] 点歌工作队列已满, 丢弃: %s
+fmusic.log.bili.invalid_config=[B站点歌] 配置无效, 无法启动
+fmusic.log.bili.set_room_id=[B站点歌] 连接前请在 %s 中设置 room-id
+fmusic.log.bili.enabled=[B站点歌] 已在 %s 上启用
+fmusic.log.bili.disabled=[B站点歌] 已停用
+fmusic.log.bili.reload_fail=[B站点歌] 无法重载无效配置
+fmusic.log.bili.cookie_load_fail=[B站点歌] 无法加载B站Cookie文件: %s
+fmusic.log.bili.debug_prefix=[debug] %s
+fmusic.log.bili.broadcast=[FMusic][B站点歌] %s
+fmusic.log.bili.log_prefix=[B站点歌] %s
+
+fmusic.log.server.send_music_direct=[FMusic] [sendMusic] 定向发送 PLAY -> %s: %s
+fmusic.log.server.send_music_broadcast=[FMusic] [sendMusic] 广播发送 PLAY: %s
+fmusic.log.server.join_skip=[FMusic] [joinPlayNow] %s 已在收听, 跳过同步
+fmusic.log.server.join_now=[FMusic] [joinPlayNow] %s music=%s url=%s
+fmusic.log.server.play_task=[FMusic] [musicPlayTask] 播放线程发送 PLAY: %s
+fmusic.log.server.test_url=[FMusic] [CommandTest] %s 测试播放链接: %s
+
+fmusic.log.core.config_wrong=<gold>[FMusic]<red>配置文件config.json错误，已覆盖
+fmusic.log.core.message_wrong=<gold>[FMusic]<red>配置文件message.json错误，已覆盖
+fmusic.log.core.config_wrong_default=<gold>[FMusic]<red>配置文件config.json错误，已使用默认配置文件
+fmusic.log.core.message_wrong_default=<gold>[FMusic]<red>配置文件message.json错误，已使用默认配置文件
+fmusic.log.core.config_save_err=<gold>[FMusic]<red>配置文件config.json保存错误
+fmusic.log.core.message_save_err=<gold>[FMusic]<red>配置文件message.json保存错误
+fmusic.log.core.cookie_save_err=<gold>[FMusic]<red>配置文件cookie.json保存错误
+fmusic.log.core.api_registered=<gold>[FMusic]<yellow>注册内置音乐API：%s
+fmusic.log.core.api_reg_fail=<gold>[FMusic]<red>内置音乐API注册失败
+fmusic.log.core.api_reg_qq_fail=<gold>[FMusic]<red>内置音乐API(QQMusic)注册失败
+fmusic.log.core.api_reg_kugou_fail=<gold>[FMusic]<red>内置音乐API(Kugou)注册失败
+fmusic.log.core.api_external=<gold>[FMusic]<yellow>注册音乐API：%s
+fmusic.log.core.no_api=<gold>[FMusic]<red>没有注册音乐
+fmusic.log.core.bili_start_fail=<gold>[FMusic]<red>B站点歌启动失败
+fmusic.log.core.started=<gold>[FMusic]<yellow>已启动-%s
+fmusic.log.core.stopped=<gold>[FMusic]<white><yellow>已停止，感谢使用
+fmusic.log.core.lang_version_wrong=<gold>[FMusic]<red>语言文件版本号错误，运行可能会发生问题，请删除后重载
+fmusic.log.core.config_update=<gold>[FMusic]<red>请及时更新配置文件
+fmusic.log.core.config_read_err=<gold>[FMusic]<red>读取配置文件错误
+fmusic.log.core.start_fail=<gold>[FMusic]<red>启动失败
+fmusic.log.core.web_fetch_err=<gold>[FMusic]<red>获取网页错误
+fmusic.log.core.search_thread_start=歌曲搜索线程启动
+fmusic.log.core.search_error=搜歌出现问题
+fmusic.log.core.search_thread_stop=歌曲搜索线程停止
+fmusic.log.core.task_thread_start=歌曲处理线程启动
+fmusic.log.core.task_error=歌曲处理出现问题
+fmusic.log.core.task_thread_stop=歌曲处理线程关闭
+fmusic.log.core.song_parse_err=<gold>[FMusic]<red>歌曲信息解析错误
+fmusic.log.core.play_thread_start=歌曲播放线程启动
+fmusic.log.core.play_error=<red>歌曲播放出现错误
+fmusic.log.core.play_thread_stop=歌曲播放线程停止
+fmusic.log.core.ban_wrong=<gold>[FMusic]<red>配置文件ban.json错误，已覆盖
+fmusic.log.core.ban_save_err=<gold>[FMusic]<red>配置文件ban.json保存错误
+fmusic.log.core.hud_save_err=<gold>[FMusic]<red>配置文件hud.json保存错误
+fmusic.log.core.hud_wrong=<gold>[FMusic]<red>配置文件hud.json错误，已覆盖
+fmusic.log.core.player_save_err=<gold>[FMusic]<red>玩家信息保存错误
+fmusic.log.core.music_list_save_err=<gold>[FMusic]<red>配置文件music.json保存错误
+fmusic.log.core.music_list_wrong=<gold>[FMusic]<red>配置文件music.json错误，已覆盖
+fmusic.log.core.db_thread_start=数据库线程启动
+fmusic.log.core.db_thread_stop=数据库线程关闭
+fmusic.log.core.data_send_err=<gold>[FMusic]<red>数据发送发生错误
+fmusic.log.core.api_load=<gold>[FMusic]<yellow>尝试加载api：%s
+fmusic.log.core.hud_clear_err=<gold>[FMusic]<red>清空Hud发生出错
+fmusic.log.core.stop_send_err=<gold>[FMusic]<red>停止指令发送出错
+fmusic.log.core.music_send_err=<gold>[FMusic]<red>歌曲指令发送出错
+fmusic.log.core.lyric_send_err=<gold>[FMusic]<red>歌词发送出错
+fmusic.log.core.lyric_info_send_err=<gold>[FMusic]<red>歌词信息发送出错
+fmusic.log.core.hud_pos_send_err=<gold>[FMusic]<red>界面位置发送出错
+fmusic.log.core.img_send_err=<gold>[FMusic]<red>图片指令发送出错
+
+fmusic.cmd.wrong_cmd=<gold>[FMusic]<white>错误的指令
+fmusic.cmd.addlist_ok=<gold>[FMusic]<white>添加空闲音乐列表%s
+fmusic.cmd.addlist_invalid=<gold>[FMusic]<white>请输入有效的音乐列表ID
+fmusic.cmd.music_api=<gold>[FMusic]<white>音乐API 
+fmusic.cmd.invalid_id=<gold>[FMusic]<white>请输入有效的ID
+fmusic.cmd.ban_ok=<gold>[FMusic]<white>音乐API %s 已禁止点歌%s
+fmusic.cmd.ban_player_ok=<gold>[FMusic]<white>已禁止玩家%s点歌
+fmusic.cmd.unban_ok=<gold>[FMusic]<white>音乐API %s已解封点歌%s
+fmusic.cmd.unbanplayer_ok=<gold>[FMusic]<white>已解封玩家%s点歌
+fmusic.cmd.clearban_ok=<gold>[FMusic]<white>禁止点歌列表已清空
+fmusic.cmd.clearbanplayer_ok=<gold>[FMusic]<white>禁止玩家点歌列表已清空
+fmusic.cmd.clearlist_ok=<gold>[FMusic]<white>空闲音乐列表已清空
+fmusic.cmd.delete_invalid=<gold>[FMusic]<white>请输入有效的序列ID
+fmusic.cmd.delete_too_big=<gold>[FMusic]<white>序列号过大
+fmusic.cmd.delete_ok=<gold>[FMusic]<white>已删除序列%s
+fmusic.cmd.mute_cancel=<gold>[FMusic]<white>已取消玩家：%s的静音
+fmusic.cmd.mute_set=<gold>[FMusic]<white>已设置玩家：%s的静音
+fmusic.cmd.next_ok=<gold>[FMusic]<white>已强制切歌
+fmusic.cmd.reload_ok=<gold>[FMusic]<white>已重读配置文件
+fmusic.cmd.stop_ok=<gold>[FMusic]<white>已停止玩家：%s的音乐播放
+fmusic.cmd.test_playing=<gold>[FMusic]<white>正在测试播放 %s
+fmusic.cmd.test_parsing=<gold>[FMusic]<white>正在测试解析 %s
+fmusic.cmd.test_parse_fail=<gold>[FMusic]<white>测试解析失败
+fmusic.cmd.test_song_name=<gold>[FMusic]<white>音乐名称 %s
+fmusic.cmd.test_song_author=<gold>[FMusic]<white>音乐作者 %s
+fmusic.cmd.test_play_url=<gold>[FMusic]<white>播放地址 %s
+fmusic.cmd.test_parse_err=<gold>[FMusic]<white>测试解析错误
+fmusic.cmd.test_invalid=<gold>[FMusic]<white>测试解析失败: 无效的音乐ID或链接
+
+fmusic.ui.hudconfig_tip=§e拖拽手柄调整 HUD 位置, 松开鼠标保存, Esc 关闭
+fmusic.cfg.pause_desc=单人游戏中暂停(按Esc)时是否暂停音乐播放
+fmusic.cfg.music_desc=音乐配置: 服务端在 ../fmusic_server, 客户端在 ./fmusic_client.json
+
+fmusic.log.netapi.no_md5=没有这个md5算法！
+fmusic.log.netapi.ktv_unsupported=不支持的Ktv歌词
+fmusic.log.netapi.contact_dev=请带上音乐ID联系开发者
+fmusic.log.netapi.server_error=<gold>[FMusic]<red>服务器返回错误：%s
+fmusic.log.netapi.init=<gold>[FMusic]<yellow>正在初始化网络爬虫
+fmusic.log.netapi.init_fail=<gold>[FMusic]<red>初始化net api失败
+fmusic.log.netapi.copyright_fail=<gold>[FMusic]<red>版权检索失败
+fmusic.log.netapi.song_empty=<gold>[FMusic]<red>歌曲信息获取为空
+fmusic.log.netapi.play_parse_err=<gold>[FMusic]<red>播放连接解析错误：%s
+fmusic.log.netapi.list_error=<gold>[FMusic]<red>歌曲列表获取错误
+fmusic.log.netapi.lyric_retry=<gold>[FMusic]<red>歌词解析错误，正在进行第%s重试
+fmusic.log.netapi.lyric_fail=<gold>[FMusic]<red>歌词解析失败
+fmusic.log.netapi.lyric_parse_err=<gold>[FMusic]<red>歌词解析错误
+fmusic.log.netapi.search_error=<gold>[FMusic]<red>歌曲搜索出现错误
+
+fmusic.api.kugou.playlist_fail_check=酷狗音乐歌单获取失败，请检查歌单ID、网址或访问权限
+fmusic.api.kugou.playlist_fail_input=酷狗音乐歌单获取失败，请输入歌单ID、歌单网址或逗号分隔的歌曲hash
+fmusic.api.qqmusic.playlist_fail_check=QQ音乐歌单获取失败，请检查歌单ID、网址或访问权限
+fmusic.api.qqmusic.playlist_fail_input=QQ音乐歌单获取失败，请输入歌单ID、歌单网址或逗号分隔的songmid
+fmusic.log.core.player_request=<gold>[FMusic]<yellow>玩家：%s 点歌：%s
+
+fmusic.log.qq.http_req_fail=<red>QQ音乐请求失败：%s

@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -17,7 +18,7 @@ public class CommandBanPlayer implements ICommand {
             return;
         }
         BanSave.addBanPlayer(args[1]);
-        FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>已禁止玩家" + args[1] + "点歌");
+        FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.ban_player_ok", args[1]));
     }
 
     @Override

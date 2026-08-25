@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
@@ -23,7 +24,7 @@ public class CommandAddList extends ACommand {
             api = FMusic.MUSIC_APIS.get(args[1]);
             musicID = args[2];
         } else {
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>错误的指令");
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.wrong_cmd"));
         }
 
         if (api == null) {
@@ -35,9 +36,9 @@ public class CommandAddList extends ACommand {
 
         if (api.checkId(musicID)) {
             api.setList(musicID, sender);
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>添加空闲音乐列表" + musicID);
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.addlist_ok", musicID));
         } else {
-            FMusic.side.sendMessage(sender, "<gold>[FMusic]<white>请输入有效的音乐列表ID");
+            FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.addlist_invalid"));
         }
     }
 }

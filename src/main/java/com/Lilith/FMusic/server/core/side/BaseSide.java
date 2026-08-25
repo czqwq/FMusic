@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.side;
+import net.minecraft.util.StatCollector;
 
 import java.io.File;
 import java.util.Collection;
@@ -171,7 +172,7 @@ public abstract class BaseSide {
         try {
             send(player1, new MusicPack.IntMusicPack(CommandType.POS, pos));
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>清空Hud发生出错");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.hud_clear_err"));
             e.printStackTrace();
         }
     }
@@ -188,7 +189,7 @@ public abstract class BaseSide {
         try {
             send(player, new MusicPack(CommandType.STOP));
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>停止指令发送出错");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.stop_send_err"));
             e.printStackTrace();
         }
     }
@@ -203,7 +204,7 @@ public abstract class BaseSide {
                 send(player, new MusicPack(CommandType.STOP));
             }
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>停止指令发送出错");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.stop_send_err"));
             e.printStackTrace();
         }
     }
@@ -215,7 +216,7 @@ public abstract class BaseSide {
      * @param url    地址
      */
     public final void sendMusic(String player, String url) {
-        FMusicServer.LOGGER.debug("[FMusic] [sendMusic] 定向发送 PLAY -> " + player + ": " + url);
+        FMusicServer.LOGGER.debug(StatCollector.translateToLocalFormatted("fmusic.log.server.send_music_direct", player, url));
         PlayMusic.addNowPlayPlayer(player);
         Object player1 = getPlayer(player);
         if (player1 == null) return;
@@ -223,7 +224,7 @@ public abstract class BaseSide {
             if (FMusic.isSkip(player, getPlayerServer(player), false)) return;
             send(player1, new MusicPack.StringMusicPack(CommandType.PLAY, url));
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>歌曲指令发送出错");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.music_send_err"));
             e.printStackTrace();
         }
     }
@@ -244,7 +245,7 @@ public abstract class BaseSide {
                 if (!obj.lyric.enable) continue;
                 send(player, pack);
             } catch (Exception e) {
-                FMusic.log.data("<gold>[FMusic]<red>歌词发送出错");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.lyric_send_err"));
                 e.printStackTrace();
             }
         }
@@ -268,7 +269,7 @@ public abstract class BaseSide {
                 if (!obj.lyric.enable) continue;
                 send(player, pack);
             } catch (Exception e) {
-                FMusic.log.data("<gold>[FMusic]<red>歌词发送出错");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.lyric_send_err"));
                 e.printStackTrace();
             }
         }
@@ -290,7 +291,7 @@ public abstract class BaseSide {
                 if (!obj.info.enable) continue;
                 send(player, new MusicPack.StringMusicPack(CommandType.INFO, data));
             } catch (Exception e) {
-                FMusic.log.data("<gold>[FMusic]<red>歌词信息发送出错");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.lyric_info_send_err"));
                 e.printStackTrace();
             }
         }
@@ -307,7 +308,7 @@ public abstract class BaseSide {
                 if (!obj.state.enable) continue;
                 send(player, pack);
             } catch (Exception e) {
-                FMusic.log.data("<gold>[FMusic]<red>歌词信息发送出错");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.lyric_info_send_err"));
                 e.printStackTrace();
             }
         }
@@ -327,7 +328,7 @@ public abstract class BaseSide {
             String data = FMusic.gson.toJson(obj);
             send(player, new MusicPack.StringMusicPack(CommandType.HUD_DATA, data));
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>界面位置发送出错");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.hud_pos_send_err"));
             e.printStackTrace();
         }
     }
@@ -345,7 +346,7 @@ public abstract class BaseSide {
             if (FMusic.isSkip(name, getPlayerServer(player), true)) return;
             send(player, new MusicPack.StringMusicPack(CommandType.INFO, data));
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>停止指令发送出错");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.stop_send_err"));
             e.printStackTrace();
         }
     }
@@ -363,7 +364,7 @@ public abstract class BaseSide {
             if (FMusic.isSkip(name, getPlayerServer(player), true)) return;
             send(player, pack);
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>停止指令发送出错");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.stop_send_err"));
             e.printStackTrace();
         }
     }
@@ -381,7 +382,7 @@ public abstract class BaseSide {
                 String data = FMusic.gson.toJson(obj);
                 send(player, new MusicPack.StringMusicPack(CommandType.HUD_DATA, data));
             } catch (Exception e1) {
-                FMusic.log.data("<gold>[FMusic]<red>数据发送发生错误");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.data_send_err"));
                 e1.printStackTrace();
             }
         }
@@ -401,7 +402,7 @@ public abstract class BaseSide {
                 if (FMusic.isSkip(name, getPlayerServer(player), true)) continue;
                 sendBar(player, data);
             } catch (Exception e1) {
-                FMusic.log.data("<gold>[FMusic]<red>数据发送发生错误");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.data_send_err"));
                 e1.printStackTrace();
             }
         }
@@ -413,7 +414,7 @@ public abstract class BaseSide {
      * @param url 歌曲Url
      */
     public final void sendMusic(String url) {
-        FMusicServer.LOGGER.debug("[FMusic] [sendMusic] 广播发送 PLAY: " + url);
+        FMusicServer.LOGGER.debug(StatCollector.translateToLocalFormatted("fmusic.log.server.send_music_broadcast", url));
         for (Object player : getPlayers()) {
             String name = getPlayerName(player);
             if (name == null) continue;
@@ -423,7 +424,7 @@ public abstract class BaseSide {
                 send(player, new MusicPack.StringMusicPack(CommandType.PLAY, url));
                 PlayMusic.addNowPlayPlayer(name);
             } catch (Exception e) {
-                FMusic.log.data("<gold>[FMusic]<red>歌曲指令发送出错");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.music_send_err"));
                 e.printStackTrace();
             }
         }
@@ -445,7 +446,7 @@ public abstract class BaseSide {
             try {
                 send(player, new MusicPack.StringMusicPack(CommandType.IMG, url));
             } catch (Exception e) {
-                FMusic.log.data("<gold>[FMusic]<red>图片指令发送出错");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.img_send_err"));
                 e.printStackTrace();
             }
         }
@@ -464,7 +465,7 @@ public abstract class BaseSide {
         try {
             send(player1, new MusicPack.StringMusicPack(CommandType.IMG, url));
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>图片指令发送出错");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.img_send_err"));
             e.printStackTrace();
         }
     }
@@ -480,7 +481,7 @@ public abstract class BaseSide {
         try {
             send(player, new MusicPack(CommandType.CLEAR));
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>清空Hud发生出错");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.hud_clear_err"));
             e.printStackTrace();
         }
     }
@@ -493,7 +494,7 @@ public abstract class BaseSide {
             try {
                 send(player, new MusicPack(CommandType.CLEAR));
             } catch (Exception e) {
-                FMusic.log.data("<gold>[FMusic]<red>清空Hud发生出错");
+                FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.hud_clear_err"));
                 e.printStackTrace();
             }
         }

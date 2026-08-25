@@ -5,6 +5,7 @@ import java.util.List;
 
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.bili.BiliMusicBridge;
 
@@ -28,7 +29,7 @@ public class BiliCommand extends CommandBase {
         BiliMusicBridge bridge = BiliMusicBridge.instanceForCommand();
         if (bridge == null) {
             sender.addChatMessage(
-                new net.minecraft.util.ChatComponentText("&cB站点歌尚未启用 (fmusic_server/bili/config.json)"));
+                new net.minecraft.util.ChatComponentText(StatCollector.translateToLocal("bili.cmd.not_enabled")));
             return;
         }
         new BiliMusicCommand(bridge).execute(new ForgeAudience(sender), getCommandName(), args);

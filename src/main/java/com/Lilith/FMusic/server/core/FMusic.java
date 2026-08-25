@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core;
+import net.minecraft.util.StatCollector;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -129,7 +130,7 @@ public class FMusic {
     public static void configCheck() {
         if (config == null || config.check()) {
             config = ConfigObj.make();
-            log.data("<gold>[FMusic]<red>配置文件config.json错误，已覆盖");
+            log.data(StatCollector.translateToLocal("fmusic.log.core.config_wrong"));
             saveConfig();
         }
     }
@@ -140,7 +141,7 @@ public class FMusic {
     private static void messageCheck() {
         if (message == null || message.check()) {
             message = MessageObj.make();
-            log.data("<gold>[FMusic]<red>配置文件message.json错误，已覆盖");
+            log.data(StatCollector.translateToLocal("fmusic.log.core.message_wrong"));
             saveMessage();
         }
     }
@@ -195,7 +196,7 @@ public class FMusic {
      */
     public static ConfigObj getConfig() {
         if (config == null) {
-            log.data("<gold>[FMusic]<red>配置文件config.json错误，已使用默认配置文件");
+            log.data(StatCollector.translateToLocal("fmusic.log.core.config_wrong_default"));
             config = ConfigObj.make();
         }
         return config;
@@ -208,7 +209,7 @@ public class FMusic {
      */
     public static MessageObj getMessage() {
         if (message == null) {
-            log.data("<gold>[FMusic]<red>配置文件message.json错误，已使用默认配置文件");
+            log.data(StatCollector.translateToLocal("fmusic.log.core.message_wrong_default"));
             message = MessageObj.make();
         }
         return message;
@@ -226,7 +227,7 @@ public class FMusic {
             write.close();
             out.close();
         } catch (Exception e) {
-            log.data("<gold>[FMusic]<red>配置文件config.json保存错误");
+            log.data(StatCollector.translateToLocal("fmusic.log.core.config_save_err"));
             e.printStackTrace();
         }
     }
@@ -240,7 +241,7 @@ public class FMusic {
             write.close();
             out.close();
         } catch (Exception e) {
-            log.data("<gold>[FMusic]<red>配置文件message.json保存错误");
+            log.data(StatCollector.translateToLocal("fmusic.log.core.message_save_err"));
             e.printStackTrace();
         }
     }
@@ -256,7 +257,7 @@ public class FMusic {
             write.write(data);
             write.close();
         } catch (Exception e) {
-            log.data("<gold>[FMusic]<red>配置文件cookie.json保存错误");
+            log.data(StatCollector.translateToLocal("fmusic.log.core.cookie_save_err"));
             e.printStackTrace();
         }
     }
@@ -278,9 +279,9 @@ public class FMusic {
         try {
             IMusicApi api = new com.Lilith.FMusic.netapi.NetiApiMain();
             MUSIC_APIS.put(api.getId(), api);
-            FMusic.log.data("<gold>[FMusic]<yellow>注册内置音乐API：" + api.getId());
+            FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.core.api_registered", api.getId()));
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>内置音乐API注册失败");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.api_reg_fail"));
             e.printStackTrace();
         }
 
@@ -288,39 +289,39 @@ public class FMusic {
         try {
             IMusicApi api = new com.Lilith.FMusic.server.api.qqmusic.QQMusicApiMain();
             MUSIC_APIS.put(api.getId(), api);
-            FMusic.log.data("<gold>[FMusic]<yellow>注册内置音乐API：" + api.getId());
+            FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.core.api_registered", api.getId()));
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>内置音乐API(QQMusic)注册失败");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.api_reg_qq_fail"));
             e.printStackTrace();
         }
         try {
             IMusicApi api = new com.Lilith.FMusic.server.api.kugou.KugouApiMain();
             MUSIC_APIS.put(api.getId(), api);
-            FMusic.log.data("<gold>[FMusic]<yellow>注册内置音乐API：" + api.getId());
+            FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.core.api_registered", api.getId()));
         } catch (Exception e) {
-            FMusic.log.data("<gold>[FMusic]<red>内置音乐API(Kugou)注册失败");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.api_reg_kugou_fail"));
             e.printStackTrace();
         }
 
         List<IMusicApi> list = MusicApiLoader.loadFromDirectory(apis);
         for (IMusicApi item : list) {
-            FMusic.log.data("<gold>[FMusic]<yellow>注册音乐API：" + item.getId());
+            FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.core.api_external", item.getId()));
             MUSIC_APIS.put(item.getId(), item);
         }
 
         if (MUSIC_APIS.isEmpty()) {
-            FMusic.log.data("<gold>[FMusic]<red>没有注册音乐");
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.core.no_api"));
         }
 
         // B站点歌 (BiliMusicBridge, 直播间弹幕点歌; 配置 room-id 后自动连接)
         try {
             com.Lilith.FMusic.server.bili.BiliMusicBridge.start();
         } catch (Exception e) {
-            log.data("<gold>[FMusic]<red>B站点歌启动失败");
+            log.data(StatCollector.translateToLocal("fmusic.log.core.bili_start_fail"));
             e.printStackTrace();
         }
 
-        log.data("<gold>[FMusic]<yellow>已启动-" + version);
+        log.data(StatCollector.translateToLocalFormatted("fmusic.log.core.started", version));
     }
 
     /**
@@ -332,7 +333,7 @@ public class FMusic {
         SaveTask.stop();
         com.Lilith.FMusic.server.bili.BiliMusicBridge.stop();
         side.sendStop();
-        log.data("<gold>[FMusic]<white><yellow>已停止，感谢使用");
+        log.data(StatCollector.translateToLocal("fmusic.log.core.stopped"));
     }
 
     /**
@@ -357,7 +358,7 @@ public class FMusic {
             messageCheck();
 
             if (!message.version.equalsIgnoreCase(messageVersion)) {
-                log.data("<gold>[FMusic]<red>语言文件版本号错误，运行可能会发生问题，请删除后重载");
+                log.data(StatCollector.translateToLocal("fmusic.log.core.lang_version_wrong"));
             }
 
             reader = new InputStreamReader(Files.newInputStream(cookieFile.toPath()), StandardCharsets.UTF_8);
@@ -376,7 +377,7 @@ public class FMusic {
             com.Lilith.FMusic.server.api.qqmusic.QQMusicHttpClient.clearCookieCache();
 
             if (!FMusic.configVersion.equalsIgnoreCase(config.version)) {
-                log.data("<gold>[FMusic]<red>请及时更新配置文件");
+                log.data(StatCollector.translateToLocal("fmusic.log.core.config_update"));
             }
 
             replacer = new StringReplacer();
@@ -390,7 +391,7 @@ public class FMusic {
             HudSave.loadHud();
             MusicListSave.loadMusic();
         } catch (Exception e) {
-            log.data("<gold>[FMusic]<red>读取配置文件错误");
+            log.data(StatCollector.translateToLocal("fmusic.log.core.config_read_err"));
             e.printStackTrace();
         }
     }
@@ -468,7 +469,7 @@ public class FMusic {
             isRun = true;
         } catch (IOException e) {
             isRun = false;
-            log.data("<gold>[FMusic]<red>启动失败");
+            log.data(StatCollector.translateToLocal("fmusic.log.core.start_fail"));
             e.printStackTrace();
         }
     }
