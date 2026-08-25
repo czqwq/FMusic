@@ -145,7 +145,9 @@ public class QQMusicHttpClient {
             }
             long stamp = file.lastModified();
             if (ownCookie == null || stamp != ownCookieStamp) {
-                try (InputStreamReader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
+                try (InputStreamReader reader = new InputStreamReader(
+                    new FileInputStream(file),
+                    StandardCharsets.UTF_8)) {
                     Type type = new TypeToken<ArrayList<CookieObj>>() {}.getType();
                     ownCookie = FMusic.gson.fromJson(reader, type);
                     ownCookieStamp = stamp;

@@ -4,7 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
@@ -446,7 +445,9 @@ public final class KugouHttpClient {
             }
             long stamp = file.lastModified();
             if (ownCookie == null || stamp != ownCookieStamp) {
-                try (InputStreamReader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)) {
+                try (InputStreamReader reader = new InputStreamReader(
+                    new FileInputStream(file),
+                    StandardCharsets.UTF_8)) {
                     Type type = new TypeToken<ArrayList<CookieObj>>() {}.getType();
                     ownCookie = FMusic.gson.fromJson(reader, type);
                     ownCookieStamp = stamp;
