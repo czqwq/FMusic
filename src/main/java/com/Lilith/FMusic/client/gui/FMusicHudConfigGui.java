@@ -1,9 +1,9 @@
 package com.Lilith.FMusic.client.gui;
-import net.minecraft.util.StatCollector;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
 import net.minecraft.client.gui.GuiScreen;
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.Config;
 import com.Lilith.FMusic.client.core.FMusicCore;

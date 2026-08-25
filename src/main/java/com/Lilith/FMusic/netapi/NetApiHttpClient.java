@@ -1,5 +1,4 @@
 package com.Lilith.FMusic.netapi;
-import net.minecraft.util.StatCollector;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -10,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+
+import net.minecraft.util.StatCollector;
 
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;

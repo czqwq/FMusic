@@ -1,11 +1,12 @@
 package com.Lilith.FMusic.server.api.qqmusic;
-import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.objs.HttpResObj;
@@ -67,8 +68,11 @@ public class QQMusicClient {
             JsonArray arr = QQSong.getArray(song, "itemlist");
 
             if (arr == null || arr.size() == 0) {
-                QQMusicHttpClient
-                    .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.smartbox_empty", keyword, QQMusicHttpClient.cut(res.data, 1000)));
+                QQMusicHttpClient.log(
+                    StatCollector.translateToLocalFormatted(
+                        "fmusic.log.qq.smartbox_empty",
+                        keyword,
+                        QQMusicHttpClient.cut(res.data, 1000)));
                 return null;
             }
 
@@ -85,7 +89,8 @@ public class QQMusicClient {
                 }
             }
 
-            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.smartbox_ok", keyword, list.size()));
+            QQMusicHttpClient
+                .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.smartbox_ok", keyword, list.size()));
         } catch (Exception e) {
             QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.smartbox_parse_error"));
             if (QQSong.debug) {
@@ -163,7 +168,8 @@ public class QQMusicClient {
                 }
             }
 
-            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.musicu_ok", keyword, list.size()));
+            QQMusicHttpClient
+                .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.musicu_ok", keyword, list.size()));
         } catch (Exception e) {
             QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.musicu_parse_error"));
             if (QQSong.debug) {
@@ -226,8 +232,11 @@ public class QQMusicClient {
             JsonArray arr = QQSong.getArray(song, "list");
 
             if (arr == null || arr.size() == 0) {
-                QQMusicHttpClient
-                    .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.old_empty", keyword, QQMusicHttpClient.cut(res.data, 1000)));
+                QQMusicHttpClient.log(
+                    StatCollector.translateToLocalFormatted(
+                        "fmusic.log.qq.old_empty",
+                        keyword,
+                        QQMusicHttpClient.cut(res.data, 1000)));
                 return null;
             }
 
@@ -243,7 +252,8 @@ public class QQMusicClient {
                 }
             }
 
-            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.old_ok", keyword, list.size()));
+            QQMusicHttpClient
+                .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.old_ok", keyword, list.size()));
         } catch (Exception e) {
             QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.old_parse_error"));
             if (QQSong.debug) {
@@ -414,7 +424,11 @@ public class QQMusicClient {
             JsonObject track = QQSong.getObj(data, "track_info");
 
             if (track == null) {
-                QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.detail_empty", id, QQMusicHttpClient.cut(res.data, 1000)));
+                QQMusicHttpClient.log(
+                    StatCollector.translateToLocalFormatted(
+                        "fmusic.log.qq.detail_empty",
+                        id,
+                        QQMusicHttpClient.cut(res.data, 1000)));
                 return null;
             }
 
@@ -504,7 +518,8 @@ public class QQMusicClient {
 
             HttpResObj res = QQMusicHttpClient.postJson(QQMusicHttpClient.MUSICU_URL, FMusic.gson.toJson(req));
             if (res == null || !res.ok || res.data == null || res.data.isEmpty()) {
-                QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.play_url_req_fail", songMid));
+                QQMusicHttpClient
+                    .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.play_url_req_fail", songMid));
                 return null;
             }
 
@@ -516,8 +531,11 @@ public class QQMusicClient {
             if (midurlinfo == null || midurlinfo.size() == 0
                 || !midurlinfo.get(0)
                     .isJsonObject()) {
-                QQMusicHttpClient
-                    .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.midurlinfo_empty", songMid, QQMusicHttpClient.cut(res.data, 1000)));
+                QQMusicHttpClient.log(
+                    StatCollector.translateToLocalFormatted(
+                        "fmusic.log.qq.midurlinfo_empty",
+                        songMid,
+                        QQMusicHttpClient.cut(res.data, 1000)));
                 return null;
             }
 
@@ -530,8 +548,8 @@ public class QQMusicClient {
             int result = getInt(info, "result", -1);
 
             if (purl != null && !purl.isEmpty() && result == 0) {
-                QQMusicHttpClient
-                    .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.play_url_ok", songMid, mediaMid, filename));
+                QQMusicHttpClient.log(
+                    StatCollector.translateToLocalFormatted("fmusic.log.qq.play_url_ok", songMid, mediaMid, filename));
                 return host + purl;
             }
 
@@ -615,7 +633,11 @@ public class QQMusicClient {
             String lyric = QQSong.getString(root, "lyric");
 
             if (lyric == null || lyric.isEmpty()) {
-                QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.lyric_empty", id, QQMusicHttpClient.cut(res.data, 1000)));
+                QQMusicHttpClient.log(
+                    StatCollector.translateToLocalFormatted(
+                        "fmusic.log.qq.lyric_empty",
+                        id,
+                        QQMusicHttpClient.cut(res.data, 1000)));
             }
 
             return lyric;

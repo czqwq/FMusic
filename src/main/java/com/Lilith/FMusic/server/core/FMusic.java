@@ -1,5 +1,4 @@
 package com.Lilith.FMusic.server.core;
-import net.minecraft.util.StatCollector;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -16,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.core.music.MusicHttpClient;
 import com.Lilith.FMusic.server.core.music.MusicSearch;

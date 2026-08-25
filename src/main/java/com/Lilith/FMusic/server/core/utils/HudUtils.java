@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.utils;
+
 import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.codec.HudBasePosObj;

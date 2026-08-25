@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+
 import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.core.FMusic;
@@ -38,7 +39,9 @@ public class CommandUnban extends ACommand {
         if (api.checkId(musicID)) {
             api.setList(musicID, sender);
             BanSave.removeBanMusic(args[1], api.getId());
-            FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.unban_ok", api.getId(), musicID));
+            FMusic.side.sendMessage(
+                sender,
+                StatCollector.translateToLocalFormatted("fmusic.cmd.unban_ok", api.getId(), musicID));
         } else {
             FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.invalid_id"));
         }

@@ -1,11 +1,11 @@
 package com.Lilith.FMusic.server.core.side;
-import net.minecraft.util.StatCollector;
 
 import java.io.File;
 import java.util.Collection;
 import java.util.Locale;
 
 import net.kyori.adventure.text.Component;
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.codec.CommandType;
 import com.Lilith.FMusic.codec.HudPosObj;
@@ -216,7 +216,8 @@ public abstract class BaseSide {
      * @param url    地址
      */
     public final void sendMusic(String player, String url) {
-        FMusicServer.LOGGER.debug(StatCollector.translateToLocalFormatted("fmusic.log.server.send_music_direct", player, url));
+        FMusicServer.LOGGER
+            .debug(StatCollector.translateToLocalFormatted("fmusic.log.server.send_music_direct", player, url));
         PlayMusic.addNowPlayPlayer(player);
         Object player1 = getPlayer(player);
         if (player1 == null) return;
@@ -414,7 +415,8 @@ public abstract class BaseSide {
      * @param url 歌曲Url
      */
     public final void sendMusic(String url) {
-        FMusicServer.LOGGER.debug(StatCollector.translateToLocalFormatted("fmusic.log.server.send_music_broadcast", url));
+        FMusicServer.LOGGER
+            .debug(StatCollector.translateToLocalFormatted("fmusic.log.server.send_music_broadcast", url));
         for (Object player : getPlayers()) {
             String name = getPlayerName(player);
             if (name == null) continue;

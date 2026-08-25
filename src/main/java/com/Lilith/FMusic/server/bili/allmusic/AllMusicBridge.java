@@ -1,8 +1,8 @@
 package com.Lilith.FMusic.server.bili.allmusic;
 
-import com.Lilith.FMusic.server.FMusicServer;
-
 import net.minecraft.util.StatCollector;
+
+import com.Lilith.FMusic.server.FMusicServer;
 import com.Lilith.FMusic.server.bili.BiliMusicBridge;
 import com.Lilith.FMusic.server.bili.config.PluginSettings;
 import com.Lilith.FMusic.server.bili.request.SongRequest;

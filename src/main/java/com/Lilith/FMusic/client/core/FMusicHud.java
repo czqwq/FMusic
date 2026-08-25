@@ -1,5 +1,4 @@
 package com.Lilith.FMusic.client.core;
-import net.minecraft.util.StatCollector;
 
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -16,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import javax.imageio.ImageIO;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.StatCollector;
 
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 

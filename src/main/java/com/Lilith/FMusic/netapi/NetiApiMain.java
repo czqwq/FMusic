@@ -1,8 +1,9 @@
 package com.Lilith.FMusic.netapi;
-import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.netapi.obj.music.info.InfoObj;
 import com.Lilith.FMusic.netapi.obj.music.list.DataObj;
@@ -236,7 +237,8 @@ public class NetiApiMain implements IMusicApi {
                 LyricDecoder docoder = new LyricDecoder();
                 for (int times = 0; times < 3; times++) {
                     if (docoder.check(obj)) {
-                        FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.netapi.lyric_retry", times));
+                        FMusic.log
+                            .data(StatCollector.translateToLocalFormatted("fmusic.log.netapi.lyric_retry", times));
                     } else {
                         if (docoder.isHave) {
                             lyric.setHaveLyric(FMusic.getConfig().sendLyric);

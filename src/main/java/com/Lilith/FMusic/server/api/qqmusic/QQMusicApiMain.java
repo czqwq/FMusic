@@ -1,5 +1,4 @@
 package com.Lilith.FMusic.server.api.qqmusic;
-import net.minecraft.util.StatCollector;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -9,6 +8,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
@@ -114,7 +115,8 @@ public class QQMusicApiMain implements IMusicApi {
         }
         String playUrl = QQMusicClient.getPlayUrl(song);
         if (playUrl == null || playUrl.isEmpty()) {
-            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.play_url_null", song.realId()));
+            QQMusicHttpClient
+                .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.play_url_null", song.realId()));
             return null;
         }
         boolean trial = false;
@@ -176,7 +178,9 @@ public class QQMusicApiMain implements IMusicApi {
                     QQMusicClient.PlaylistInfo playlist = QQMusicClient.getPlaylist(value);
                     if (playlist == null || playlist.getSongIds()
                         .isEmpty()) {
-                        FMusic.side.sendMessageTask(sender, StatCollector.translateToLocal("fmusic.api.qqmusic.playlist_fail_check"));
+                        FMusic.side.sendMessageTask(
+                            sender,
+                            StatCollector.translateToLocal("fmusic.api.qqmusic.playlist_fail_check"));
                         return;
                     }
                     MusicListSave.addIdleList(playlist.getSongIds(), getId());
@@ -200,7 +204,9 @@ public class QQMusicApiMain implements IMusicApi {
                         sender,
                         FMusic.getMessage().musicPlay.listMusic.get.replace(ARG.name, "QQMusic"));
                 } else {
-                    FMusic.side.sendMessageTask(sender, StatCollector.translateToLocal("fmusic.api.qqmusic.playlist_fail_input"));
+                    FMusic.side.sendMessageTask(
+                        sender,
+                        StatCollector.translateToLocal("fmusic.api.qqmusic.playlist_fail_input"));
                 }
             } catch (Exception e) {
                 QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.list_error"));

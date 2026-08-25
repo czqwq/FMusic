@@ -1,8 +1,8 @@
 package com.Lilith.FMusic;
-import net.minecraft.util.StatCollector;
 
 import java.io.File;
 
+import net.minecraft.util.StatCollector;
 import net.minecraftforge.common.config.Configuration;
 
 import com.Lilith.FMusic.codec.HudPosObj;
@@ -42,7 +42,8 @@ public class Config {
                 Configuration.CATEGORY_GENERAL,
                 PAUSE_AT_FREEZE,
                 false,
-                StatCollector.translateToLocal("fmusic.cfg.pause_desc") + "\n" + StatCollector.translateToLocal("fmusic.cfg.music_desc"))
+                StatCollector.translateToLocal("fmusic.cfg.pause_desc") + "\n"
+                    + StatCollector.translateToLocal("fmusic.cfg.music_desc"))
             .getBoolean();
 
         // HUD 可视化配置 (与 PowerGoggles 相同的 Forge Configuration 模式)

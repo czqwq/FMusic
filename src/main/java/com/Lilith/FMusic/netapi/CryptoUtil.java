@@ -1,5 +1,4 @@
 package com.Lilith.FMusic.netapi;
-import net.minecraft.util.StatCollector;
 
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
@@ -10,6 +9,8 @@ import java.util.Base64;
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.netapi.obj.EncResObj;
 import com.Lilith.FMusic.server.core.FMusic;

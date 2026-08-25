@@ -44,8 +44,7 @@ public class CommandFMusic extends CommandBase {
             // 打开 HUD 可视化配置界面 (延迟 1 tick, 照 PowerGoggles 模式)
             DelayedGuiDisplayTicker.create(new FMusicHudConfigGui(), 1);
         } else {
-            sender.addChatMessage(
-                new ChatComponentText(StatCollector.translateToLocal("fmusic.cmd.usage")));
+            sender.addChatMessage(new ChatComponentText(StatCollector.translateToLocal("fmusic.cmd.usage")));
         }
     }
 
@@ -56,14 +55,14 @@ public class CommandFMusic extends CommandBase {
         }
         if (args.length < 2) {
             sender.addChatMessage(
-                new ChatComponentText(StatCollector.translateToLocalFormatted("fmusic.cmd.current", Config.pauseAtFreeze)));
+                new ChatComponentText(
+                    StatCollector.translateToLocalFormatted("fmusic.cmd.current", Config.pauseAtFreeze)));
             return;
         }
         boolean value = Boolean.parseBoolean(args[1]);
         Config.pauseAtFreeze = value;
         Config.save();
-        sender.addChatMessage(
-            new ChatComponentText(StatCollector.translateToLocalFormatted("fmusic.cmd.set", value)));
+        sender.addChatMessage(new ChatComponentText(StatCollector.translateToLocalFormatted("fmusic.cmd.set", value)));
     }
 
     private boolean canUse() {

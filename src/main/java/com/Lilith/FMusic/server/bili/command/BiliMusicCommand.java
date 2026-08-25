@@ -37,9 +37,9 @@ public final class BiliMusicCommand {
         }
         if ("reload".equals(sub)) {
             boolean success = plugin.reloadBridge();
-            sender.sendMessage(success
-                ? StatCollector.translateToLocal("bili.cmd.reloaded")
-                : StatCollector.translateToLocal("bili.cmd.reload_fail"));
+            sender.sendMessage(
+                success ? StatCollector.translateToLocal("bili.cmd.reloaded")
+                    : StatCollector.translateToLocal("bili.cmd.reload_fail"));
             return;
         }
         if ("reconnect".equals(sub)) {
@@ -59,9 +59,9 @@ public final class BiliMusicCommand {
             }
             SongRequestService service = plugin.getRequestService();
             boolean submitted = service != null && service.submitManual(sender.name(), join(values, 1));
-            sender.sendMessage(submitted
-                ? StatCollector.translateToLocal("bili.cmd.request_ok")
-                : StatCollector.translateToLocal("bili.cmd.request_fail"));
+            sender.sendMessage(
+                submitted ? StatCollector.translateToLocal("bili.cmd.request_ok")
+                    : StatCollector.translateToLocal("bili.cmd.request_fail"));
             return;
         }
         help(sender, label);
@@ -88,27 +88,51 @@ public final class BiliMusicCommand {
         BilibiliLiveClient client = plugin.getLiveClient();
         SongRequestService service = plugin.getRequestService();
         sender.sendMessage(StatCollector.translateToLocal("bili.cmd.status_title"));
-        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_platform",
-            plugin.getPlatform().platformName()));
-        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_room", plugin.getSettings().roomId));
-        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_realroom", client == null ? 0 : client.realRoomId()));
-        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_conn",
-            client == null ? StatCollector.translateToLocal("bili.cmd.not_init") : client.state().name()));
-        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_host",
-            client == null || client.connectedHost().isEmpty() ? "-" : client.connectedHost()));
-        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_allmusic",
-            plugin.getAllMusicBridge().available()
-                ? StatCollector.translateToLocal("bili.cmd.available")
-                : StatCollector.translateToLocal("bili.cmd.unavailable")));
-        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_cookie",
-            plugin.getCookieStore() == null ? 0 : plugin.getCookieStore().snapshot().size()));
-        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_danmaku", client == null ? 0 : client.danmakuCount()));
-        sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_stats",
-            service == null ? 0 : service.receivedCount(),
-            service == null ? 0 : service.acceptedCount(),
-            service == null ? 0 : service.succeededCount(),
-            service == null ? 0 : service.failedCount(),
-            service == null ? 0 : service.pending()));
+        sender.sendMessage(
+            StatCollector.translateToLocalFormatted(
+                "bili.cmd.status_platform",
+                plugin.getPlatform()
+                    .platformName()));
+        sender
+            .sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_room", plugin.getSettings().roomId));
+        sender.sendMessage(
+            StatCollector
+                .translateToLocalFormatted("bili.cmd.status_realroom", client == null ? 0 : client.realRoomId()));
+        sender.sendMessage(
+            StatCollector.translateToLocalFormatted(
+                "bili.cmd.status_conn",
+                client == null ? StatCollector.translateToLocal("bili.cmd.not_init")
+                    : client.state()
+                        .name()));
+        sender.sendMessage(
+            StatCollector.translateToLocalFormatted(
+                "bili.cmd.status_host",
+                client == null || client.connectedHost()
+                    .isEmpty() ? "-" : client.connectedHost()));
+        sender.sendMessage(
+            StatCollector.translateToLocalFormatted(
+                "bili.cmd.status_allmusic",
+                plugin.getAllMusicBridge()
+                    .available() ? StatCollector.translateToLocal("bili.cmd.available")
+                        : StatCollector.translateToLocal("bili.cmd.unavailable")));
+        sender.sendMessage(
+            StatCollector.translateToLocalFormatted(
+                "bili.cmd.status_cookie",
+                plugin.getCookieStore() == null ? 0
+                    : plugin.getCookieStore()
+                        .snapshot()
+                        .size()));
+        sender.sendMessage(
+            StatCollector
+                .translateToLocalFormatted("bili.cmd.status_danmaku", client == null ? 0 : client.danmakuCount()));
+        sender.sendMessage(
+            StatCollector.translateToLocalFormatted(
+                "bili.cmd.status_stats",
+                service == null ? 0 : service.receivedCount(),
+                service == null ? 0 : service.acceptedCount(),
+                service == null ? 0 : service.succeededCount(),
+                service == null ? 0 : service.failedCount(),
+                service == null ? 0 : service.pending()));
         if (client != null && !client.lastError()
             .isEmpty()) {
             sender.sendMessage(StatCollector.translateToLocalFormatted("bili.cmd.status_error", client.lastError()));

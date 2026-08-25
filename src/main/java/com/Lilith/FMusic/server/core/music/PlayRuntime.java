@@ -1,10 +1,11 @@
 package com.Lilith.FMusic.server.core.music;
-import net.minecraft.util.StatCollector;
 
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.FMusicServer;
 import com.Lilith.FMusic.server.core.FMusic;
@@ -241,7 +242,8 @@ public class PlayRuntime {
                         PlayMusic.musicAllTime = PlayMusic.musicLessTime = PlayMusic.nowPlayMusic.getLength()
                             + FMusic.getConfig().fixSongTime;
                         isPlay = true;
-                        FMusicServer.LOGGER.debug(StatCollector.translateToLocalFormatted("fmusic.log.server.play_task", PlayMusic.url));
+                        FMusicServer.LOGGER.debug(
+                            StatCollector.translateToLocalFormatted("fmusic.log.server.play_task", PlayMusic.url));
                         FMusic.side.sendMusic(PlayMusic.url);
                         if (!FMusic.getConfig().mutePlayMessage) {
                             SongInfoObj music = PlayMusic.nowPlayMusic;

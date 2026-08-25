@@ -1,5 +1,4 @@
 package com.Lilith.FMusic.server.bili.bilibili;
-import net.minecraft.util.StatCollector;
 
 import java.io.IOException;
 import java.net.SocketTimeoutException;
@@ -11,6 +10,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.bili.BiliMusicBridge;
 import com.Lilith.FMusic.server.bili.config.PluginSettings;
@@ -150,7 +151,8 @@ public final class BilibiliLiveClient {
                 if (settings.debug) {
                     plugin.log(Level.WARNING, StatCollector.translateToLocal("fmusic.log.bili.live_fail"), e);
                 } else {
-                    plugin.warning(StatCollector.translateToLocalFormatted("fmusic.log.bili.live_fail_detail", lastError));
+                    plugin.warning(
+                        StatCollector.translateToLocalFormatted("fmusic.log.bili.live_fail_detail", lastError));
                 }
             } finally {
                 closeSocketIfCurrent(myEpoch);
@@ -214,7 +216,9 @@ public final class BilibiliLiveClient {
                 }
                 last = e;
                 closeSocketIfCurrent(myEpoch);
-                plugin.debug(StatCollector.translateToLocalFormatted("fmusic.log.bili.host_failed", server.host, safeMessage(e)));
+                plugin.debug(
+                    StatCollector
+                        .translateToLocalFormatted("fmusic.log.bili.host_failed", server.host, safeMessage(e)));
             }
         }
         if (last instanceof Exception) {

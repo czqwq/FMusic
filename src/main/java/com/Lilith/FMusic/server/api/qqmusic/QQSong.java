@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.api.qqmusic;
+
 import net.minecraft.util.StatCollector;
 
 import com.google.gson.JsonArray;

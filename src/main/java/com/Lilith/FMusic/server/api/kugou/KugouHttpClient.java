@@ -1,5 +1,4 @@
 package com.Lilith.FMusic.server.api.kugou;
-import net.minecraft.util.StatCollector;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -18,6 +17,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+
+import net.minecraft.util.StatCollector;
 
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;

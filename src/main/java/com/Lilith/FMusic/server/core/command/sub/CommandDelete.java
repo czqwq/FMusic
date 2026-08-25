@@ -1,9 +1,10 @@
 package com.Lilith.FMusic.server.core.command.sub;
-import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.command.ACommand;

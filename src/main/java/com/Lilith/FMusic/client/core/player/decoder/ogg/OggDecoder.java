@@ -1,11 +1,11 @@
 package com.Lilith.FMusic.client.core.player.decoder.ogg;
 
-import net.minecraft.util.StatCollector;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteOrder;
 import java.util.concurrent.Semaphore;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.client.FMusic;
 import com.Lilith.FMusic.client.core.FMusicCore;

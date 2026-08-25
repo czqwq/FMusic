@@ -1,11 +1,12 @@
 package com.Lilith.FMusic.server.bili;
-import net.minecraft.util.StatCollector;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.bili.allmusic.AllMusicBridge;
 import com.Lilith.FMusic.server.bili.bilibili.BilibiliLiveClient;
@@ -104,7 +105,10 @@ public final class BiliMusicBridge {
                         .getName()
                     + " (values are never logged).");
         } catch (IOException | IllegalArgumentException e) {
-            log(Level.SEVERE, StatCollector.translateToLocalFormatted("fmusic.log.bili.cookie_load_fail", newCookieStore.file()), e);
+            log(
+                Level.SEVERE,
+                StatCollector.translateToLocalFormatted("fmusic.log.bili.cookie_load_fail", newCookieStore.file()),
+                e);
             return false;
         }
         SongRequestService newRequestService = new SongRequestService(this, allMusicBridge);

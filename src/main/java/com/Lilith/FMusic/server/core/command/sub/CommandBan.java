@@ -1,9 +1,10 @@
 package com.Lilith.FMusic.server.core.command.sub;
-import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
@@ -41,7 +42,9 @@ public class CommandBan extends ACommand {
 
         if (api.checkId(musicID)) {
             BanSave.addBanMusic(musicID, api.getId());
-            FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.ban_ok", api.getId(), musicID));
+            FMusic.side.sendMessage(
+                sender,
+                StatCollector.translateToLocalFormatted("fmusic.cmd.ban_ok", api.getId(), musicID));
         } else {
             FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.invalid_id"));
         }

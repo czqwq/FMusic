@@ -1,5 +1,4 @@
 package com.Lilith.FMusic.server.api.qqmusic;
-import net.minecraft.util.StatCollector;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -12,6 +11,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+
+import net.minecraft.util.StatCollector;
 
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;

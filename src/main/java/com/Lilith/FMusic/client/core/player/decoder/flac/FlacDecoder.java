@@ -17,9 +17,9 @@
 
 package com.Lilith.FMusic.client.core.player.decoder.flac;
 
-import net.minecraft.util.StatCollector;
-
 import java.io.IOException;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.client.FMusic;
 import com.Lilith.FMusic.client.core.FMusicCore;

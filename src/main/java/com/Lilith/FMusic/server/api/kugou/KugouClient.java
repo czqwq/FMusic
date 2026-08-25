@@ -1,5 +1,4 @@
 package com.Lilith.FMusic.server.api.kugou;
-import net.minecraft.util.StatCollector;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -12,6 +11,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.core.objs.HttpResObj;
 import com.google.gson.JsonArray;
@@ -186,7 +187,8 @@ public final class KugouClient {
                 return result;
             }
         } catch (Exception e) {
-            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.complex_parse_fail", keyword));
+            KugouHttpClient
+                .log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.complex_parse_fail", keyword));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -211,7 +213,8 @@ public final class KugouClient {
             HttpResObj response = KugouHttpClient.getWeb(KugouHttpClient.WEB_SEARCH_URL, params);
             List<KugouSong> result = parseSearchResponse(response);
             if (result != null && !result.isEmpty()) {
-                KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.web_search_ok", keyword, result.size()));
+                KugouHttpClient.log(
+                    StatCollector.translateToLocalFormatted("fmusic.log.kugou.web_search_ok", keyword, result.size()));
                 return result;
             }
             KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.web_result_empty", keyword));
@@ -234,7 +237,9 @@ public final class KugouClient {
         JsonObject root = parseObj(response.data);
         JsonArray items = searchItems(root);
         if (items == null || items.size() == 0) {
-            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.no_list", KugouHttpClient.cut(response.data, 1000)));
+            KugouHttpClient.log(
+                StatCollector
+                    .translateToLocalFormatted("fmusic.log.kugou.no_list", KugouHttpClient.cut(response.data, 1000)));
             return null;
         }
 
@@ -531,7 +536,8 @@ public final class KugouClient {
             result.trial = KugouSong.bool(data, false, "is_free_part", "is_trial") || isKnownTrialUrl(result.playUrl);
             return result;
         } catch (Exception e) {
-            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.member_parse_error", known.realId()));
+            KugouHttpClient
+                .log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.member_parse_error", known.realId()));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -675,7 +681,8 @@ public final class KugouClient {
             result.trial = isKnownTrialUrl(result.playUrl) || isTrial(root);
             return result;
         } catch (Exception e) {
-            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.android_parse_error", known.realId()));
+            KugouHttpClient
+                .log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.android_parse_error", known.realId()));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -745,7 +752,8 @@ public final class KugouClient {
                     if (isUsablePlayUrl(webVip)) {
                         String url = normalizeUrl(webVip.playUrl);
                         cachePlayUrl(id, url);
-                        KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.member_url_ok", id));
+                        KugouHttpClient
+                            .log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.member_url_ok", id));
                         return url;
                     }
                 }
@@ -758,7 +766,8 @@ public final class KugouClient {
                     if (isUsablePlayUrl(android)) {
                         String url = normalizeUrl(android.playUrl);
                         cachePlayUrl(id, url);
-                        KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.android_url_ok", id));
+                        KugouHttpClient
+                            .log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.android_url_ok", id));
                         return url;
                     }
                 }

@@ -1,8 +1,9 @@
 package com.Lilith.FMusic.server.core.command.sub;
-import net.minecraft.util.StatCollector;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.command.ACommand;
@@ -31,12 +32,15 @@ public class CommandMute extends ACommand {
                 String finalName = args[1];
                 if (BanSave.checkMutePlayer(finalName)) {
                     BanSave.removeMutePlayer(finalName);
-                    FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.mute_cancel", finalName));
+                    FMusic.side.sendMessage(
+                        sender,
+                        StatCollector.translateToLocalFormatted("fmusic.cmd.mute_cancel", finalName));
                 } else {
                     BanSave.addMutePlayer(finalName);
                     FMusic.side.sendStop(finalName);
                     FMusic.side.clearHud(finalName);
-                    FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.mute_set", finalName));
+                    FMusic.side
+                        .sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.mute_set", finalName));
                 }
             }
         } else {

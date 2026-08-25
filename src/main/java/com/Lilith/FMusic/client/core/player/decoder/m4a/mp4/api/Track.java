@@ -1,5 +1,4 @@
 package com.Lilith.FMusic.client.core.player.decoder.m4a.mp4.api;
-import net.minecraft.util.StatCollector;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -12,6 +11,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import net.minecraft.util.StatCollector;
 
 import org.apache.logging.log4j.LogManager;
 
@@ -411,12 +412,15 @@ public abstract class Track {
         }
         if (frames.isEmpty()) {
             currentFrame = 0;
-            FMusicLog.warn(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.m4a_seek_empty", timestamp));
+            FMusicLog
+                .warn(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.m4a_seek_empty", timestamp));
             return -1;
         }
         // 目标时间超过所有帧: 跳到末尾 (避免 currentFrame 保持 0 导致从头播放)
         currentFrame = frames.size();
-        FMusicLog.warn(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.m4a_seek_overflow", timestamp, frames.size()));
+        FMusicLog.warn(
+            LOGGER,
+            StatCollector.translateToLocalFormatted("fmusic.log.player.m4a_seek_overflow", timestamp, frames.size()));
         return -1;
     }
 

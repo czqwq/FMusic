@@ -134,7 +134,8 @@ public class FMusicPlayer extends InputStream {
         content = new BufferedInputStream(entity.getContent());
         FMusicLog.debug(
             LOGGER,
-            StatCollector.translateToLocalFormatted("fmusic.log.player.connect", local, statusCode, contentLength, totalLength));
+            StatCollector
+                .translateToLocalFormatted("fmusic.log.player.connect", local, statusCode, contentLength, totalLength));
     }
 
     private void resetSource() {
@@ -225,15 +226,21 @@ public class FMusicPlayer extends InputStream {
                 if (pendingTime > 0) {
                     // 应用 PLAY 前到达的 POS 缓存, 避免从头播放
                     nowTask.time = pendingTime;
-                    FMusicLog.debug(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.seek_applied", pendingTime));
+                    FMusicLog.debug(
+                        LOGGER,
+                        StatCollector.translateToLocalFormatted("fmusic.log.player.seek_applied", pendingTime));
                     pendingTime = 0;
                 }
-                FMusicLog.debug(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.task_start", nowTask.url, nowTask.time));
+                FMusicLog.debug(
+                    LOGGER,
+                    StatCollector.translateToLocalFormatted("fmusic.log.player.task_start", nowTask.url, nowTask.time));
                 try {
                     local = 0;
                     connect();
                 } catch (Exception e) {
-                    FMusicLog.warn(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.fetch_fail", nowTask.url));
+                    FMusicLog.warn(
+                        LOGGER,
+                        StatCollector.translateToLocalFormatted("fmusic.log.player.fetch_fail", nowTask.url));
                     FMusicCore.bridge.sendMessage(StatCollector.translateToLocal("fmusic.player.fetch_fail"));
                     continue;
                 }
@@ -252,7 +259,11 @@ public class FMusicPlayer extends InputStream {
                 } else if (head[0] == (byte) 0xFF && (head[1] & 0xE0) == 0xE0) {
                     // MPEG 音频同步字 (0xFFEx/0xFFFx), 不限 128kbps
                     decoder = new Mp3Decoder(this);
-                    FMusicLog.debug(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.fmt_mp3_sync", Integer.toHexString(head[1] & 0xFF)));
+                    FMusicLog.debug(
+                        LOGGER,
+                        StatCollector.translateToLocalFormatted(
+                            "fmusic.log.player.fmt_mp3_sync",
+                            Integer.toHexString(head[1] & 0xFF)));
                 } else {
                     decoder = new OggDecoder(this);
                     FMusicLog.debug(LOGGER, StatCollector.translateToLocal("fmusic.log.player.fmt_ogg"));
@@ -270,7 +281,9 @@ public class FMusicPlayer extends InputStream {
                 int channels = decoder.getOutputChannels();
                 if (channels != 1 && channels != 2) continue;
                 if (nowTask.time != 0) {
-                    FMusicLog.debug(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.seek_exec", nowTask.time));
+                    FMusicLog.debug(
+                        LOGGER,
+                        StatCollector.translateToLocalFormatted("fmusic.log.player.seek_exec", nowTask.time));
                     decoder.set(nowTask.time);
                 }
 
@@ -335,15 +348,23 @@ public class FMusicPlayer extends InputStream {
                         if (eof && !frozen && AL10.alGetSourcei(index, AL10.AL_SOURCE_STATE) == AL10.AL_STOPPED) {
                             // 解码完毕且缓冲队列真正播完(AL_STOPPED), 自然结束;
                             // 注意不能用 != AL_PLAYING: 暂停(PAUSED)状态下不能视为结束
-                            FMusicLog.debug(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.play_end", nowTask.time));
+                            FMusicLog.debug(
+                                LOGGER,
+                                StatCollector.translateToLocalFormatted("fmusic.log.player.play_end", nowTask.time));
                             break;
                         }
                     } catch (Exception e) {
                         if (!isClose) {
                             decodeErrorCount++;
-                            FMusicLog.warn(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.decode_err", decodeErrorCount, e.toString()));
+                            FMusicLog.warn(
+                                LOGGER,
+                                StatCollector.translateToLocalFormatted(
+                                    "fmusic.log.player.decode_err",
+                                    decodeErrorCount,
+                                    e.toString()));
                             if (decodeErrorCount >= 3) {
-                                FMusicLog.error(LOGGER, StatCollector.translateToLocal("fmusic.log.player.decode_fail"), e);
+                                FMusicLog
+                                    .error(LOGGER, StatCollector.translateToLocal("fmusic.log.player.decode_fail"), e);
                                 break;
                             }
                             // 单帧解码失败, 尝试继续下一帧
@@ -370,7 +391,10 @@ public class FMusicPlayer extends InputStream {
                 }
 
                 if (reload) {
-                    FMusicLog.warn(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.reload_replay", nowTask.time, local));
+                    FMusicLog.warn(
+                        LOGGER,
+                        StatCollector
+                            .translateToLocalFormatted("fmusic.log.player.reload_replay", nowTask.time, local));
                     wait = true;
                     if (semaphoreReload.tryAcquire(1, TimeUnit.SECONDS)) {
                         if (reload) {
@@ -386,13 +410,18 @@ public class FMusicPlayer extends InputStream {
                 isPlay = false;
                 frozen = false;
                 decodeErrorCount = 0;
-                FMusicLog.debug(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.task_end", reload, isClose));
+                FMusicLog.debug(
+                    LOGGER,
+                    StatCollector.translateToLocalFormatted("fmusic.log.player.task_end", reload, isClose));
 
                 if (!isRun) {
                     return;
                 }
             } catch (Exception e) {
-                FMusicLog.error(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.task_exception", e.toString()), e);
+                FMusicLog.error(
+                    LOGGER,
+                    StatCollector.translateToLocalFormatted("fmusic.log.player.task_exception", e.toString()),
+                    e);
                 e.printStackTrace();
             }
         }

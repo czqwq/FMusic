@@ -1,5 +1,4 @@
 package com.Lilith.FMusic.server.api.kugou;
-import net.minecraft.util.StatCollector;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -9,6 +8,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
@@ -180,7 +181,9 @@ public class KugouApiMain implements IMusicApi {
                     KugouClient.PlaylistInfo playlist = KugouClient.getPlaylist(value);
                     if (playlist == null || playlist.getSongIds()
                         .isEmpty()) {
-                        FMusic.side.sendMessageTask(sender, StatCollector.translateToLocal("fmusic.api.kugou.playlist_fail_check"));
+                        FMusic.side.sendMessageTask(
+                            sender,
+                            StatCollector.translateToLocal("fmusic.api.kugou.playlist_fail_check"));
                         return;
                     }
                     MusicListSave.addIdleList(playlist.getSongIds(), getId());
@@ -204,7 +207,9 @@ public class KugouApiMain implements IMusicApi {
                         sender,
                         FMusic.getMessage().musicPlay.listMusic.get.replace(ARG.name, "Kugou"));
                 } else {
-                    FMusic.side.sendMessageTask(sender, StatCollector.translateToLocal("fmusic.api.kugou.playlist_fail_input"));
+                    FMusic.side.sendMessageTask(
+                        sender,
+                        StatCollector.translateToLocal("fmusic.api.kugou.playlist_fail_input"));
                 }
             } catch (Exception e) {
                 KugouHttpClient.log(StatCollector.translateToLocal("fmusic.log.kugou.list_import_error"));

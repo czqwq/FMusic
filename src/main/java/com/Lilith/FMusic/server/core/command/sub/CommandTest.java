@@ -1,4 +1,5 @@
 package com.Lilith.FMusic.server.core.command.sub;
+
 import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.FMusicServer;
@@ -37,24 +38,32 @@ public class CommandTest extends ACommand {
 
         // 直接播放音频链接 (http/https)
         if (musicID.startsWith("http://") || musicID.startsWith("https://")) {
-            FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_playing", musicID));
-            FMusicServer.LOGGER.debug(StatCollector.translateToLocalFormatted("fmusic.log.server.test_url", name, musicID));
+            FMusic.side
+                .sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_playing", musicID));
+            FMusicServer.LOGGER
+                .debug(StatCollector.translateToLocalFormatted("fmusic.log.server.test_url", name, musicID));
             FMusic.side.sendMusic(name, musicID);
             return;
         }
 
         if (api.checkId(musicID)) {
-            FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_parsing", musicID));
+            FMusic.side
+                .sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_parsing", musicID));
             try {
                 SongInfoObj info = api.getMusic(musicID, "test", false);
                 if (info == null) {
                     FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.test_parse_fail"));
                     return;
                 }
-                FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_song_name", info.getName()));
-                FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_song_author", info.getAuthor()));
+                FMusic.side.sendMessage(
+                    sender,
+                    StatCollector.translateToLocalFormatted("fmusic.cmd.test_song_name", info.getName()));
+                FMusic.side.sendMessage(
+                    sender,
+                    StatCollector.translateToLocalFormatted("fmusic.cmd.test_song_author", info.getAuthor()));
                 String url = api.getPlayUrl(musicID);
-                FMusic.side.sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_play_url", url));
+                FMusic.side
+                    .sendMessage(sender, StatCollector.translateToLocalFormatted("fmusic.cmd.test_play_url", url));
             } catch (Exception e) {
                 FMusic.side.sendMessage(sender, StatCollector.translateToLocal("fmusic.cmd.test_parse_err"));
                 e.printStackTrace();
