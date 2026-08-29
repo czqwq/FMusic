@@ -517,3 +517,31 @@ java.util.logging.Logger 的 single-type-import 冲突 (改用全限定类型 or
   若走 translateToLocal, dedicated 服务端(恒 en_US)首次生成会得到英文默认消息)
 - **未提取 (待办)**: Kugou/QQ 的少量复杂多行日志 (含敏感信息处理逻辑: 不打印可转发凭据等),
   约 40 条, 处理需谨慎保持安全逻辑
+
+## 23. 投票序列移植 (AllMusic 4.2.0 126a32ab)
+
+### 内容 (从 tmp/AllMusic commit 126a32ab "投票序列" 移植)
+- **/music agree 同意当前投票** (CommandAgree): 投票发起后其他玩家用 /music agree 或点击按钮同意
+- **VoteItem 投票序列** (server/core/music/VoteItem.java): VoteType NEXT/PUSH, 队列 voteList + 当前 vote
+- PlayMusic 重构: votePlayer/pushPlayer Set → voteList(Queue)/vote; startVote(VoteItem) 入队;
+  doVote() 执行 (NEXT=切歌 musicLessTime=0, PUSH=移到队首); removeVote(name,type)/nextVote();
+  getMusic(id,api) 查播放列表; 新增 haveVote
+- PlayRuntime: time3 每 tick 处理当前投票 (超时 sendVoteInfo/达标 doVote),
+  无投票时 nextVote 出队并广播投票邀请 (bq/bq1/bq2 + /music agree 按钮);
+  clear() 歌曲结束终止 NEXT 投票 (vote.cancel1); getMiniVote 用 vote.minVote
+- 配置迁移: ConfigObj 的 maxPlayList/maxPlayerList/minVote/voteTime 移到
+  limit.maxPlayList/limit.maxPlayerList + vote.minVote/voteTime/voteListSize (VoteObj);
+  configVersion 401→402, messageVersion 400→401
+- 消息对象: VoteObj 删 voteDone/err2 加 next/err4/err5/cancel1/list;
+  PushObj 删 agree/bqAgree/arAgree/timeOut/idErr/err2 加 cancel1/err4/err5;
+  HelpNormalObj 加 agree (注意上游 init 有 bug: join= 应为 agree=, 已修正)
+- CommandVote/CommandPush 重写为 VoteItem 模型; CommandEX 注册 agree;
+  CommandHelp 加 agree 行; CommandBan 用 getId; SongInfoObj 加 getId() 别名 (getID 保留兼容)
+- 用户配置文件已同步: config.json (limit/vote 块), message.json (新字段 + version 401)
+
+### 说明
+- **IMusicApi 未升级到 4.2.0 接口** (search(String[]) 单参 + reload/command/tab):
+  API 集成在模组内, 无外部插件机制调用新方法, 保持旧接口 (search(String[], boolean))
+  避免改动 netapi/Kugou/QQ 集成代码与其本地化; tmp 三个 API 的 4.2.0 适配 commit
+  仅接口相关 (无功能修复), 不回同步
+- 上游时间线: 126a32ab (4.2.0 投票序列) 之后为 ee612df2 音乐API更新接口 / e9c0efa6 缺失的语言

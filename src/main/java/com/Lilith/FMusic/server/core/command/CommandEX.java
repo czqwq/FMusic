@@ -8,6 +8,7 @@ import java.util.Map;
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
 import com.Lilith.FMusic.server.core.command.sub.CommandAddList;
+import com.Lilith.FMusic.server.core.command.sub.CommandAgree;
 import com.Lilith.FMusic.server.core.command.sub.CommandBan;
 import com.Lilith.FMusic.server.core.command.sub.CommandBanPlayer;
 import com.Lilith.FMusic.server.core.command.sub.CommandCancel;
@@ -69,6 +70,7 @@ public class CommandEX {
         commandList.put("push", new CommandPush());
         commandList.put("join", new CommandJoin());
         commandList.put("cancel", new CommandCancel());
+        commandList.put("agree", new CommandAgree());
 
         commandAdminList.put("reload", new CommandReload());
         commandAdminList.put("next", new CommandNext());
@@ -221,7 +223,7 @@ public class CommandEX {
         musicID = api1.getMusicId(arg);
 
         if (api1.checkId(musicID)) {
-            if (PlayMusic.getListSize() >= FMusic.getConfig().maxPlayList) {
+            if (PlayMusic.getListSize() >= FMusic.getConfig().limit.maxPlayerList) {
                 FMusic.side.sendMessageTask(sender, FMusic.getMessage().addMusic.listFull);
             } else if (BanSave.checkBanMusic(musicID, api)) {
                 FMusic.side.sendMessageTask(sender, FMusic.getMessage().addMusic.banMusic);

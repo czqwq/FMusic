@@ -132,6 +132,13 @@ public class SongInfoObj {
         return id;
     }
 
+    /**
+     * 获取歌曲ID (AllMusic 4.2.0 命名)
+     */
+    public String getId() {
+        return id;
+    }
+
     public String getInfo() {
         String info = FMusic.getMessage().musicPlay.musicInfo;
         info = info.replace(ARG.musicName, name == null ? "" : name)

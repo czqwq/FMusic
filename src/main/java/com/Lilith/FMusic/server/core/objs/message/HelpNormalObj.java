@@ -9,6 +9,7 @@ public class HelpNormalObj {
     public String cancel;
     public String vote;
     public String vote1;
+    public String agree;
     public String push;
     public String push1;
     public String mute;
@@ -48,6 +49,7 @@ public class HelpNormalObj {
         if (cancel == null) return true;
         if (vote == null) return true;
         if (vote1 == null) return true;
+        if (agree == null) return true;
         if (push == null) return true;
         if (push1 == null) return true;
         if (mute == null) return true;
@@ -104,5 +106,6 @@ public class HelpNormalObj {
         if (hud4 == null) hud4 = "<gold>[FMusic]<yellow>/music hud pic rotate [开关] 设置图片旋转模式";
         if (hud5 == null) hud5 = "<gold>[FMusic]<yellow>/music hud pic speed [数值] 设置图片旋转速度";
         if (join == null) join = "<gold>[FMusic]<yellow>/music join 重新播放当前歌曲";
+        if (agree == null) agree = "<gold>[FMusic]<yellow>/music agree 同意当前的投票";
     }
 }

@@ -34,6 +34,10 @@ public class CommandHelp extends ACommand {
                 .append(FMusic.side.miniMessageRun(FMusic.getMessage().click.clickRun, "/music vote cancel")));
         FMusic.side.sendMessage(
             sender,
+            FMusic.side.miniMessage(FMusic.getMessage().help.normal.agree)
+                .append(FMusic.side.miniMessageRun(FMusic.getMessage().click.clickRun, "/music agree")));
+        FMusic.side.sendMessage(
+            sender,
             FMusic.side.miniMessage(FMusic.getMessage().help.normal.push)
                 .append(FMusic.side.miniMessageSuggest(FMusic.getMessage().click.clickRun, "/music push ")));
         FMusic.side.sendMessage(

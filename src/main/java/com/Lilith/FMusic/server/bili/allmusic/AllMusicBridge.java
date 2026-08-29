@@ -140,7 +140,7 @@ public final class AllMusicBridge {
         if (!api.checkId(song.id)) {
             return QueueResult.failure(QueueResult.Status.INVALID_ID, "default API rejected the song id");
         }
-        if (PlayMusic.getListSize() >= FMusic.getConfig().maxPlayList) {
+        if (PlayMusic.getListSize() >= FMusic.getConfig().limit.maxPlayerList) {
             return QueueResult.failure(QueueResult.Status.LIST_FULL, "playlist is full");
         }
         if (BanSave.checkBanMusic(song.id, song.api)) {

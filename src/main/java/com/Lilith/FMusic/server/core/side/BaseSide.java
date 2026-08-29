@@ -549,6 +549,20 @@ public abstract class BaseSide {
         sendMessage(obj, miniMessage(message));
     }
 
+    /**
+     * 按玩家名发送消息 (上游 AllMusic 兼容重载, 投票等照搬代码使用)
+     *
+     * @param name    玩家名
+     * @param message 消息
+     */
+    public final void sendMessage(String name, String message) {
+        Object player = getPlayer(name);
+        if (player == null) {
+            return;
+        }
+        sendMessage(player, miniMessage(message));
+    }
+
     public abstract Component miniMessage(String input);
 
     public abstract Component miniMessageRun(String input, String command);

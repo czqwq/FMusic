@@ -1,6 +1,5 @@
 package com.Lilith.FMusic.server.core.music;
 
-import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -64,6 +63,17 @@ public class PlayRuntime {
      */
     private static void clear() {
         isPlay = false;
+
+        VoteItem vote = PlayMusic.getVote();
+        if (vote != null && vote.getType() == VoteItem.VoteType.NEXT
+            && vote.getApi()
+                .equalsIgnoreCase(PlayMusic.nowPlayMusic.getApi())
+            && vote.getId()
+                .equalsIgnoreCase(PlayMusic.nowPlayMusic.getId())) {
+            FMusic.side.broadcastInTask(FMusic.getMessage().vote.cancel1);
+            PlayMusic.removeVote();
+        }
+
         PlayMusic.musicNowTime = 0;
         PlayMusic.musicAllTime = 0;
         PlayMusic.musicLessTime = 0;
@@ -114,37 +124,35 @@ public class PlayRuntime {
         }
     }
 
-    private static boolean checkPush() {
-        SongInfoObj music = PlayMusic.getPush();
-        if (music != null) {
-            if (PlayMusic.nowPlayMusic.getID()
-                .equalsIgnoreCase(music.getID())) {
-                return false;
-            }
-            List<SongInfoObj> list = PlayMusic.getList();
-            if (list.isEmpty()) {
-                return false;
-            }
-            SongInfoObj id1 = list.get(0);
-            if (id1 != null && id1.getID()
-                .equalsIgnoreCase(music.getID())) {
-                return false;
-            }
-            for (int a = 1; a < list.size(); a++) {
-                id1 = list.get(a);
-                if (id1.getID()
-                    .equalsIgnoreCase(music.getID())) return true;
-            }
-        }
-
-        return false;
-    }
-
     public static int getMiniVote() {
         return Math.min(
-            FMusic.getConfig().minVote,
+            FMusic.getConfig().vote.minVote,
             FMusic.side.getPlayers()
                 .size());
+    }
+
+    public static boolean checkMusic(String id, String api) {
+        if (PlayMusic.nowPlayMusic.getId()
+            .equalsIgnoreCase(id)
+            && PlayMusic.nowPlayMusic.getApi()
+                .equalsIgnoreCase(api)) {
+            return true;
+        }
+        return PlayMusic.getMusic(id, api) != null;
+    }
+
+    private static void sendVoteInfo(boolean timeout) {
+        if (timeout) {
+            VoteItem vote = PlayMusic.getVote();
+            FMusic.side.broadcastInTask(
+                FMusic.getMessage().vote.timeOut.replace(ARG.count, String.valueOf(vote.votePlayer.size()))
+                    .replace(ARG.countAll, String.valueOf(getMiniVote())));
+        }
+
+        int count = PlayMusic.getVoteCount();
+        if (count > 0) {
+            FMusic.side.broadcastInTask(FMusic.getMessage().vote.list.replace(ARG.count, String.valueOf(count)));
+        }
     }
 
     /**
@@ -156,35 +164,48 @@ public class PlayRuntime {
             if (ping >= 10) {
                 FMusic.side.ping();
             }
-            if (PlayMusic.getPushTime() > 0) {
-                if (!checkPush()) {
-                    PlayMusic.clearPush();
-                    FMusic.side.broadcastInTask(FMusic.getMessage().push.cancel);
+
+            VoteItem vote = PlayMusic.getVote();
+            if (vote != null) {
+                PlayMusic.voteTick();
+                if (PlayMusic.getVoteTime() <= 0) {
+                    sendVoteInfo(true);
+                    PlayMusic.removeVote();
                 } else {
-                    PlayMusic.pushTick();
-                    if (PlayMusic.getPushTime() == 0) {
-                        PlayMusic.clearPush();
-                        FMusic.side.broadcastInTask(FMusic.getMessage().push.timeOut);
-                    } else {
-                        if (PlayMusic.getPushCount() >= getMiniVote()) {
-                            PlayMusic.pushMusic();
-                            PlayMusic.clearPush();
-                            FMusic.side.broadcastInTask(FMusic.getMessage().push.doPush);
-                        }
+                    if (PlayMusic.getVote().votePlayer.size() >= getMiniVote()) {
+                        sendVoteInfo(false);
+                        PlayMusic.doVote();
                     }
                 }
-            }
-
-            if (PlayMusic.getVoteTime() > 0) {
-                PlayMusic.voteTick();
-                if (PlayMusic.getVoteTime() == 0) {
-                    PlayMusic.clearVote();
-                    FMusic.side.broadcastInTask(FMusic.getMessage().vote.timeOut);
-                } else {
-                    if (PlayMusic.getVoteCount() >= getMiniVote()) {
-                        PlayMusic.musicLessTime = 0;
-                        PlayMusic.clearVote();
-                        FMusic.side.broadcastInTask(FMusic.getMessage().vote.voteDone);
+            } else {
+                vote = PlayMusic.nextVote();
+                if (vote != null) {
+                    if (vote.getType() == VoteItem.VoteType.NEXT) {
+                        String data = FMusic.getMessage().vote.bq;
+                        data = data.replace(ARG.player, vote.getVoteSender())
+                            .replace(ARG.time, String.valueOf(FMusic.getConfig().vote.voteTime))
+                            .replace(ARG.countAll, String.valueOf(PlayRuntime.getMiniVote()));
+                        FMusic.side.broadcast(data);
+                        FMusic.side.broadcast(
+                            FMusic.side.miniMessage(FMusic.getMessage().vote.bq1)
+                                .append(FMusic.side.miniMessageRun(FMusic.getMessage().vote.bq2, "/music agree")));
+                    } else if (vote.getType() == VoteItem.VoteType.PUSH) {
+                        SongInfoObj music = PlayMusic.getMusic(vote.getId(), vote.getApi());
+                        if (music == null) {
+                            FMusic.side.broadcast(FMusic.getMessage().push.err4);
+                            PlayMusic.removeVote();
+                            return;
+                        }
+                        String data = FMusic.getMessage().push.bq;
+                        data = data.replace(ARG.player, vote.getVoteSender())
+                            .replace(ARG.time, String.valueOf(FMusic.getConfig().vote.voteTime))
+                            .replace(ARG.musicName, music.getName())
+                            .replace(ARG.musicAuthor, music.getAuthor())
+                            .replace(ARG.countAll, String.valueOf(PlayRuntime.getMiniVote()));
+                        FMusic.side.broadcast(data);
+                        FMusic.side.broadcast(
+                            FMusic.side.miniMessage(FMusic.getMessage().push.bq1)
+                                .append(FMusic.side.miniMessageRun(FMusic.getMessage().push.bq2, "/music agree")));
                     }
                 }
             }
@@ -198,8 +219,9 @@ public class PlayRuntime {
         while (FMusic.isRun) {
             try {
                 if (PlayMusic.getListSize() == 0) {
+                    Thread.sleep(1000);
                     if (PlayMusic.error >= 10) {
-                        Thread.sleep(1000);
+                        Thread.sleep(10000);
                     } else if (FMusic.side.needPlay(true) && PlayMusic.getIdleListSize() > 0) {
                         MusicObj music = PlayMusic.getIdleMusic();
                         if (music != null) {
@@ -209,7 +231,6 @@ public class PlayRuntime {
                             }
                         }
                     }
-                    Thread.sleep(1000);
                 } else {
                     HudUtils.sendClearHud();
                     HudUtils.sendHudNowData();
@@ -225,17 +246,17 @@ public class PlayRuntime {
                     IMusicApi api = FMusic.MUSIC_APIS.get(PlayMusic.nowPlayMusic.getApi());
 
                     PlayMusic.url = PlayMusic.nowPlayMusic.getPlayerUrl() == null
-                        ? api.getPlayUrl(PlayMusic.nowPlayMusic.getID())
+                        ? api.getPlayUrl(PlayMusic.nowPlayMusic.getId())
                         : PlayMusic.nowPlayMusic.getPlayerUrl();
                     if (PlayMusic.url == null) {
                         String data = FMusic.getMessage().musicPlay.emptyCanPlay;
-                        FMusic.side.broadcastInTask(data.replace(ARG.musicId, PlayMusic.nowPlayMusic.getID()));
+                        FMusic.side.broadcastInTask(data.replace(ARG.musicId, PlayMusic.nowPlayMusic.getId()));
                         PlayMusic.nowPlayMusic = null;
                         continue;
                     }
 
                     if (PlayMusic.nowPlayMusic.getPlayerUrl() == null)
-                        PlayMusic.lyric = api.getLyric(PlayMusic.nowPlayMusic.getID());
+                        PlayMusic.lyric = api.getLyric(PlayMusic.nowPlayMusic.getId());
                     else PlayMusic.lyric = new LyricSave();
 
                     if (PlayMusic.nowPlayMusic.getLength() != 0) {
@@ -288,7 +309,7 @@ public class PlayRuntime {
                         FMusic.side.sendStop();
                     } else {
                         String data = FMusic.getMessage().musicPlay.emptyCanPlay;
-                        FMusic.side.broadcastInTask(data.replace(ARG.musicId, PlayMusic.nowPlayMusic.getID()));
+                        FMusic.side.broadcastInTask(data.replace(ARG.musicId, PlayMusic.nowPlayMusic.getId()));
                     }
                     clear();
                 }
