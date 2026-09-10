@@ -21,8 +21,8 @@ public final class NowPlaying {
     public final String url;
     public final boolean trial;
 
-    public NowPlaying(boolean playing, String api, String id, String name, String author, String album,
-                      String alia, String requester, long lengthMs, long nowMs, String url, boolean trial) {
+    public NowPlaying(boolean playing, String api, String id, String name, String author, String album, String alia,
+        String requester, long lengthMs, long nowMs, String url, boolean trial) {
         this.playing = playing;
         this.api = api;
         this.id = id;

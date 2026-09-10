@@ -26,8 +26,8 @@ public final class VoteInfo {
     /** 排队中的投票数量 */
     public final int queuedCount;
 
-    public VoteInfo(Type type, String api, String id, String sender, int agreeCount, int needCount,
-                    int remainSeconds, int queuedCount) {
+    public VoteInfo(Type type, String api, String id, String sender, int agreeCount, int needCount, int remainSeconds,
+        int queuedCount) {
         this.type = type;
         this.api = api;
         this.id = id;
@@ -40,7 +40,21 @@ public final class VoteInfo {
 
     @Override
     public String toString() {
-        return "VoteInfo{" + type + " " + api + ":" + id + " by " + sender
-            + ", " + agreeCount + "/" + needCount + ", " + remainSeconds + "s, queued=" + queuedCount + "}";
+        return "VoteInfo{" + type
+            + " "
+            + api
+            + ":"
+            + id
+            + " by "
+            + sender
+            + ", "
+            + agreeCount
+            + "/"
+            + needCount
+            + ", "
+            + remainSeconds
+            + "s, queued="
+            + queuedCount
+            + "}";
     }
 }

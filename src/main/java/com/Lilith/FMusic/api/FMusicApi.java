@@ -20,7 +20,9 @@ import com.Lilith.FMusic.server.core.saves.SaveTask;
 /**
  * FMusic 对外调用接口 (供其他模组调用).
  *
- * <p>用法示例:
+ * <p>
+ * 用法示例:
+ * 
  * <pre>
  * // 点歌 (默认音源)
  * FMusicApi.addMusic("1887467085", "Steve", result -&gt; System.out.println(result));
@@ -35,21 +37,23 @@ import com.Lilith.FMusic.server.core.saves.SaveTask;
  * FMusicApi.agreeVote("Alex");
  * </pre>
  *
- * <p>线程说明: 带回调的方法内部使用 SaveTask/独立线程执行网络请求, 回调在**该后台线程**触发,
+ * <p>
+ * 线程说明: 带回调的方法内部使用 SaveTask/独立线程执行网络请求, 回调在**该后台线程**触发,
  * 不要在回调里直接操作世界/实体; 需要主线程时自行调度. 不带回调的方法为 fire-and-forget.
  */
 public final class FMusicApi {
 
-    private FMusicApi() {
-    }
+    private FMusicApi() {}
 
     /** 点歌回调 */
     public interface AddCallback {
+
         void onResult(AddResult result);
     }
 
     /** 搜索回调 */
     public interface SearchCallback {
+
         void onResult(List<SearchResult> results);
     }
 
@@ -97,7 +101,7 @@ public final class FMusicApi {
      * @param callback  结果回调 (可为 null)
      */
     public static void addMusic(final String apiId, final String musicId, final String requester,
-                                final AddCallback callback) {
+        final AddCallback callback) {
         if (!isEnabled()) {
             complete(callback, AddResult.failure(AddResult.Status.NOT_RUNNING, "FMusic is not running"));
             return;
@@ -108,12 +112,15 @@ public final class FMusicApi {
             return;
         }
         SaveTask.task(new Runnable() {
+
             @Override
             public void run() {
                 try {
                     String id = api.getMusicId(musicId);
                     if (!api.checkId(id)) {
-                        complete(callback, AddResult.failure(AddResult.Status.INVALID_ID, "invalid music id: " + musicId));
+                        complete(
+                            callback,
+                            AddResult.failure(AddResult.Status.INVALID_ID, "invalid music id: " + musicId));
                         return;
                     }
                     complete(callback, addResolved(apiId, api, id, requester));
@@ -127,14 +134,18 @@ public final class FMusicApi {
     /**
      * 对指定玩家直接播放音频链接 (不入队, 立即播放; 适合自建直链/其他来源)
      *
-     * <p>注意: 此方式不经过播放队列与音源解析, 不做时长/歌词处理;
+     * <p>
+     * 注意: 此方式不经过播放队列与音源解析, 不做时长/歌词处理;
      * 需要进入队列(有进度/歌词/投票)时请用 {@link #addMusic} 传音源歌曲 ID.
      *
      * @param player 目标玩家名
      * @param url    音频直链
      */
     public static void playUrl(String player, String url) {
-        if (!isEnabled() || player == null || url == null || url.trim().isEmpty()) {
+        if (!isEnabled() || player == null
+            || url == null
+            || url.trim()
+                .isEmpty()) {
             return;
         }
         FMusic.side.sendMusic(player, url.trim());
@@ -146,7 +157,9 @@ public final class FMusicApi {
      * @param url 音频直链
      */
     public static void playUrlAll(String url) {
-        if (!isEnabled() || url == null || url.trim().isEmpty()) {
+        if (!isEnabled() || url == null
+            || url.trim()
+                .isEmpty()) {
             return;
         }
         FMusic.side.sendMusic(url.trim());
@@ -218,8 +231,18 @@ public final class FMusicApi {
             return AddResult.failure(AddResult.Status.EVENT_CANCELLED, "cancelled by MusicAddEvent");
         }
         PlayMusic.addTask(obj);
-        return AddResult.success(new AddResult.SongInfo(apiId, id, info.getName(), info.getAuthor(),
-            info.getAl(), info.getAlia(), player, info.getLength(), info.getPicUrl(), info.isTrial()));
+        return AddResult.success(
+            new AddResult.SongInfo(
+                apiId,
+                id,
+                info.getName(),
+                info.getAuthor(),
+                info.getAl(),
+                info.getAlia(),
+                player,
+                info.getLength(),
+                info.getPicUrl(),
+                info.isTrial()));
     }
 
     // ==================== 搜索 ====================
@@ -242,6 +265,7 @@ public final class FMusicApi {
             return;
         }
         Thread thread = new Thread(new Runnable() {
+
             @Override
             public void run() {
                 complete(callback, searchSync(apiId, keyword));
@@ -258,7 +282,9 @@ public final class FMusicApi {
      */
     public static List<SearchResult> searchSync(String apiId, String keyword) {
         List<SearchResult> result = new ArrayList<SearchResult>();
-        if (!isEnabled() || keyword == null || keyword.trim().isEmpty()) {
+        if (!isEnabled() || keyword == null
+            || keyword.trim()
+                .isEmpty()) {
             return result;
         }
         IMusicApi api = FMusic.MUSIC_APIS.get(apiId);
@@ -266,7 +292,7 @@ public final class FMusicApi {
             return result;
         }
         try {
-            SearchPageObj page = api.search(new String[]{keyword.trim()}, true);
+            SearchPageObj page = api.search(new String[] { keyword.trim() }, true);
             if (page == null) {
                 return result;
             }
@@ -278,8 +304,7 @@ public final class FMusicApi {
                 }
                 result.add(new SearchResult(apiId, item.id, item.name, item.author, item.al));
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
         return result;
     }
 
@@ -298,8 +323,18 @@ public final class FMusicApi {
         VoteItem item = new VoteItem(now.getApi(), now.getId(), player, VoteItem.VoteType.NEXT);
         item.votePlayer.add(player);
         if (PlayMusic.startVote(item)) {
-            return AddResult.success(new AddResult.SongInfo(now.getApi(), now.getId(), now.getName(),
-                now.getAuthor(), now.getAl(), now.getAlia(), player, now.getLength(), now.getPicUrl(), now.isTrial()));
+            return AddResult.success(
+                new AddResult.SongInfo(
+                    now.getApi(),
+                    now.getId(),
+                    now.getName(),
+                    now.getAuthor(),
+                    now.getAl(),
+                    now.getAlia(),
+                    player,
+                    now.getLength(),
+                    now.getPicUrl(),
+                    now.isTrial()));
         }
         return AddResult.failure(AddResult.Status.DUPLICATE, "this song is already in vote queue");
     }
@@ -317,8 +352,18 @@ public final class FMusicApi {
         VoteItem item = new VoteItem(apiId, musicId, player, VoteItem.VoteType.PUSH);
         item.votePlayer.add(player);
         if (PlayMusic.startVote(item)) {
-            return AddResult.success(new AddResult.SongInfo(apiId, musicId, music.getName(), music.getAuthor(),
-                music.getAl(), music.getAlia(), player, music.getLength(), music.getPicUrl(), music.isTrial()));
+            return AddResult.success(
+                new AddResult.SongInfo(
+                    apiId,
+                    musicId,
+                    music.getName(),
+                    music.getAuthor(),
+                    music.getAl(),
+                    music.getAlia(),
+                    player,
+                    music.getLength(),
+                    music.getPicUrl(),
+                    music.isTrial()));
         }
         return AddResult.failure(AddResult.Status.DUPLICATE, "this song is already in vote queue");
     }
@@ -337,7 +382,8 @@ public final class FMusicApi {
             return AddResult.failure(AddResult.Status.DUPLICATE, "already agreed");
         }
         PlayMusic.addVote(name);
-        return AddResult.success(new AddResult.SongInfo(vote.getApi(), vote.getId(), "", "", "", "", name, 0, null, false));
+        return AddResult
+            .success(new AddResult.SongInfo(vote.getApi(), vote.getId(), "", "", "", "", name, 0, null, false));
     }
 
     /** 取消自己发起的投票 */
@@ -364,8 +410,15 @@ public final class FMusicApi {
             return null;
         }
         VoteInfo.Type type = vote.getType() == VoteItem.VoteType.NEXT ? VoteInfo.Type.SWITCH : VoteInfo.Type.PUSH;
-        return new VoteInfo(type, vote.getApi(), vote.getId(), vote.getVoteSender(), vote.votePlayer.size(),
-            PlayRuntime.getMiniVote(), PlayMusic.getVoteTime(), PlayMusic.getVoteCount());
+        return new VoteInfo(
+            type,
+            vote.getApi(),
+            vote.getId(),
+            vote.getVoteSender(),
+            vote.votePlayer.size(),
+            PlayRuntime.getMiniVote(),
+            PlayMusic.getVoteTime(),
+            PlayMusic.getVoteCount());
     }
 
     /** 排队中的投票数量 (不含当前进行中的) */
@@ -444,8 +497,19 @@ public final class FMusicApi {
             return new NowPlaying(false, null, null, null, null, null, null, null, 0, 0, null, false);
         }
         SongInfoObj now = PlayMusic.nowPlayMusic;
-        return new NowPlaying(true, now.getApi(), now.getId(), now.getName(), now.getAuthor(), now.getAl(),
-            now.getAlia(), now.getCall(), now.getLength(), PlayMusic.musicNowTime, PlayMusic.url, now.isTrial());
+        return new NowPlaying(
+            true,
+            now.getApi(),
+            now.getId(),
+            now.getName(),
+            now.getAuthor(),
+            now.getAl(),
+            now.getAlia(),
+            now.getCall(),
+            now.getLength(),
+            PlayMusic.musicNowTime,
+            PlayMusic.url,
+            now.isTrial());
     }
 
     // ==================== 消息 / HUD ====================

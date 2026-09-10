@@ -64,6 +64,7 @@ public final class AddResult {
 
     /** 歌曲信息 (对外只读视图) */
     public static final class SongInfo {
+
         public final String api;
         public final String id;
         public final String name;
@@ -77,8 +78,8 @@ public final class AddResult {
         public final String picUrl;
         public final boolean trial;
 
-        public SongInfo(String api, String id, String name, String author, String album, String alia,
-                        String requester, long lengthMs, String picUrl, boolean trial) {
+        public SongInfo(String api, String id, String name, String author, String album, String alia, String requester,
+            long lengthMs, String picUrl, boolean trial) {
             this.api = api;
             this.id = id;
             this.name = name;
