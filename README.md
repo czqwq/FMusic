@@ -56,6 +56,20 @@ gradlew.bat build
 - [UniMixin](https://github.com/LegacyModdingMC/UniMixins/releases)(尽量下最新版吧?)
 - [GTNHLib](https://github.com/GTNewHorizons/GTNHLib/releases)任意版本(别是1.0.0版本之类的就行)
 
+## 对外 API
+
+其他模组可以通过 `com.Lilith.FMusic.api.FMusicApi` 调用 FMusic:
+
+- **点歌**: `addMusic(apiId, musicId, requester, callback)` (支持音源 ID / songmid / 分享链接, 异步回调)
+- **搜索**: `search(apiId, keyword, callback)` / `searchSync(...)`
+- **投票**: `startSwitchVote` / `startPushVote` / `agreeVote` / `cancelVote` / `getCurrentVote`
+- **播放控制**: `skip` / `stopAll` / `clearQueue` / `getQueueList` / `removeFromQueue` / `resyncPlayer`
+- **状态与信息**: `isEnabled` / `getApiIds` / `isPlaying` / `getNowPlaying`
+- **直链即时播放**: `playUrl(player, url)` / `playUrlAll(url)`
+- **消息与 HUD**: `sendMessage` / `broadcast` / `getHud` / `setHud`
+
+完整文档(调用步骤/流程/示例/返回码): [docs/api.md](docs/api.md)
+
 ## 开发
 
 - 架构说明与踩坑记录见 [docs/knowledge.md](docs/knowledge.md)

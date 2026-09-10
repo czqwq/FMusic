@@ -545,3 +545,21 @@ java.util.logging.Logger 的 single-type-import 冲突 (改用全限定类型 or
   避免改动 netapi/Kugou/QQ 集成代码与其本地化; tmp 三个 API 的 4.2.0 适配 commit
   仅接口相关 (无功能修复), 不回同步
 - 上游时间线: 126a32ab (4.2.0 投票序列) 之后为 ee612df2 音乐API更新接口 / e9c0efa6 缺失的语言
+
+## 24. 对外 API (com.Lilith.FMusic.api)
+
+- **目的**: 让其他模组调用点歌/搜索/投票/播放控制, 无需了解内部实现
+- **结构**:
+  - `api/FMusicApi.java`: 静态入口 (约 30 个方法), 内部委托到 PlayMusic/PlayRuntime/VoteItem/BanSave 等
+  - `api/AddResult.java`: 点歌结果 (ok/status/message/song), Status 枚举 13 种失败原因
+  - `api/SearchResult.java` / `api/NowPlaying.java` / `api/VoteInfo.java`: 只读 DTO
+- **点歌链路** (addMusic): 判断 isRun → 查音源 → SaveTask 后台线程 → getMusicId(链接/短ID 解析)
+  → 校验(列表未满/未禁/不重复/玩家限额/未禁/有接收玩家) → getMusic(网络) → MusicAddEvent
+  → PlayMusic.addTask 入队 → 回调 AddResult
+- **同步/异步**: 异步版 (callback) 在 SaveTask/独立线程执行网络请求, 回调在后台线程;
+  Sync 版 (addMusicSync/searchSync) 阻塞调用线程, 文档注明不要在服务端主线程调用
+- **直链**: playUrl/playUrlAll 走 side.sendMusic (即时播放, 不入队) —— 与上游一致:
+  队列播放依赖音源返回的时长, 上游 PlayMusic 也无 obj.url 入队链路 (PlayerAddMusicObj.url 无消费者)
+- **设计取舍**: 不暴露内部类型 (SongInfoObj/VoteItem/IMusicApi) 给调用方;
+  不依赖客户端类; 事件类保持 server.event.MusicAddEvent/MusicPlayEvent 供拦截
+- **文档**: docs/api.md (引入方式/快速开始/调用流程/API 参考/返回类型/线程模型/完整示例/FAQ)
