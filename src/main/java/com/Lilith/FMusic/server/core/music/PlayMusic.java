@@ -276,7 +276,9 @@ public class PlayMusic {
     public static void addMusic(Object sender, String id, IMusicApi api, String player, boolean isList) {
         if (haveMusic(id, api.getId())) return;
         if (sender != null) {
-            String text = FMusic.getMessage().musicPlay.checkMusic.replace(ARG.musicId, id);
+            // 此处只有音源内部标识(酷狗为 32 位 hash, 玩家看不懂), 不显示 ID;
+            // 解析完成后由 "音乐列表添加<歌名>" 展示歌名, 播放失败时展示 "歌名(数字ID)"
+            String text = FMusic.getMessage().musicPlay.checkMusic.replace(ARG.musicId, "…");
             FMusic.side.sendMessageTask(sender, text);
         }
         FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.core.player_request", player, id));
@@ -284,8 +286,9 @@ public class PlayMusic {
             SongInfoObj info = api.getMusic(id, player, isList);
             if (info == null) {
                 if (sender != null) {
+                    // 解析失败时没有歌名/数字 ID 可用, 不显示音源内部标识(酷狗是 32 位 hash)
                     String data = FMusic.getMessage().musicPlay.emptyCanPlay;
-                    FMusic.side.sendMessageTask(sender, data.replace(ARG.musicId, id));
+                    FMusic.side.sendMessageTask(sender, data.replace(ARG.musicId, "…"));
                 }
                 return;
             }

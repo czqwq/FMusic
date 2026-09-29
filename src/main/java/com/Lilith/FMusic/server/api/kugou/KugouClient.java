@@ -11,6 +11,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import net.minecraft.util.StatCollector;
 
@@ -27,9 +29,18 @@ public final class KugouClient {
     private static final String PLAYLIST_INFO_URL = "http://mobilecdn.kugou.com/api/v3/special/info";
     private static final String PLAYLIST_SONG_URL = "http://mobilecdn.kugou.com/api/v3/special/song";
 
+    /**
+     * 分享页/单曲页内嵌数据: var dataFromSmarty = [...],
+     * 对应 kugou_share_parser.py 的 DATA_FROM_SMARTY_RE。
+     */
+    private static final Pattern DATA_FROM_SMARTY = Pattern
+        .compile("var\\s+dataFromSmarty\\s*=\\s*(\\[.*?\\])\\s*,", Pattern.DOTALL);
+
     private static final Map<String, KugouSong> CACHE = new ConcurrentHashMap<>();
     private static final Map<String, CachedPlayUrl> PLAY_URL_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Object> PLAY_LOCKS = new ConcurrentHashMap<>();
+    /** 分享页地址 -> 解析结果 (hash 为空表示已确认解析失败, 避免重复抓取) */
+    private static final Map<String, KugouSong> SHARE_CACHE = new ConcurrentHashMap<>();
 
     private KugouClient() {}
 
@@ -278,8 +289,53 @@ public final class KugouClient {
         if (id.isEmpty()) {
             return null;
         }
-        // 播放地址是有时效的，不在这里请求，避免 getMusic() + getPlayUrl() 重复调用网页接口。
-        return CACHE.get(id);
+        KugouSong cached = CACHE.get(id);
+        if (cached != null && hasMetadata(cached)) {
+            return cached;
+        }
+        // 缓存里没有(或只有 rememberSongIdentifiers 写入的占位信息):
+        // 用免签名移动端接口补齐元数据 (同时把播放地址写入短时效缓存,
+        // 使得 getMusic() 之后的 getPlayUrl() 不会重复请求)。
+        KugouSong probed = probeMobile(id);
+        if (probed == null) {
+            return cached;
+        }
+        return cached == null ? probed : merge(probed, cached);
+    }
+
+    private static boolean hasMetadata(KugouSong song) {
+        if (song == null) {
+            return false;
+        }
+        return song.durationMs > 0 || (song.name != null && !song.name.trim()
+            .isEmpty());
+    }
+
+    /**
+     * 只有 hash 时用免签名移动端接口探测歌曲信息, 对应脚本里
+     * "only hash" 分支的 request_mobile_song_info(probe)。
+     */
+    private static KugouSong probeMobile(String hash) {
+        try {
+            KugouSong probe = new KugouSong();
+            probe.hash = hash;
+            KugouSong song = requestMobilePlay(probe);
+            if (song == null) {
+                return null;
+            }
+            song.hash = hash;
+            cache(song);
+            if (isUsablePlayUrl(song)) {
+                cachePlayUrl(hash, normalizeUrl(song.playUrl));
+            }
+            return song;
+        } catch (Exception e) {
+            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.mobile_parse_error", hash));
+            if (KugouSong.debug) {
+                e.printStackTrace();
+            }
+            return null;
+        }
     }
 
     public static void rememberSongIdentifiers(String hash, String albumId, String albumAudioId) {
@@ -296,6 +352,89 @@ public final class KugouClient {
 
     private static String numericId(String value) {
         return value != null && value.matches("[0-9]+") ? value : "";
+    }
+
+    /**
+     * 解析酷狗分享页/单曲页内嵌的 dataFromSmarty, 拿到 hash 与元数据
+     * (对应脚本 resolve_share_page)。urlOrId 可以是页面地址, 也可以是 mixsong id。
+     */
+    public static KugouSong resolveShareLink(String urlOrId) {
+        String value = urlOrId == null ? "" : urlOrId.trim();
+        if (value.isEmpty()) {
+            return null;
+        }
+        String url = value;
+        if (!value.matches("(?i)^https?://.*")) {
+            if (!value.matches("(?i)[0-9a-z]{3,32}")) {
+                return null;
+            }
+            url = KugouHttpClient.MIXSONG_URL + value + ".html";
+        }
+
+        KugouSong cached = SHARE_CACHE.get(url);
+        if (cached != null) {
+            return cached.realId()
+                .isEmpty() ? null : cached;
+        }
+
+        KugouSong song = requestSharePage(url);
+        if (song == null) {
+            song = new KugouSong();
+        }
+        // 失败结果同样缓存, 防止同一条坏链接被反复抓取
+        SHARE_CACHE.put(url, song);
+        if (song.realId()
+            .isEmpty()) {
+            return null;
+        }
+        cache(song);
+        return song;
+    }
+
+    private static KugouSong requestSharePage(String url) {
+        try {
+            HttpResObj response = KugouHttpClient.getPage(url);
+            if (response == null || response.data == null || response.data.trim()
+                .isEmpty()) {
+                return null;
+            }
+            Matcher matcher = DATA_FROM_SMARTY.matcher(response.data);
+            if (!matcher.find()) {
+                KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.share_no_data", url));
+                return null;
+            }
+            JsonElement parsed = parseJson(matcher.group(1));
+            if (parsed == null || !parsed.isJsonArray()
+                || parsed.getAsJsonArray()
+                    .size() == 0) {
+                return null;
+            }
+            JsonElement item = parsed.getAsJsonArray()
+                .get(0);
+            if (item == null || !item.isJsonObject()) {
+                return null;
+            }
+            KugouSong song = KugouSong.fromSmartyItem(item.getAsJsonObject());
+            if (song == null || song.realId()
+                .isEmpty()) {
+                KugouHttpClient.log(
+                    StatCollector.translateToLocalFormatted("fmusic.log.kugou.share_no_hash", url));
+                return null;
+            }
+            KugouHttpClient.log(
+                StatCollector.translateToLocalFormatted(
+                    "fmusic.log.kugou.share_ok",
+                    song.realId(),
+                    song.name,
+                    song.singer));
+            return song;
+        } catch (Exception e) {
+            KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.share_error", url));
+            if (KugouSong.debug) {
+                e.printStackTrace();
+            }
+            return null;
+        }
     }
 
     private static KugouSong getWebDetail(String hash, KugouSong known) {
@@ -417,6 +556,86 @@ public final class KugouClient {
                     .isEmpty();
         } catch (Exception ignored) {
             return false;
+        }
+    }
+
+    /**
+     * 移动端免签名接口 (m.kugou.com/app/i/getSongInfo.php)。
+     * 对应脚本 request_mobile_song_info: 大多数免费歌曲可直接拿到完整播放地址,
+     * 是目前酷狗风控下最稳定的播放链路, 因此放在降级链第一位。
+     */
+    private static KugouSong requestMobilePlay(KugouSong known) {
+        if (known == null || known.realId()
+            .isEmpty()) {
+            return null;
+        }
+        try {
+            String hash = known.realId();
+            Map<String, String> params = new LinkedHashMap<>();
+            params.put("cmd", "playInfo");
+            params.put("hash", hash);
+            params.put("key", KugouCrypto.rawPlayKey(hash));
+            params.put("appid", String.valueOf(KugouCrypto.APP_ID));
+            params.put("clientver", "9108");
+            params.put("mid", KugouHttpClient.getMid());
+            params.put("dfid", KugouHttpClient.getDfid());
+            params.put("userid", KugouHttpClient.getUserId("0"));
+            params.put("token", firstCookieValue("token", "t"));
+            params.put("IsFreePart", "0");
+            params.put("area_code", "1");
+
+            HttpResObj response = KugouHttpClient.getMobilePlay(params);
+            if (response == null || !response.ok
+                || response.data == null
+                || response.data.trim()
+                    .isEmpty()) {
+                return null;
+            }
+
+            JsonObject root = parseObj(response.data);
+            if (root == null) {
+                return null;
+            }
+            int status = getInt(root, "status", getInt(root, "errcode", getInt(root, "err_code", 0)));
+            JsonObject data = KugouSong.getObj(root, "data");
+            JsonObject payload = data == null || data.entrySet()
+                .isEmpty() ? root : data;
+            String directUrl = KugouSong.bestPlayUrl(payload);
+            if (directUrl.isEmpty()) {
+                directUrl = KugouSong.bestPlayUrl(root);
+            }
+            if (status != 1 && status != 0 && directUrl.isEmpty()) {
+                KugouHttpClient.log(
+                    "<yellow>酷狗移动端播放未返回数据：" + hash
+                        + "，status="
+                        + status
+                        + "，响应="
+                        + KugouHttpClient.redactTextForLog(KugouHttpClient.cut(response.data, 1000)));
+                return null;
+            }
+
+            KugouSong result = KugouSong.fromDetail(payload);
+            if (result == null) {
+                result = new KugouSong();
+            }
+            result.hash = hash;
+            if (!directUrl.isEmpty()) {
+                result.playUrl = normalizeUrl(directUrl);
+                if (isClearlyFullAudioUrl(result.playUrl)) {
+                    result.trial = false;
+                } else if (isKnownTrialUrl(result.playUrl)) {
+                    result.trial = true;
+                }
+            }
+            result.trial = result.trial || isTrial(payload);
+            return result;
+        } catch (Exception e) {
+            KugouHttpClient
+                .log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.mobile_parse_error", known.realId()));
+            if (KugouSong.debug) {
+                e.printStackTrace();
+            }
+            return null;
         }
     }
 
@@ -604,7 +823,8 @@ public final class KugouClient {
             Map<String, String> params = new LinkedHashMap<>();
             params.put("dfid", dfid);
             params.put("mid", mid);
-            params.put("uuid", "-");
+            // uuid 与 mid 一致 (酷狗客户端行为, 与搜索/网页路径保持一致)
+            params.put("uuid", mid);
             params.put("appid", String.valueOf(KugouCrypto.APP_ID));
             params.put("clientver", String.valueOf(KugouCrypto.URL_CLIENT_VER));
             params.put("clienttime", clientTime);
@@ -741,6 +961,21 @@ public final class KugouClient {
                 cached = cachedPlayUrl(id);
                 if (cached != null) {
                     return cached;
+                }
+
+                // 降级链顺序与可用参考脚本一致:
+                // 移动端免签名接口 -> 网页会员接口 -> Android 接口 -> 网页详情接口
+                KugouSong mobile = requestMobilePlay(song);
+                if (mobile != null) {
+                    mobile = merge(mobile, song);
+                    cache(mobile);
+                    if (isUsablePlayUrl(mobile)) {
+                        String url = normalizeUrl(mobile.playUrl);
+                        cachePlayUrl(id, url);
+                        KugouHttpClient
+                            .log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.mobile_url_ok", id));
+                        return url;
+                    }
                 }
 
                 // 网页 /play/songinfo 使用 appid=1014，可识别网页会员权益。
@@ -1278,6 +1513,11 @@ public final class KugouClient {
         } catch (Exception ignored) {
             return defaultValue;
         }
+    }
+
+    @SuppressWarnings("deprecation")
+    private static JsonElement parseJson(String body) {
+        return new JsonParser().parse(body == null ? "" : body);
     }
 
     @SuppressWarnings("deprecation")

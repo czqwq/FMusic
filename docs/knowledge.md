@@ -563,3 +563,160 @@ java.util.logging.Logger 的 single-type-import 冲突 (改用全限定类型 or
 - **设计取舍**: 不暴露内部类型 (SongInfoObj/VoteItem/IMusicApi) 给调用方;
   不依赖客户端类; 事件类保持 server.event.MusicAddEvent/MusicPlayEvent 供拦截
 - **文档**: docs/api.md (引入方式/快速开始/调用流程/API 参考/返回类型/线程模型/完整示例/FAQ)
+
+## 25. QQ / 酷狗 API 审查记录
+
+### 已修复
+- **[AllMusic3] 前缀残留** → 日志前缀改 `[FMusic]` (KugouHttpClient/QQMusicHttpClient 的 log 方法);
+  线程名 `AllMusic_*_setList` → `FMusic_*_setList`
+- **API 日志开关无入口**: `KugouSong.debug`/`QQSong.debug` 硬编码 false 且无配置项 →
+  kugou 16 + qq 14 处日志(含错误诊断)永不输出。已接入
+  `FMusicServer.LOGGER.isDebugEnabled()` (log4j 配置/JVM 参数可开, 默认 info 级不输出)
+
+### 已修复: QQ 侧对齐酷狗 (缓存 / 去重请求 / 时长兜底)
+- **去掉点歌时的重复播放地址请求**: `QQMusicApiMain.getMusic` 原先调用 `QQMusicClient.getPlayUrl(song)`
+  仅做空校验, 而 `SongInfoObj.playerUrl` 无 setter(永远 null) → 播放时 PlayRuntime 又请求一次,
+  等于每次点歌 2 次 vkey 请求。现改为只构造元数据 (与酷狗注释所述行为一致), 播放地址由核心在
+  真正开始播放时获取一次
+- **新增缓存机制** (对齐 KugouClient): `CACHE` 歌曲信息(按 songmid) / `PLAY_URL_CACHE` 播放地址
+  (TTL 20 秒, 过期即失效重新请求) / `PLAY_LOCKS` 同一首歌并发请求去重(putIfAbsent + double-check + finally remove)
+- **时长兜底** (对齐 KugouSong.parseDuration): QQSong 新增 `durationMs` 归一化字段,
+  先取毫秒字段(TimeLength/timelength/time_length/duration_ms/DurationMs), 再取秒字段(Duration/duration/interval),
+  大于 100000 视为已是毫秒; `lengthMs()` 优先返回 `durationMs` (仍兼容 interval)
+  → 修复"详情接口缺 interval 时 length=0, 被 PlayRuntime 判为无法播放而跳过"的问题
+- **补 checkId 校验** (与酷狗一致), 新增 lang key `fmusic.log.qq.invalid_id` (zh/en 已补)
+
+**行为变化**: VIP/无权限等"播放地址不可用"的情况, 提示时机会从「点歌时失败」变为
+「播放时由核心广播无法播放并移除该曲」(`musicPlay.emptyCanPlay`) —— 与酷狗行为一致。
+### 别名(原曲)解析修复 + VIP 提示 (2026-08 用户反馈)
+- **歌名显示问题根因**: `KugouSong.fromSearchItem` 把 `OriSongName`(原曲名) 当作歌名兜底,
+  而 `SongName` 缺失时(外文原曲/翻唱) 会把原曲名显示成歌名; 同时 KugouSong/QQSong 都没有 alia 字段,
+  `SongInfoObj` 的 Alia 一直传 null → 消息里别名位为空 (`|  |`)
+- **修复**: KugouSong 新增 `alia` 字段, `OriSongName/ori_song_name/alias` 归入 alia (name 不再用原曲名);
+  QQSong 新增 `alia`, 取 `subtitle/title_extension`; 两侧 `getMusic` 均把 alia 传入 SongInfoObj
+- **VIP 无法播放**: `Kugou_cookie.json`/`QQMusic_cookie.json` 为空(独立 cookie 文件, 需各自配置) →
+  VIP/付费歌曲拿不到播放地址, 属预期行为(消息提示"可能该歌曲为VIP歌曲")。已加启动日志提示:
+  两个 ApiMain 构造时若 `hasOwnCookie()` 为 false 则输出 `fmusic.log.*.cookie_missing`
+### 酷狗内置默认设备标识 (匿名请求兜底, 2026-08)
+- **需求**: 默认值不写入 cookie 文件, 而是内置在代码里, cookie 未填时 fallback
+- **实现**: `KugouHttpClient` 新增 `DEFAULT_KG_MID` / `DEFAULT_KG_DFID` 常量(32 位),
+  `getMid()`/`getDfid()` 在 `firstCookie(...)` 为空时返回内置常量 (原先返回占位符 `-`)
+- **配套修复**: `KugouClient` Android 播放参数里硬编码的 `uuid = "-"` 改为 `uuid = mid`
+  (与搜索/网页路径的第 154/459 行保持一致)
+- **效果**: Android 匿名播放路径不再被 `if ("-".equals(mid)) return null;` 直接跳过,
+  代码里本来就有"未找到 KugooID 将按匿名账号请求"的匿名分支, 现在可达 → 免费歌曲成功率提升;
+  VIP/付费歌曲仍需账号 Cookie (启动日志 `fmusic.log.kugou.cookie_missing` 会提示)
+- **范围**: 仅酷狗。QQ(游客模式 + guid 默认值)、网易云(匿名 cookie 自动获取) 未改动
+- **更换内置值**: 直接改 `KugouHttpClient.DEFAULT_KG_MID` / `DEFAULT_KG_DFID` 两行常量
+### 酷狗消息显示数字 ID (而非 32 位 hash)
+- **现象**: 酷狗点歌后消息显示 `正在解析歌曲02D3436CAF1E96BEE00EF53DC6D14269`、
+  `无法播放歌曲02D343...可能该歌曲为VIP歌曲`; 而网易云等显示的是数字 ID
+- **根因**: `SongInfoObj.id` 在酷狗是 **32 位 hash**(酷狗播放/歌词接口必需), 而消息模板
+  `%music_id%` 直接取该字段; 网易云的 id 本身就是数字 → 看起来"只有酷狗不正常"
+- **修复** (不改 id 语义, 零风险):
+  1. `SongInfoObj` 新增 `displayId` 字段 + `getDisplayId()` (未设置时回退 `id`) + `setDisplayId()`
+  2. `KugouApiMain.getMusic` 用 `setDisplayId(audio_id -> album_audio_id -> hash)` 填数字 ID
+  3. `PlayRuntime.displayName()` 改用 `getDisplayId()`; `PlayMusic.addMusic` 两条提示
+     (解析中/解析失败) 不再显示音源内部标识, 改为 `…`
+- **效果**: 「无法播放歌曲**昔涟 (329062147)**可能该歌曲为VIP歌曲」;
+  「正在解析歌曲…」; 解析成功后仍由「音乐列表添加<歌名> | <歌手> | <专辑>」展示歌名
+- **未动 QQ/网易云**: 它们的 `displayId` 为空 → `getDisplayId()` 回退原 `id`, 行为不变
+- 注: QQ 的 id 实际是 songmid(字母数字, 非纯数字); 如需与网易云完全一致可给 QQ 也设 displayId
+### 已验证无问题
+- IMusicApi 9 个方法实现完整; HTTP 资源: QQ try-with-resources + EntityUtils.consume,
+  酷狗 HttpURLConnection finally disconnect, read() 关闭流
+- 搜索参数语义: `/music searchapi <api> <词>` 的 newArgs 保留 api 名 + isDefault=false +
+  joinKeyword 从 index 1 起 → 正确跳过 api 名
+- `setList` 的 isUpdate 有 finally 重置 (isBusy 不会卡 true)
+- 本地化 83 个 key 全部有定义, %s 占位与传参完全匹配
+- 并发: 静态集合用 ConcurrentHashMap; isUpdate volatile; checkId 语义合理
+
+## 26. 代码风格约定: 避免全限定类名
+
+- **规则**: 代码体内引用类一律用 `import` + 短类名, 不写全限定路径
+  - ✅ `FMusicServer.LOGGER.isDebugEnabled()`
+  - ❌ `com.Lilith.FMusic.server.FMusicServer.LOGGER.isDebugEnabled()`
+- 已统一: FMusicApi(HudSave) / 主类(CommonProxy) / server core FMusic(NetiApiMain, QQMusicApiMain,
+  KugouApiMain, BiliMusicBridge, KugouHttpClient, QQMusicHttpClient) / KugouApiMain & QQMusicApiMain(LyricItemObj) /
+  KugouHttpClient & QQMusicHttpClient(FMusicServer, HttpUriRequestBase, HttpMessage) /
+  BiliCommand & FMusicServer(ChatComponentText) / FMusicServer(BiliCommand) / CommandReload(BiliMusicBridge)
+- **必须保留全限定的例外 (同名类冲突, Java 无别名语法)**:
+  - `Track.java`: `org.apache.logging.log4j.Logger` (同文件已有 `java.util.logging.Logger`)
+  - `NetiApiMain.java`: `com.Lilith.FMusic.server.core.objs.music.TrialInfoObj`
+    (同文件已有 `com.Lilith.FMusic.netapi.obj.music.trialinfo.TrialInfoObj`)
+  - `SBR.java`: `com.Lilith.FMusic.client.core.player.decoder.m4a.aac.syntax.Constants` (与另一个 Constants 同名)
+- 注意: 批量脚本若"先加 import 再全局替换", 会把刚插入的 import 行里的包路径也替换掉 →
+  正确顺序是"先替换代码体, 再补 import"
+
+## 27. 酷狗播放链路重做: 免签名移动端接口 (2026-08)
+
+### 现象与根因
+
+- **现象**: 酷狗音源"完全无法用", 连非 VIP 的免费歌曲也拿不到播放地址
+- **实测根因**: 原实现的三条链路都已被酷狗风控:
+  - `gateway.kugou.com/v5/url` (Android + playKey/androidSignature) → `errcode=20018 / 20028`
+  - `wwwapi.kugou.com/yy/index.php?r=play/getdata` (Web 详情) → `err_code=30020`, `data` 只剩
+    `SSA-CODE/SSA-HMID/is_publish/privilege`
+  - `wwwapi.kugou.com/play/songinfo` (网页会员) 需要带 token 的登录 Cookie, 无 Cookie 必然跳过
+- **可用链路**: 移动端免签名接口 `https://m.kugou.com/app/i/getSongInfo.php`
+  - `key = md5(小写 hash + "kgcloudv2")` (**唯一**需要的"签名", 无 Cookie 依赖)
+  - 实测免费歌 `status=1`, 返回 `url`(含 `/full/` 完整音频) + `backup_url` 列表;
+    VIP/付费歌 `status=0` 且 `url` 为空 → 仍需账号 Cookie
+- **参考实现**: D:\work\kugou_share_parser.py (用户提供, 验证可用), 本轮按它移植
+
+### 降级链顺序 (与参考脚本一致)
+
+1. `requestMobilePlay` — 移动端免签名接口 (**新增, 放在首位**)
+2. `requestWebVipPlay` — `wwwapi.kugou.com/play/songinfo` + webSignature (需登录 Cookie)
+3. `requestAndroidPlay` — `gateway.kugou.com/v5/url` + playKey/androidSignature
+4. `getWebDetail` — `yy/index.php?r=play/getdata` (兼容兜底)
+
+每一步都要求 `isUsablePlayUrl` (URL 可信且不是 trial 片段), 否则继续降级。
+
+### 代码改动
+
+| 文件 | 改动 |
+|---|---|
+| `KugouCrypto` | 新增 `MOBILE_RAW_SALT = "kgcloudv2"` 与 `rawPlayKey(hash) = md5(lower(hash)+salt)` |
+| `KugouHttpClient` | 新增 `MOBILE_SONGINFO_URL`/`MIXSONG_URL` 常量、`MOBILE_UA`、`getMobilePlay(params)`/`executeMobile` (移动端头: iPhone UA + Referer m.kugou.com)、`getPage(url)`/`executePage` (分享页, connect 5s/read 8s) |
+| `KugouSong` | `parseDuration` 改用 `normalizeDuration` (0<v<10000 视为秒 ×1000); 新增 `fromSmartyItem` (分享页条目)、`bestPlayUrl` (在 url/backup_url 中优先 /full/); `fromDetail` 封面改为优先 `album_img` 而非歌手头像 `imgUrl` |
+| `KugouClient` | 新增 `requestMobilePlay` (降级链首位)、`probeMobile` (只有 hash 时探测元数据+播放地址并写入缓存)、`resolveShareLink`/`requestSharePage` (分享页 `dataFromSmarty` 解析, 成功与失败都进 `SHARE_CACHE`); `getSong` 在缓存无元数据时走移动端探测 |
+| `KugouApiMain` | `getMusicId` 新增 `/share/xxx.html`、`/mixsong/xxx.html`、`encode_album_audio_id` 与 `#fragment` 识别 → 抓分享页解析出 hash |
+| lang | zh_CN/en_US 各新增 9 个 key (mobile_* / page_fail / share_*) |
+
+### 请求次数
+
+- 搜索点歌: `getMusic` 命中搜索缓存(0 次请求) + `getPlayUrl` 移动端 1 次 = **1 次**
+- 分享链接点歌: 分享页 1 次 + 移动端 1 次 = **2 次**
+- 只给 32 位 hash: `getSong` 探测即移动端 1 次, 播放地址同时写入 `PLAY_URL_CACHE`(TTL 20s)
+  → 随后的 `getPlayUrl` 直接命中 = **1 次**
+
+### 复现与验证 (临时脚本保留在 tmp/tmp, 不清理)
+
+用 Python 精确复刻 Java 的参数与正则, 直接请求真实接口:
+
+| 脚本 | 用途 | 结论 |
+|---|---|---|
+| `tmp/tmp/verify_mobile.py` | 移动端接口原始响应 | 免费歌返回 `url`/`backup_url`/`timeLength` |
+| `tmp/tmp/verify_mobile_scan.py` | 5 个关键词 × 6 首逐首探测 | `privilege=0/pay_type=0` → `status=1` + URL; `pay_type=3` → `url` 空 |
+| `tmp/tmp/verify_play.py` | 分享页解析出的 hash 再取播放地址 | 两条分享链接都可拿到 `/full/` mp3 |
+| `tmp/tmp/verify_share4.py` | 分享页正则 + 解析 (与 Java 逐行等价) | 两条样例链接解析出 hash/歌名/歌手/时长 |
+
+样例结果:
+
+- `https://www.kugou.com/share/5l2Dy46BfV3.html?id=5l2Dy46BfV3#1rm21af4`
+  → hash `E255C7511AED08294D531664B0BE6805`, 《中华人民共和国国歌》, 时长 49528ms
+- `https://www.kugou.com/mixsong/dd557977.html`
+  → hash `02D3436CAF1E96BEE00EF53DC6D14269`, 《昔涟》, 张韶涵、HOYO-MiX, 时长 186000ms
+- 移动端成功响应: `timeLength=299` (**秒**) 而 `extra.128timelength=299000` (毫秒)
+  → 这正是 `normalizeDuration` 必须存在的原因 (旧代码会把 299 秒当成 299 毫秒)
+
+### 已知取舍 / 未做
+
+- 分享页解析要在调用线程上发起一次 HTTP: `/music add kugou <分享链接>` 时该线程是服务端命令线程。
+  已把超时收紧到 connect 5s / read 8s, 并把结果(含失败)缓存进 `SHARE_CACHE`, 同一条链接只抓一次;
+  实测传输本身约数百毫秒。
+- 参考脚本的 `enrich_album` (专辑名兜底: 网页详情 → 关键词搜索) **未移植**, 移动端不返回专辑名时
+  仍显示 `fmusic.api.kugou.album` 占位文本。
+- 酷狗/QQ 仍约有 55 处硬编码中文日志未走 `translateToLocal` (本轮新增日志已全部本地化)。
+

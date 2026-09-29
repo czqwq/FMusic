@@ -15,6 +15,7 @@ public final class KugouCrypto {
     private static final String ANDROID_SIGN_SALT = "OIlwieks28dk2k092lksi2UIkp";
     private static final String WEB_SIGN_SALT = "NVPh5oo715z5DIWAeQlhMDsWXXQV4hwt";
     private static final String PLAY_KEY_SALT = "57ae12eb6890223e355ccfcb74edf70d";
+    private static final String MOBILE_RAW_SALT = "kgcloudv2";
     private static final char[] RANDOM_CHARS = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
         .toCharArray();
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -53,6 +54,14 @@ public final class KugouCrypto {
 
     public static String playKey(String hash, String mid, String userId) {
         return md5(lower(hash) + PLAY_KEY_SALT + APP_ID + safe(mid) + safe(userId));
+    }
+
+    /**
+     * 移动端免签名接口 (m.kugou.com/app/i/getSongInfo.php) 的 key:
+     * md5(小写 hash + "kgcloudv2"), 不需要任何 Cookie/签名盐。
+     */
+    public static String rawPlayKey(String hash) {
+        return md5(lower(hash) + MOBILE_RAW_SALT);
     }
 
     public static String md5(String value) {

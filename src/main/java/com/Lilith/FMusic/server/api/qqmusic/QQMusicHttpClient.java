@@ -1,5 +1,8 @@
 package com.Lilith.FMusic.server.api.qqmusic;
 
+import org.apache.hc.core5.http.HttpMessage;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
+import com.Lilith.FMusic.server.FMusicServer;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -93,7 +96,7 @@ public class QQMusicHttpClient {
         }
     }
 
-    private static void setHeaders(org.apache.hc.core5.http.HttpMessage request, boolean includeCookie) {
+    private static void setHeaders(HttpMessage request, boolean includeCookie) {
         request.setHeader("User-Agent", UA);
         request.setHeader("Referer", REFERER);
         request.setHeader("Origin", ORIGIN);
@@ -167,6 +170,14 @@ public class QQMusicHttpClient {
     public static void clearCookieCache() {
         ownCookie = null;
         ownCookieStamp = -1;
+    }
+
+    /**
+     * 独立 QQ 音乐 Cookie 文件是否已配置条目 (用于启动时提示)
+     */
+    public static boolean hasOwnCookie() {
+        List<CookieObj> cookies = ownCookies();
+        return cookies != null && !cookies.isEmpty();
     }
 
     private static String buildCookieHeader() {
@@ -258,7 +269,7 @@ public class QQMusicHttpClient {
         return uin.isEmpty() ? "0" : uin;
     }
 
-    private static HttpResObj execute(org.apache.hc.client5.http.classic.methods.HttpUriRequestBase request,
+    private static HttpResObj execute(HttpUriRequestBase request,
         String errorMsg) {
         try (CloseableHttpResponse response = MusicHttpClient.client.execute(request)) {
             int httpCode = response.getCode();
@@ -314,10 +325,13 @@ public class QQMusicHttpClient {
         return value.length() > max ? value.substring(0, max) : value;
     }
 
+    /**
+     * 输出日志 (默认关闭): 由 QQSong.debug 或 log4j 的 "FMusic Server" logger debug 级别控制
+     */
     public static void log(String msg) {
-        if (!QQSong.debug) {
+        if (!QQSong.debug && !FMusicServer.LOGGER.isDebugEnabled()) {
             return;
         }
-        FMusic.log.data("<light_purple>[AllMusic3]" + msg);
+        FMusic.log.data("<light_purple>[FMusic]" + msg);
     }
 }

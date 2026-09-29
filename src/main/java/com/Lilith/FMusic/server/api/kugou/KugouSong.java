@@ -1,5 +1,7 @@
 package com.Lilith.FMusic.server.api.kugou;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -13,6 +15,10 @@ public class KugouSong {
 
     public String hash;
     public String name;
+    /**
+     * 原曲/别名 (酷狗 OriSongName 等)
+     */
+    public String alia;
     public String singer;
     public String album;
     public String albumId;
@@ -72,7 +78,9 @@ public class KugouSong {
         }
         KugouSong song = new KugouSong();
         song.hash = first(item, "FileHash", "Hash", "hash", "file_hash", "filehash", "HQFileHash", "SQFileHash");
-        song.name = clean(first(item, "SongName", "songname", "song_name", "OriSongName", "name"));
+        song.name = clean(first(item, "SongName", "songname", "song_name", "name"));
+        // OriSongName 是"原曲名", 不能当歌名(外文原曲/翻唱会显示错误名字), 归入别名
+        song.alia = clean(first(item, "OriSongName", "ori_song_name", "oriSongName", "alias", "aliases"));
         song.singer = clean(
             first(item, "SingerName", "singername", "singer_name", "author_name", "authorName", "singer"));
         song.album = clean(first(item, "AlbumName", "albumname", "album_name", "album"));
@@ -117,6 +125,7 @@ public class KugouSong {
         }
         song.hash = firstNotEmpty(song.hash, first(data, "hash", "file_hash", "FileHash"));
         song.name = firstNotEmpty(song.name, clean(first(data, "song_name", "songname", "audio_name", "name")));
+        song.alia = firstNotEmpty(song.alia, clean(first(data, "ori_song_name", "OriSongName", "alias", "aliases")));
         song.singer = firstNotEmpty(song.singer, clean(first(data, "author_name", "singer_name", "singer")));
         song.album = firstNotEmpty(song.album, clean(first(data, "album_name", "albumname", "album")));
         song.albumId = firstNotEmpty(song.albumId, numeric(first(data, "album_id", "AlbumID")));
@@ -130,7 +139,8 @@ public class KugouSong {
             song.encodedAlbumId,
             encodedId(first(data, "encode_album_id", "encoded_album_id", "EAlbumID", "EAlbumId")));
         song.audioId = firstNotEmpty(song.audioId, numeric(first(data, "audio_id", "AudioID")));
-        song.pic = firstNotEmpty(song.pic, first(data, "img", "img_url", "image", "album_img"));
+        // 封面优先使用专辑图 (album_img), 其次才是歌手头像 (imgUrl) — 与脚本一致
+        song.pic = firstNotEmpty(first(data, "album_img", "image", "img", "img_url"), song.pic);
         song.playUrl = first(data, "play_url", "playUrl", "url");
         song.lyricText = first(data, "lyrics", "lyric", "lrc");
         song.trial = bool(data, false, "is_free_part", "isFreePart", "is_trial", "isTrial", "is_trail", "trial");
@@ -217,15 +227,133 @@ public class KugouSong {
     }
 
     private static long parseDuration(JsonObject obj) {
-        long milliseconds = number(obj, 0, "TimeLength", "timelength", "time_length", "duration_ms", "DurationMs");
-        if (milliseconds > 0) {
-            return milliseconds;
-        }
-        long duration = number(obj, 0, "Duration", "duration", "interval");
-        if (duration <= 0) {
+        return normalizeDuration(
+            number(
+                obj,
+                0,
+                "TimeLength",
+                "timelength",
+                "time_length",
+                "duration_ms",
+                "DurationMs",
+                "timeLength",
+                "Duration",
+                "duration",
+                "interval"));
+    }
+
+    /**
+     * 统一时长单位: 酷狗部分接口给秒 (49), 部分给毫秒 (49528), 秒值 ×1000。
+     * 对应 kugou_share_parser.py 的 normalize_duration。
+     */
+    public static long normalizeDuration(long value) {
+        if (value <= 0) {
             return 0;
         }
-        return duration > 100000 ? duration : duration * 1000L;
+        return value < 10000 ? value * 1000L : value;
+    }
+
+    /**
+     * 分享页/单曲页内嵌 dataFromSmarty 的单个条目 (对应脚本 resolve_share_page)。
+     * 形如 /song/#hash=... 的占位对象会给出 hash=null, 此时 hash 为空的返回值由调用方判定失败。
+     */
+    public static KugouSong fromSmartyItem(JsonObject item) {
+        if (item == null) {
+            return null;
+        }
+        KugouSong song = fromSearchItem(item);
+        if (song == null) {
+            song = new KugouSong();
+        }
+
+        String hash = first(item, "hash", "FileHash", "file_hash");
+        song.hash = hash.matches("(?i)[0-9a-f]{32}") ? hash.toUpperCase(Locale.ROOT) : "";
+
+        song.name = firstNotEmpty(song.name, clean(first(item, "song_name", "songName", "audio_name", "name")));
+        song.singer = firstNotEmpty(
+            song.singer,
+            clean(first(item, "author_name", "singer_name", "singerName", "singer")));
+        song.alia = firstNotEmpty(song.alia, clean(first(item, "ori_song_name", "OriSongName", "alias")));
+        song.album = firstNotEmpty(song.album, clean(first(item, "album_name", "albumname", "album")));
+        song.albumId = firstNotEmpty(song.albumId, numeric(first(item, "album_id", "albumid", "AlbumID")));
+        song.albumAudioId = firstNotEmpty(
+            song.albumAudioId,
+            numeric(first(item, "mixsongid", "album_audio_id", "MixSongID")));
+        song.encodedAlbumAudioId = firstNotEmpty(
+            song.encodedAlbumAudioId,
+            encodedId(first(item, "encode_album_audio_id", "encode_album_id", "EMixSongID")));
+        song.audioId = firstNotEmpty(song.audioId, numeric(first(item, "audio_id", "audioId", "AudioID")));
+        song.pic = firstNotEmpty(song.pic, first(item, "album_img", "img", "img_url", "image", "imgUrl"));
+
+        // audio_name 形如 "歌手 - 歌名", 用于补齐缺失字段 (与脚本一致)
+        String audioName = clean(first(item, "audio_name"));
+        if (!audioName.isEmpty()) {
+            int split = audioName.indexOf(" - ");
+            if (split > 0) {
+                if (song.singer == null || song.singer.isEmpty()) {
+                    song.singer = audioName.substring(0, split)
+                        .trim();
+                }
+                if (song.name == null || song.name.isEmpty()) {
+                    song.name = audioName.substring(split + 3)
+                        .trim();
+                }
+            } else if (song.name == null || song.name.isEmpty()) {
+                song.name = audioName;
+            }
+        }
+
+        if (song.durationMs <= 0) {
+            song.durationMs = parseDuration(item);
+        }
+        return song;
+    }
+
+    /**
+     * 对应脚本 collect_play_urls: 从接口响应里挑选最优播放地址, 优先 /full/ 完整音频。
+     */
+    public static String bestPlayUrl(JsonObject data) {
+        if (data == null) {
+            return "";
+        }
+        List<String> urls = new ArrayList<>();
+        addCandidate(urls, first(data, "url", "play_url", "playUrl"));
+        collectStrings(urls, find(data, "backup_url", "backupUrl", "play_backup_url", "playBackupUrl"), 0);
+        if (urls.isEmpty()) {
+            return "";
+        }
+        for (String url : urls) {
+            if (url.toLowerCase(Locale.ROOT)
+                .contains("/full/")) {
+                return url;
+            }
+        }
+        return urls.get(0);
+    }
+
+    private static void addCandidate(List<String> urls, String value) {
+        if (value == null) {
+            return;
+        }
+        String url = unescape(value.trim());
+        if (!url.isEmpty() && !urls.contains(url)) {
+            urls.add(url);
+        }
+    }
+
+    private static void collectStrings(List<String> urls, JsonElement element, int depth) {
+        if (element == null || element.isJsonNull() || depth > 4) {
+            return;
+        }
+        if (element.isJsonArray()) {
+            for (JsonElement child : element.getAsJsonArray()) {
+                collectStrings(urls, child, depth + 1);
+            }
+        } else if (element.isJsonPrimitive()) {
+            try {
+                addCandidate(urls, element.getAsString());
+            } catch (Exception ignored) {}
+        }
     }
 
     private static long positiveLong(String value) {

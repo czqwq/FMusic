@@ -47,6 +47,8 @@ gradlew.bat build
 - 各音源 cookie 独立: 网易云 `fmusic_server/cookie.json` / QQ音乐 `fmusic_server/QQMusic_cookie.json` /
   酷狗 `fmusic_server/Kugou_cookie.json` (后两者不存在时自动创建, `/music reload` 后生效);
   B站点歌 cookie 在 `fmusic_server/bili/cookie.json` (bili/config.json 的 cookie-file 指定)
+- 酷狗点歌支持 32 位 hash、分享链接 (`https://www.kugou.com/share/xxx.html`) 与单曲页 (`/mixsong/xxx.html`);
+  普通歌曲通过免签名移动端接口即可播放, VIP/付费歌曲仍需 `Kugou_cookie.json` 中的账号 Cookie
 - B站点歌: 编辑 `fmusic_server/bili/config.json` 填 `room-id` (直播间号) 后执行 `/music reload`;
   `/bilimusic status` 查看连接状态, `/bilimusic request <歌名>` 手动点歌 (弹幕格式: 点歌<歌名>)
 
@@ -91,8 +93,8 @@ gradlew.bat build
 | OGG 解码器 | jcraft jogg/jorbis | LGPL |
 | FLAC 解码器 | Project Nayuki | LGPL |
 | M4A/AAC 解码器 | Jay / FAAD2 移植 | LGPL 等 |
-| QQ音乐 API | [AllMusic_QQMusic](https://github.com/haaaa/tmp) (ds.haaa) | GPL-3.0 (同 AllMusic) |
-| 酷狗音乐 API | [AllMusic_Kugou](https://github.com/haaaa/tmp) (ds.haaa) | GPL-3.0 (同 AllMusic) |
-| B站直播弹幕点歌 | [BiliMusicBridge](https://github.com/haaaa/tmp) | MIT |
+| QQ音乐 API | [AllMusic_QQMusic](https://github.com/hutuyee/AllMusic_QQMusic) (ds.haaa) | GPL-3.0 (同 AllMusic) |
+| 酷狗音乐 API | [AllMusic_Kugou](https://github.com/hutuyee/AllMusic_Kugou) (ds.haaa) | GPL-3.0 (同 AllMusic) |
+| B站直播弹幕点歌 | [BiliMusicBridge](https://github.com/hutuyee/BiliMusicBridge) | MIT |
 
 按 AGPL-3.0 条款, 对本项目的使用、修改与分发需保持本许可证并保留上述版权声明;

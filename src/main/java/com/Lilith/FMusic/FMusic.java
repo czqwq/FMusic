@@ -1,5 +1,6 @@
 package com.Lilith.FMusic;
 
+import com.Lilith.FMusic.CommonProxy;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,8 +23,8 @@ public class FMusic {
     public static final String MODID = "FMusic";
     public static final Logger LOG = LogManager.getLogger(MODID);
 
-    @SidedProxy(clientSide = "com.Lilith.FMusic.ClientProxy", serverSide = "com.Lilith.FMusic.CommonProxy")
-    public static com.Lilith.FMusic.CommonProxy proxy;
+    @SidedProxy(clientSide = "com.Lilith.FMusic.ClientProxy", serverSide = "CommonProxy")
+    public static CommonProxy proxy;
 
     @Mod.EventHandler
     // preInit "Run before anything else. Read your config, create blocks, items, etc, and register them with the

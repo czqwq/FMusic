@@ -34,6 +34,11 @@ public class SongInfoObj {
      */
     protected String playerUrl;
     /**
+     * 展示用 ID (如酷狗的数字 audio_id; 为空时回退到 id)
+     * 仅用于聊天消息/HUD 展示, id 仍是播放/去重/歌词使用的标识
+     */
+    protected String displayId;
+    /**
      * 图片链接
      */
     protected String picUrl;
@@ -102,6 +107,21 @@ public class SongInfoObj {
 
     public String getAlia() {
         return alia == null ? "" : alia;
+    }
+
+    /**
+     * 展示用 ID: 优先数字 ID (酷狗 audio_id / QQ songid), 未设置时回退 id
+     */
+    public String getDisplayId() {
+        if (displayId != null && !displayId.trim()
+            .isEmpty()) {
+            return displayId;
+        }
+        return getId();
+    }
+
+    public void setDisplayId(String id) {
+        this.displayId = id;
     }
 
     public String getCall() {

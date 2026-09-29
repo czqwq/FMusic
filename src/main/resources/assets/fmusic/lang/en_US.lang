@@ -120,6 +120,15 @@ fmusic.log.kugou.android_req_fail=<red>Kugou Android playback request failed
 fmusic.log.kugou.cookie_loaded=<gray>Kugou Cookie loaded: %s
 fmusic.log.kugou.cookie_empty=<yellow>Kugou Cookie Header is empty
 fmusic.log.kugou.empty_entity=<red>Kugou returned empty entity, HTTP=%s
+fmusic.log.kugou.mobile_url_ok=<green>Kugou mobile full playback URL obtained: %s
+fmusic.log.kugou.mobile_parse_error=<red>Kugou mobile playback parse error: %s
+fmusic.log.kugou.mobile_req_create_fail=<red>Kugou mobile playback request creation failed
+fmusic.log.kugou.mobile_req_fail=<red>Kugou mobile playback request failed
+fmusic.log.kugou.page_fail=<red>Kugou page fetch failed: %s
+fmusic.log.kugou.share_ok=<green>Kugou share page resolved: hash=%s, name=%s, singer=%s
+fmusic.log.kugou.share_no_data=<yellow>Kugou share page has no embedded data (dataFromSmarty): %s
+fmusic.log.kugou.share_no_hash=<yellow>Kugou share page did not yield a hash: %s
+fmusic.log.kugou.share_error=<red>Kugou share page parse error: %s
 
 fmusic.log.qq.init=<yellow>Initializing QQ Music API
 fmusic.log.qq.song_empty=<red>QQ Music song info empty: %s
@@ -299,3 +308,7 @@ fmusic.api.qqmusic.playlist_fail_input=QQ Music playlist fetch failed, enter pla
 fmusic.log.core.player_request=<gold>[FMusic]<yellow>Player: %s requested: %s
 
 fmusic.log.qq.http_req_fail=<red>QQ Music request failed: %s
+fmusic.log.qq.invalid_id=<red>QQ Music invalid song ID: %s
+
+fmusic.log.kugou.cookie_missing=<gold>[FMusic]<yellow>Kugou account Cookie not configured (fmusic_server/Kugou_cookie.json): VIP songs cannot be played, normal songs use the built-in device id for anonymous requests
+fmusic.log.qq.cookie_missing=<gold>[FMusic]<yellow>QQ Music Cookie not configured (fmusic_server/QQMusic_cookie.json), VIP songs cannot be played

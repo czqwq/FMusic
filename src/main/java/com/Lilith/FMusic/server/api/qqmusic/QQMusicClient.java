@@ -3,8 +3,10 @@ package com.Lilith.FMusic.server.api.qqmusic;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.util.StatCollector;
 
@@ -18,6 +20,64 @@ import com.google.gson.JsonParser;
 public class QQMusicClient {
 
     private static final int PLAYLIST_PAGE_SIZE = 500;
+
+    /**
+     * 歌曲信息缓存 (key = songmid)
+     */
+    private static final Map<String, QQSong> CACHE = new ConcurrentHashMap<>();
+    /**
+     * 播放地址缓存: 播放地址带时效签名, 短暂缓存避免重复请求 + 复用刚取到的地址
+     */
+    private static final Map<String, CachedPlayUrl> PLAY_URL_CACHE = new ConcurrentHashMap<>();
+    /**
+     * 同一首歌的并发请求去重锁
+     */
+    private static final Map<String, Object> PLAY_LOCKS = new ConcurrentHashMap<>();
+    /**
+     * 播放地址缓存有效期 (毫秒): 与酷狗保持一致
+     */
+    private static final long PLAY_URL_CACHE_MILLIS = 20_000L;
+
+    private static final class CachedPlayUrl {
+
+        private final String url;
+        private final long expiresAt;
+
+        private CachedPlayUrl(String url, long expiresAt) {
+            this.url = url;
+            this.expiresAt = expiresAt;
+        }
+    }
+
+    private static void cache(QQSong song) {
+        if (song == null || song.realId()
+            .isEmpty()) {
+            return;
+        }
+        CACHE.put(song.realId(), song);
+    }
+
+    private static String cachedPlayUrl(String id) {
+        if (id == null || id.isEmpty()) {
+            return null;
+        }
+        CachedPlayUrl cached = PLAY_URL_CACHE.get(id);
+        if (cached == null) {
+            return null;
+        }
+        if (cached.expiresAt <= System.currentTimeMillis()) {
+            PLAY_URL_CACHE.remove(id, cached);
+            return null;
+        }
+        return cached.url;
+    }
+
+    private static void cachePlayUrl(String id, String url) {
+        if (id == null || id.isEmpty() || url == null || url.isEmpty()) {
+            return;
+        }
+        PLAY_URL_CACHE.put(id, new CachedPlayUrl(url, System.currentTimeMillis() + PLAY_URL_CACHE_MILLIS));
+    }
 
     public static List<QQSong> search(String keyword, int limit) {
         boolean guest = !QQMusicHttpClient.hasLoginCookie();
@@ -399,6 +459,11 @@ public class QQMusicClient {
 
             id = id.trim();
 
+            QQSong cached = CACHE.get(id);
+            if (cached != null) {
+                return cached;
+            }
+
             JsonObject req = new JsonObject();
             req.add("comm", baseComm());
 
@@ -437,6 +502,7 @@ public class QQMusicClient {
                 .isEmpty()) {
                 song.mid = id;
             }
+            cache(song);
 
             return song;
         } catch (Exception e) {
@@ -472,7 +538,43 @@ public class QQMusicClient {
         }
     }
 
+    /**
+     * 获取播放地址: 先查 20 秒缓存, 未命中则对同一首歌加锁去重后请求
+     * (对齐酷狗 KugouClient 的 PLAY_URL_CACHE / PLAY_LOCKS 机制)
+     */
     public static String getPlayUrl(QQSong song) {
+        if (song == null || song.realId()
+            .isEmpty()) {
+            return null;
+        }
+
+        String id = song.realId();
+        String cached = cachedPlayUrl(id);
+        if (cached != null) {
+            return cached;
+        }
+
+        Object created = new Object();
+        Object existing = PLAY_LOCKS.putIfAbsent(id, created);
+        Object lock = existing == null ? created : existing;
+        try {
+            synchronized (lock) {
+                cached = cachedPlayUrl(id);
+                if (cached != null) {
+                    return cached;
+                }
+                String url = requestPlayUrl(song);
+                if (url != null && !url.isEmpty()) {
+                    cachePlayUrl(id, url);
+                }
+                return url;
+            }
+        } finally {
+            PLAY_LOCKS.remove(id, lock);
+        }
+    }
+
+    private static String requestPlayUrl(QQSong song) {
         try {
             if (song == null || song.realId()
                 .isEmpty()) {

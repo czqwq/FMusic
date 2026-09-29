@@ -1,5 +1,6 @@
 package com.Lilith.FMusic.server.api.kugou;
 
+import com.Lilith.FMusic.server.core.objs.music.LyricItemObj;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -32,10 +33,21 @@ public class KugouApiMain implements IMusicApi {
     private static final Pattern PLAYLIST_PATH = Pattern.compile(
         "(?i)/(?:yy/special/single|special/single|plist/list|playlist|songlist)/" + "([0-9]+)(?:\\.html)?(?:$|[/?#])");
     private static final Pattern GENERIC_ID_PARAM = Pattern.compile("(?i)(?:^|[?&#])id=([0-9]+)(?:$|[&#])");
+    /** 分享页地址: www.kugou.com/share/xxxx.html */
+    private static final Pattern SHARE_PAGE = Pattern.compile("(?i)/share/([0-9a-zA-Z]+)[.]html");
+    /** 单曲页地址: www.kugou.com/mixsong/xxxx.html (xxxx 即 encode_album_audio_id) */
+    private static final Pattern MIXSONG_PAGE = Pattern.compile("(?i)/mixsong/([0-9a-zA-Z]+)[.]html");
+    private static final Pattern ENCODE_AUDIO_ID_PARAM = Pattern
+        .compile("(?i)(?:^|[?&#])(?:encode_album_audio_id|EMixSongID)=([0-9a-z]{3,32})(?:$|[&#])");
+    private static final Pattern FRAGMENT = Pattern.compile("#([0-9a-zA-Z]+)$");
     private volatile boolean isUpdate;
 
     public KugouApiMain() {
         KugouHttpClient.log(StatCollector.translateToLocal("fmusic.log.kugou.init"));
+        if (!KugouHttpClient.hasOwnCookie()) {
+            // 独立 Cookie 文件为空: VIP/付费歌曲拿不到播放地址, 提前提示便于排障
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.kugou.cookie_missing"));
+        }
     }
 
     @Override
@@ -96,7 +108,54 @@ public class KugouApiMain implements IMusicApi {
                 firstMatch(ALBUM_AUDIO_ID_PARAM, value));
             return hash;
         }
+
+        // 分享页/单曲页里没有明文 hash, 只能抓页面读内嵌的 dataFromSmarty
+        // (对应 kugou_share_parser.py 的 resolve_share_page)。
+        String shareUrl = shareUrlOf(value);
+        if (!shareUrl.isEmpty()) {
+            KugouSong shared = KugouClient.resolveShareLink(shareUrl);
+            if (shared != null) {
+                return shared.realId();
+            }
+        }
+
+        // 只有 encode_album_audio_id (如分享链接片段 #1rm21af4) 时用单曲页兜底
+        String encoded = firstMatch(ENCODE_AUDIO_ID_PARAM, value);
+        if (encoded.isEmpty()) {
+            String fragment = firstMatch(FRAGMENT, value);
+            if (!fragment.isEmpty() && fragment.matches("(?i)[0-9a-z]{3,32}")
+                && !fragment.matches("(?i)[0-9a-f]{32}")) {
+                encoded = fragment.toLowerCase(Locale.ROOT);
+            }
+        }
+        if (!encoded.isEmpty()) {
+            KugouSong shared = KugouClient.resolveShareLink(encoded);
+            if (shared != null) {
+                return shared.realId();
+            }
+        }
         return value;
+    }
+
+    /**
+     * 分享/单曲链接归一化: 只对确实是酷狗分享页或单曲页的地址返回页面地址, 其余返回空。
+     */
+    private static String shareUrlOf(String value) {
+        String url = value;
+        if (!url.matches("(?i)^https?://.*")) {
+            // 允许省略协议头的 www.kugou.com/m.kugou.com 链接
+            if (!url.matches("(?i)^(?:www|m)[.]kugou[.]com/.*")) {
+                return "";
+            }
+            url = "https://" + url;
+        }
+        if (SHARE_PAGE.matcher(url)
+            .find()
+            || MIXSONG_PAGE.matcher(url)
+                .find()) {
+            return url;
+        }
+        return "";
     }
 
     private static String firstMatch(Pattern pattern, String value) {
@@ -124,11 +183,11 @@ public class KugouApiMain implements IMusicApi {
         // 这里只构造歌曲元数据，不提前请求播放地址。
         // AllMusic 核心会在真正开始播放时调用 getPlayUrl(id)；若此处也请求，
         // 成功场景会重复请求短时效 URL，并增加接口限流/风控概率。
-        return new SongInfoObj(
+        SongInfoObj info = new SongInfoObj(
             empty(song.singer, StatCollector.translateToLocal("fmusic.api.unknown_artist")),
             empty(song.name, id),
             id,
-            null,
+            empty(song.alia, ""),
             player,
             empty(song.album, StatCollector.translateToLocal("fmusic.api.kugou.album")),
             isList,
@@ -137,6 +196,9 @@ public class KugouApiMain implements IMusicApi {
             false,
             null,
             getId());
+        // id 是 32 位 hash(播放/去重必需); 消息里改显示数字 ID 更可读
+        info.setDisplayId(empty(firstNonEmpty(song.audioId, song.albumAudioId), id));
+        return info;
     }
 
     @Override
@@ -219,7 +281,7 @@ public class KugouApiMain implements IMusicApi {
             } finally {
                 isUpdate = false;
             }
-        }, "AllMusic_Kugou_setList");
+        }, "FMusic_Kugou_setList");
         thread.start();
     }
 
@@ -227,7 +289,7 @@ public class KugouApiMain implements IMusicApi {
     public LyricSave getLyric(String id) {
         LyricSave save = new LyricSave();
         String lyric = KugouClient.getLyricText(getMusicId(id));
-        Map<Long, com.Lilith.FMusic.server.core.objs.music.LyricItemObj> map = KugouLyricDecoder.parse(lyric);
+        Map<Long, LyricItemObj> map = KugouLyricDecoder.parse(lyric);
         if (!map.isEmpty()) {
             save.setHaveLyric(FMusic.getConfig().sendLyric);
             save.setLyric(map);
@@ -255,6 +317,17 @@ public class KugouApiMain implements IMusicApi {
             }
         }
         return builder.toString();
+    }
+
+    /**
+     * 取第一个非空字符串 (用于选取展示用数字 ID)
+     */
+    private static String firstNonEmpty(String first, String second) {
+        if (first != null && !first.trim()
+            .isEmpty()) {
+            return first.trim();
+        }
+        return second == null ? "" : second.trim();
     }
 
     private static String empty(String value, String def) {

@@ -1,5 +1,6 @@
 package com.Lilith.FMusic.api;
 
+import com.Lilith.FMusic.server.core.saves.HudSave;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -530,13 +531,13 @@ public final class FMusicApi {
 
     /** 获取玩家 HUD 配置 */
     public static HudPosObj getHud(String player) {
-        return com.Lilith.FMusic.server.core.saves.HudSave.getOrNew(player);
+        return HudSave.getOrNew(player);
     }
 
     /** 设置玩家 HUD 配置 */
     public static void setHud(String player, HudPosObj hud) {
         if (player != null && hud != null) {
-            com.Lilith.FMusic.server.core.saves.HudSave.update(player, hud);
+            HudSave.update(player, hud);
         }
     }
 

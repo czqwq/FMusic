@@ -14,10 +14,21 @@ public class QQSong {
     public String mid;
     public String mediaMid;
     public String name;
+    /**
+     * 副标题/原曲名 (QQ 音乐 subtitle)
+     */
+    public String alia;
     public String singer;
     public String album;
     public String albumMid;
+    /**
+     * 时长 (秒, 兼容旧字段)
+     */
     public long interval;
+    /**
+     * 时长 (毫秒, 解析时归一化; 优先使用)
+     */
+    public long durationMs;
 
     public String realId() {
         if (mid != null && !mid.isEmpty()) {
@@ -41,6 +52,9 @@ public class QQSong {
     }
 
     public long lengthMs() {
+        if (durationMs > 0) {
+            return durationMs;
+        }
         return interval <= 0 ? 0 : interval * 1000;
     }
 
@@ -49,7 +63,8 @@ public class QQSong {
         song.id = getString(item, "songid");
         song.mid = firstNotEmpty(getString(item, "songmid"), getString(item, "mid"));
         song.name = firstNotEmpty(getString(item, "songname"), getString(item, "name"));
-        song.interval = getLong(item, "interval");
+        song.alia = firstNotEmpty(getString(item, "subtitle"), getString(item, "title_extension"));
+        song.durationMs = parseDuration(item);
 
         JsonObject file = getObj(item, "file");
         if (file != null) {
@@ -82,6 +97,8 @@ public class QQSong {
         song.mid = firstNotEmpty(getString(item, "mid"), getString(item, "songmid"));
         song.mediaMid = firstNotEmpty(getString(item, "media_mid"), song.mid);
         song.name = firstNotEmpty(getString(item, "name"), getString(item, "songname"));
+        song.alia = firstNotEmpty(getString(item, "subtitle"), getString(item, "title_extension"));
+        song.durationMs = parseDuration(item);
         song.singer = getString(item, "singer");
         if (song.singer == null || song.singer.isEmpty()) {
             song.singer = StatCollector.translateToLocal("fmusic.api.unknown_artist");
@@ -96,7 +113,8 @@ public class QQSong {
         song.id = getString(item, "id");
         song.mid = firstNotEmpty(getString(item, "mid"), getString(item, "songmid"));
         song.name = firstNotEmpty(getString(item, "name"), getString(item, "songname"));
-        song.interval = getLong(item, "interval");
+        song.alia = firstNotEmpty(getString(item, "subtitle"), getString(item, "title_extension"));
+        song.durationMs = parseDuration(item);
 
         JsonObject file = getObj(item, "file");
         if (file != null) {
@@ -115,6 +133,32 @@ public class QQSong {
         JsonArray singers = getArray(item, "singer");
         song.singer = joinSingers(singers);
         return song;
+    }
+
+    /**
+     * 解析时长并归一化为毫秒 (对齐 KugouSong.parseDuration):
+     * 先取毫秒字段, 再取秒字段, 大于 100000 视为已是毫秒
+     */
+    static long parseDuration(JsonObject item) {
+        long milliseconds = firstLong(item, "TimeLength", "timelength", "time_length", "duration_ms", "DurationMs");
+        if (milliseconds > 0) {
+            return milliseconds;
+        }
+        long duration = firstLong(item, "Duration", "duration", "interval");
+        if (duration <= 0) {
+            return 0;
+        }
+        return duration > 100000 ? duration : duration * 1000L;
+    }
+
+    private static long firstLong(JsonObject item, String... keys) {
+        for (String key : keys) {
+            long value = getLong(item, key);
+            if (value > 0) {
+                return value;
+            }
+        }
+        return 0;
     }
 
     private static String joinSingers(JsonArray singers) {

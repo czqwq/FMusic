@@ -120,6 +120,15 @@ fmusic.log.kugou.android_req_fail=<red>酷狗Android播放请求失败
 fmusic.log.kugou.cookie_loaded=<gray>酷狗音乐Cookie已加载：%s
 fmusic.log.kugou.cookie_empty=<yellow>酷狗音乐Cookie Header为空
 fmusic.log.kugou.empty_entity=<red>酷狗音乐返回空实体，HTTP=%s
+fmusic.log.kugou.mobile_url_ok=<green>酷狗音乐移动端完整播放链接获取成功：%s
+fmusic.log.kugou.mobile_parse_error=<red>酷狗移动端播放解析错误：%s
+fmusic.log.kugou.mobile_req_create_fail=<red>酷狗移动端播放请求创建失败
+fmusic.log.kugou.mobile_req_fail=<red>酷狗移动端播放请求失败
+fmusic.log.kugou.page_fail=<red>酷狗网页抓取失败：%s
+fmusic.log.kugou.share_ok=<green>酷狗分享页解析成功：hash=%s，歌名=%s，歌手=%s
+fmusic.log.kugou.share_no_data=<yellow>酷狗分享页未包含内嵌数据(dataFromSmarty)：%s
+fmusic.log.kugou.share_no_hash=<yellow>酷狗分享页未解析出hash：%s
+fmusic.log.kugou.share_error=<red>酷狗分享页解析错误：%s
 
 fmusic.log.qq.init=<yellow>正在初始化QQ音乐API
 fmusic.log.qq.song_empty=<red>QQ音乐歌曲信息获取为空：%s
@@ -299,3 +308,7 @@ fmusic.api.qqmusic.playlist_fail_input=QQ音乐歌单获取失败，请输入歌
 fmusic.log.core.player_request=<gold>[FMusic]<yellow>玩家：%s 点歌：%s
 
 fmusic.log.qq.http_req_fail=<red>QQ音乐请求失败：%s
+fmusic.log.qq.invalid_id=<red>QQ音乐无效的歌曲ID：%s
+
+fmusic.log.kugou.cookie_missing=<gold>[FMusic]<yellow>未配置酷狗账号 Cookie (fmusic_server/Kugou_cookie.json): VIP/付费歌曲无法播放, 普通歌曲将使用内置设备标识匿名请求
+fmusic.log.qq.cookie_missing=<gold>[FMusic]<yellow>QQ音乐 Cookie 未配置 (fmusic_server/QQMusic_cookie.json), VIP/付费歌曲将无法播放

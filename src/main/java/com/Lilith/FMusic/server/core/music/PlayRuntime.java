@@ -61,6 +61,22 @@ public class PlayRuntime {
     /**
      * 清空歌曲数据
      */
+    /**
+     * 当前歌曲的展示名: 歌名(附 ID), 用于"无法播放"等提示 (避免只显示歌曲ID)
+     */
+    private static String displayName() {
+        SongInfoObj music = PlayMusic.nowPlayMusic;
+        if (music == null) {
+            return "";
+        }
+        String name = music.getName();
+        if (name == null || name.trim()
+            .isEmpty()) {
+            return music.getDisplayId();
+        }
+        return name + " (" + music.getDisplayId() + ")";
+    }
+
     private static void clear() {
         isPlay = false;
 
@@ -250,7 +266,7 @@ public class PlayRuntime {
                         : PlayMusic.nowPlayMusic.getPlayerUrl();
                     if (PlayMusic.url == null) {
                         String data = FMusic.getMessage().musicPlay.emptyCanPlay;
-                        FMusic.side.broadcastInTask(data.replace(ARG.musicId, PlayMusic.nowPlayMusic.getId()));
+                        FMusic.side.broadcastInTask(data.replace(ARG.musicId, displayName()));
                         PlayMusic.nowPlayMusic = null;
                         continue;
                     }
@@ -309,7 +325,7 @@ public class PlayRuntime {
                         FMusic.side.sendStop();
                     } else {
                         String data = FMusic.getMessage().musicPlay.emptyCanPlay;
-                        FMusic.side.broadcastInTask(data.replace(ARG.musicId, PlayMusic.nowPlayMusic.getId()));
+                        FMusic.side.broadcastInTask(data.replace(ARG.musicId, displayName()));
                     }
                     clear();
                 }

@@ -1,5 +1,7 @@
 package com.Lilith.FMusic.server;
 
+import com.Lilith.FMusic.server.bili.command.BiliCommand;
+import net.minecraft.util.ChatComponentText;
 import java.io.File;
 
 import net.kyori.adventure.text.Component;
@@ -42,7 +44,7 @@ public class FMusicServer {
             // 兜底: 服务器 tick 内解析失败会直接崩服 (如空组件序列化出 {}),
             // 回退为纯文本聊天消息
             LOGGER.warn("[FMusic] 聊天JSON解析失败, 回退纯文本: " + json, e);
-            return new net.minecraft.util.ChatComponentText(input.toString());
+            return new ChatComponentText(input.toString());
         }
     }
 
@@ -68,7 +70,7 @@ public class FMusicServer {
 
         ServerCommandManager commandManager = (ServerCommandManager) server.getCommandManager();
         commandManager.registerCommand(new CommandForge());
-        commandManager.registerCommand(new com.Lilith.FMusic.server.bili.command.BiliCommand());
+        commandManager.registerCommand(new BiliCommand());
     }
 
     public void onServerStopping(FMLServerStoppingEvent event) {

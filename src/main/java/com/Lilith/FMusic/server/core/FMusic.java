@@ -1,5 +1,11 @@
 package com.Lilith.FMusic.server.core;
 
+import com.Lilith.FMusic.server.api.qqmusic.QQMusicHttpClient;
+import com.Lilith.FMusic.server.api.kugou.KugouHttpClient;
+import com.Lilith.FMusic.server.bili.BiliMusicBridge;
+import com.Lilith.FMusic.server.api.kugou.KugouApiMain;
+import com.Lilith.FMusic.server.api.qqmusic.QQMusicApiMain;
+import com.Lilith.FMusic.netapi.NetiApiMain;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -278,7 +284,7 @@ public class FMusic {
 
         // 注册内置音乐API: netapi (网易云音乐)
         try {
-            IMusicApi api = new com.Lilith.FMusic.netapi.NetiApiMain();
+            IMusicApi api = new NetiApiMain();
             MUSIC_APIS.put(api.getId(), api);
             FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.core.api_registered", api.getId()));
         } catch (Exception e) {
@@ -288,7 +294,7 @@ public class FMusic {
 
         // 注册内置音乐API: qqmusic (QQ音乐) / kugou (酷狗音乐)
         try {
-            IMusicApi api = new com.Lilith.FMusic.server.api.qqmusic.QQMusicApiMain();
+            IMusicApi api = new QQMusicApiMain();
             MUSIC_APIS.put(api.getId(), api);
             FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.core.api_registered", api.getId()));
         } catch (Exception e) {
@@ -296,7 +302,7 @@ public class FMusic {
             e.printStackTrace();
         }
         try {
-            IMusicApi api = new com.Lilith.FMusic.server.api.kugou.KugouApiMain();
+            IMusicApi api = new KugouApiMain();
             MUSIC_APIS.put(api.getId(), api);
             FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.core.api_registered", api.getId()));
         } catch (Exception e) {
@@ -316,7 +322,7 @@ public class FMusic {
 
         // B站点歌 (BiliMusicBridge, 直播间弹幕点歌; 配置 room-id 后自动连接)
         try {
-            com.Lilith.FMusic.server.bili.BiliMusicBridge.start();
+            BiliMusicBridge.start();
         } catch (Exception e) {
             log.data(StatCollector.translateToLocal("fmusic.log.core.bili_start_fail"));
             e.printStackTrace();
@@ -332,7 +338,7 @@ public class FMusic {
         isRun = false;
         PlayRuntime.stop();
         SaveTask.stop();
-        com.Lilith.FMusic.server.bili.BiliMusicBridge.stop();
+        BiliMusicBridge.stop();
         side.sendStop();
         log.data(StatCollector.translateToLocal("fmusic.log.core.stopped"));
     }
@@ -374,8 +380,8 @@ public class FMusic {
             }
 
             // 刷新 Kugou/QQ 独立 cookie 文件缓存 (/music reload 时生效)
-            com.Lilith.FMusic.server.api.kugou.KugouHttpClient.clearCookieCache();
-            com.Lilith.FMusic.server.api.qqmusic.QQMusicHttpClient.clearCookieCache();
+            KugouHttpClient.clearCookieCache();
+            QQMusicHttpClient.clearCookieCache();
 
             if (!FMusic.configVersion.equalsIgnoreCase(config.version)) {
                 log.data(StatCollector.translateToLocal("fmusic.log.core.config_update"));

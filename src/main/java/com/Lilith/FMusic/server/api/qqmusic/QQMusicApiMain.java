@@ -1,5 +1,6 @@
 package com.Lilith.FMusic.server.api.qqmusic;
 
+import com.Lilith.FMusic.server.core.objs.music.LyricItemObj;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -35,6 +36,9 @@ public class QQMusicApiMain implements IMusicApi {
 
     public QQMusicApiMain() {
         QQMusicHttpClient.log(StatCollector.translateToLocal("fmusic.log.qq.init"));
+        if (!QQMusicHttpClient.hasOwnCookie()) {
+            FMusic.log.data(StatCollector.translateToLocal("fmusic.log.qq.cookie_missing"));
+        }
     }
 
     @Override
@@ -102,6 +106,10 @@ public class QQMusicApiMain implements IMusicApi {
     @Override
     public SongInfoObj getMusic(String id, String player, boolean isList) {
         id = getMusicId(id);
+        if (!checkId(id)) {
+            QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.invalid_id", id));
+            return null;
+        }
         QQSong song = QQMusicClient.getSong(id);
         if (song == null) {
             List<QQSong> fallback = QQMusicClient.search(id, 1);
@@ -113,18 +121,15 @@ public class QQMusicApiMain implements IMusicApi {
             QQMusicHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.qq.song_empty", id));
             return null;
         }
-        String playUrl = QQMusicClient.getPlayUrl(song);
-        if (playUrl == null || playUrl.isEmpty()) {
-            QQMusicHttpClient
-                .log(StatCollector.translateToLocalFormatted("fmusic.log.qq.play_url_null", song.realId()));
-            return null;
-        }
+        // 这里只构造歌曲元数据, 不提前请求播放地址:
+        // 播放地址带时效签名, 核心会在真正开始播放时调用 getPlayUrl(id),
+        // 提前请求等于每次点歌多一次 vkey 请求, 增加限流/风控概率 (与酷狗 KugouApiMain 行为一致)
         boolean trial = false;
         return new SongInfoObj(
             empty(song.singer, StatCollector.translateToLocal("fmusic.api.unknown_artist")),
             empty(song.name, song.realId()),
             song.realId(),
-            null,
+            song.alia == null ? "" : song.alia,
             player,
             empty(song.album, StatCollector.translateToLocal("fmusic.api.qqmusic.album")),
             isList,
@@ -216,7 +221,7 @@ public class QQMusicApiMain implements IMusicApi {
             } finally {
                 isUpdate = false;
             }
-        }, "AllMusic_QQMusic_setList");
+        }, "FMusic_QQMusic_setList");
         thread.start();
     }
 
@@ -224,7 +229,7 @@ public class QQMusicApiMain implements IMusicApi {
     public LyricSave getLyric(String id) {
         LyricSave save = new LyricSave();
         String lyric = QQMusicClient.getLyricText(getMusicId(id));
-        Map<Long, com.Lilith.FMusic.server.core.objs.music.LyricItemObj> map = QQMusicLyricDecoder.parse(lyric);
+        Map<Long, LyricItemObj> map = QQMusicLyricDecoder.parse(lyric);
         if (!map.isEmpty()) {
             save.setHaveLyric(FMusic.getConfig().sendLyric);
             save.setLyric(map);

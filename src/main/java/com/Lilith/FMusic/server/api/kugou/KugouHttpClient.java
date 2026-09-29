@@ -1,5 +1,7 @@
 package com.Lilith.FMusic.server.api.kugou;
 
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
+import com.Lilith.FMusic.server.FMusicServer;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -40,6 +42,10 @@ public final class KugouHttpClient {
     public static final String WEB_DETAIL_URL = "https://wwwapi.kugou.com/yy/index.php";
     public static final String WEB_DETAIL_ALT_URL = "https://www.kugou.com/yy/index.php";
     public static final String ANDROID_PLAY_URL = "https://gateway.kugou.com/v5/url";
+    /** 移动端免签名接口: 免费歌曲可直接返回播放地址, 无需 Cookie/签名 */
+    public static final String MOBILE_SONGINFO_URL = "https://m.kugou.com/app/i/getSongInfo.php";
+    /** 分享页/单曲页模板 (mixsong id 即 encode_album_audio_id) */
+    public static final String MIXSONG_URL = "https://www.kugou.com/mixsong/";
     public static final String LYRIC_SEARCH_OLD_URL = "https://lyrics.kugou.com/search";
     public static final String LYRIC_DOWNLOAD_URL = "https://lyrics.kugou.com/download";
 
@@ -47,6 +53,17 @@ public final class KugouHttpClient {
         + "AppleWebKit/537.36 (KHTML, like Gecko) "
         + "Chrome/150.0.0.0 Safari/537.36";
     private static final String ANDROID_UA = "Android15-1070-11083-46-0-DiscoveryDRADProtocol-wifi";
+    private static final String MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+        + "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
+
+    /**
+     * 内置默认设备标识 (kg_mid / dfid):
+     * cookie 文件 (Kugou_cookie.json) 未提供时 fallback 到这里, 避免匿名播放路径
+     * 因缺少设备标识被直接跳过。
+     * 注意: 这是设备标识而非账号凭证, 不涉及任何账号身份; 如需更换直接改这两行。
+     */
+    private static final String DEFAULT_KG_MID = "b4d1e2f3a4b5c6d7e8f9012345678901";
+    private static final String DEFAULT_KG_DFID = "1a2b3c4d5e6f708192a3b4c5d6e7f809";
 
     private static volatile String lastCookieSummary = "";
     private static final int SMALL_RESPONSE_LOG_LIMIT = 16_384;
@@ -108,14 +125,92 @@ public final class KugouHttpClient {
         }
     }
 
+    /**
+     * 移动端免签名接口 (m.kugou.com/app/i/getSongInfo.php)。
+     * 该接口不需要 signature/key 盐派生, 是目前免费歌曲最稳定的播放地址来源。
+     */
+    public static HttpResObj getMobilePlay(Map<String, String> params) {
+        try {
+            String url = appendQuery(MOBILE_SONGINFO_URL, params);
+            logRequestParameters("酷狗移动端", MOBILE_SONGINFO_URL, params);
+            return executeMobile(url);
+        } catch (Exception e) {
+            log(StatCollector.translateToLocal("fmusic.log.kugou.mobile_req_create_fail"));
+            if (KugouSong.debug) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+    }
+
+    /**
+     * 抓取酷狗普通网页 (分享页/单曲页), 使用 Web 请求头。
+     */
+    public static HttpResObj getPage(String url) {
+        log("<gray>酷狗网页GET：" + url);
+        return executePage(url);
+    }
+
+    /**
+     * 抓取普通网页 (分享页/单曲页)。使用较短的超时, 因为分享页解析可能在
+     * 主线程 (命令处理) 上触发, 必须尽快返回。
+     */
+    private static HttpResObj executePage(String url) {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) new URL(url).openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(5_000);
+            connection.setReadTimeout(8_000);
+            connection.setUseCaches(false);
+            connection.setInstanceFollowRedirects(true);
+
+            connection.setRequestProperty("User-Agent", WEB_UA);
+            connection.setRequestProperty("Accept", "text/html,application/xhtml+xml,*/*");
+            connection.setRequestProperty("Accept-Language", "zh-CN,zh;q=0.9");
+            connection.setRequestProperty("Cache-Control", "no-cache");
+            connection.setRequestProperty("Pragma", "no-cache");
+            connection.setRequestProperty("Referer", "https://www.kugou.com/");
+
+            String cookie = buildCookieHeader();
+            if (!cookie.isEmpty()) {
+                connection.setRequestProperty("Cookie", cookie);
+            }
+
+            int httpCode = connection.getResponseCode();
+            InputStream stream = httpCode >= 200 && httpCode < 400 ? connection.getInputStream()
+                : connection.getErrorStream();
+            String body = read(stream);
+            boolean ok = httpCode >= 200 && httpCode < 300;
+            log(
+                (ok ? "<gray>" : "<red>") + "酷狗网页 HTTP="
+                    + httpCode
+                    + "，响应长度="
+                    + body.length()
+                    + "，响应SHA-256="
+                    + sha256Prefix(body));
+            return new HttpResObj(body, ok);
+        } catch (Exception e) {
+            log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.page_fail", url));
+            if (KugouSong.debug) {
+                e.printStackTrace();
+            }
+            return null;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
     public static String getMid() {
         String value = firstCookie("mid", "kg_mid");
-        return value.isEmpty() ? "-" : value;
+        return value.isEmpty() ? DEFAULT_KG_MID : value;
     }
 
     public static String getDfid() {
         String value = firstCookie("dfid", "kg_dfid");
-        return value.isEmpty() ? "-" : value;
+        return value.isEmpty() ? DEFAULT_KG_DFID : value;
     }
 
     public static String getUserId(String def) {
@@ -155,11 +250,15 @@ public final class KugouHttpClient {
         return value.length() > max ? value.substring(0, max) : value;
     }
 
+    /**
+     * 输出日志 (默认关闭): 由 KugouSong.debug 或 log4j 的 "FMusic Server" logger debug 级别控制
+     * (可通过 log4j2 配置或 JVM 参数开启, 便于排障)
+     */
     public static void log(String message) {
-        if (!KugouSong.debug) {
+        if (!KugouSong.debug && !FMusicServer.LOGGER.isDebugEnabled()) {
             return;
         }
-        FMusic.log.data("<light_purple>[AllMusic3]" + message);
+        FMusic.log.data("<light_purple>[FMusic]" + message);
     }
 
     private static HttpResObj executeWebSongInfo(String url) {
@@ -269,6 +368,51 @@ public final class KugouHttpClient {
             return new HttpResObj(body, ok);
         } catch (Exception e) {
             log(StatCollector.translateToLocal("fmusic.log.kugou.android_req_fail"));
+            if (KugouSong.debug) {
+                e.printStackTrace();
+            }
+            return null;
+        } finally {
+            if (connection != null) {
+                connection.disconnect();
+            }
+        }
+    }
+
+    private static HttpResObj executeMobile(String url) {
+        HttpURLConnection connection = null;
+        try {
+            connection = (HttpURLConnection) new URL(url).openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(15_000);
+            connection.setReadTimeout(20_000);
+            connection.setUseCaches(false);
+            connection.setInstanceFollowRedirects(true);
+
+            // 与 kugou_share_parser.py 的 _base_headers(mobile=True) 完全一致, 不要附加 Web 头。
+            connection.setRequestProperty("User-Agent", MOBILE_UA);
+            connection.setRequestProperty("Accept", "*/*");
+            connection.setRequestProperty("Accept-Language", "zh-CN,zh;q=0.9");
+            connection.setRequestProperty("Referer", "https://m.kugou.com/");
+
+            log("<gray>酷狗移动端请求头：User-Agent=" + MOBILE_UA + "; Accept=*/*; Referer=https://m.kugou.com/");
+
+            int httpCode = connection.getResponseCode();
+            InputStream stream = httpCode >= 200 && httpCode < 400 ? connection.getInputStream()
+                : connection.getErrorStream();
+            String body = read(stream);
+            boolean ok = httpCode >= 200 && httpCode < 300;
+            log(
+                (ok ? "<gray>" : "<red>") + "酷狗移动端 HTTP="
+                    + httpCode
+                    + "，响应长度="
+                    + body.length()
+                    + "，响应SHA-256="
+                    + sha256Prefix(body));
+            logResponseBody("酷狗移动端", body);
+            return new HttpResObj(body, ok);
+        } catch (Exception e) {
+            log(StatCollector.translateToLocal("fmusic.log.kugou.mobile_req_fail"));
             if (KugouSong.debug) {
                 e.printStackTrace();
             }
@@ -464,6 +608,22 @@ public final class KugouHttpClient {
     /**
      * /music reload 时清空独立 cookie 文件缓存, 强制下次请求重新读取
      */
+    /**
+     * 独立酷狗 Cookie 文件是否已配置有效条目 (用于启动时提示)
+     */
+    public static boolean hasOwnCookie() {
+        List<CookieObj> cookies = ownCookies();
+        if (cookies == null || cookies.isEmpty()) {
+            return false;
+        }
+        for (CookieObj cookie : cookies) {
+            if (isUsableKugouCookie(cookie)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public static void clearCookieCache() {
         ownCookie = null;
         ownCookieStamp = -1;
@@ -740,7 +900,7 @@ public final class KugouHttpClient {
         return builder.toString();
     }
 
-    private static HttpResObj execute(org.apache.hc.client5.http.classic.methods.HttpUriRequestBase request,
+    private static HttpResObj execute(HttpUriRequestBase request,
         String errorMessage) {
         try (CloseableHttpResponse response = MusicHttpClient.client.execute(request)) {
             int httpCode = response.getCode();
