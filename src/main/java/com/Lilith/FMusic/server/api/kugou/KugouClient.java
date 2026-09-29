@@ -394,8 +394,9 @@ public final class KugouClient {
     private static KugouSong requestSharePage(String url) {
         try {
             HttpResObj response = KugouHttpClient.getPage(url);
-            if (response == null || response.data == null || response.data.trim()
-                .isEmpty()) {
+            if (response == null || response.data == null
+                || response.data.trim()
+                    .isEmpty()) {
                 return null;
             }
             Matcher matcher = DATA_FROM_SMARTY.matcher(response.data);
@@ -417,16 +418,12 @@ public final class KugouClient {
             KugouSong song = KugouSong.fromSmartyItem(item.getAsJsonObject());
             if (song == null || song.realId()
                 .isEmpty()) {
-                KugouHttpClient.log(
-                    StatCollector.translateToLocalFormatted("fmusic.log.kugou.share_no_hash", url));
+                KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.share_no_hash", url));
                 return null;
             }
             KugouHttpClient.log(
-                StatCollector.translateToLocalFormatted(
-                    "fmusic.log.kugou.share_ok",
-                    song.realId(),
-                    song.name,
-                    song.singer));
+                StatCollector
+                    .translateToLocalFormatted("fmusic.log.kugou.share_ok", song.realId(), song.name, song.singer));
             return song;
         } catch (Exception e) {
             KugouHttpClient.log(StatCollector.translateToLocalFormatted("fmusic.log.kugou.share_error", url));

@@ -1,6 +1,5 @@
 package com.Lilith.FMusic.server.api.kugou;
 
-import com.Lilith.FMusic.server.core.objs.music.LyricItemObj;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -17,6 +16,7 @@ import com.Lilith.FMusic.server.core.IMusicApi;
 import com.Lilith.FMusic.server.core.music.LyricSave;
 import com.Lilith.FMusic.server.core.objs.SearchMusicObj;
 import com.Lilith.FMusic.server.core.objs.message.ARG;
+import com.Lilith.FMusic.server.core.objs.music.LyricItemObj;
 import com.Lilith.FMusic.server.core.objs.music.SearchPageObj;
 import com.Lilith.FMusic.server.core.objs.music.SongInfoObj;
 import com.Lilith.FMusic.server.core.saves.MusicListSave;

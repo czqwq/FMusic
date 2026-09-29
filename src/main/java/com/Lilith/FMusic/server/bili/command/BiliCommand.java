@@ -1,11 +1,11 @@
 package com.Lilith.FMusic.server.bili.command;
 
-import net.minecraft.util.ChatComponentText;
 import java.util.Collections;
 import java.util.List;
 
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.ICommandSender;
+import net.minecraft.util.ChatComponentText;
 import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.server.bili.BiliMusicBridge;
@@ -29,8 +29,7 @@ public class BiliCommand extends CommandBase {
     public void processCommand(ICommandSender sender, String[] args) {
         BiliMusicBridge bridge = BiliMusicBridge.instanceForCommand();
         if (bridge == null) {
-            sender.addChatMessage(
-                new ChatComponentText(StatCollector.translateToLocal("bili.cmd.not_enabled")));
+            sender.addChatMessage(new ChatComponentText(StatCollector.translateToLocal("bili.cmd.not_enabled")));
             return;
         }
         new BiliMusicCommand(bridge).execute(new ForgeAudience(sender), getCommandName(), args);

@@ -1,9 +1,9 @@
 package com.Lilith.FMusic.server.core.command.sub;
 
-import com.Lilith.FMusic.server.bili.BiliMusicBridge;
 import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.Config;
+import com.Lilith.FMusic.server.bili.BiliMusicBridge;
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.command.ACommand;
 

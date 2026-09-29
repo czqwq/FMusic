@@ -1,7 +1,5 @@
 package com.Lilith.FMusic.server.api.kugou;
 
-import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
-import com.Lilith.FMusic.server.FMusicServer;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -23,11 +21,13 @@ import java.util.Map;
 import net.minecraft.util.StatCollector;
 
 import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.core5.http.HttpEntity;
 import org.apache.hc.core5.http.HttpMessage;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 
+import com.Lilith.FMusic.server.FMusicServer;
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.music.MusicHttpClient;
 import com.Lilith.FMusic.server.core.objs.CookieObj;
@@ -900,8 +900,7 @@ public final class KugouHttpClient {
         return builder.toString();
     }
 
-    private static HttpResObj execute(HttpUriRequestBase request,
-        String errorMessage) {
+    private static HttpResObj execute(HttpUriRequestBase request, String errorMessage) {
         try (CloseableHttpResponse response = MusicHttpClient.client.execute(request)) {
             int httpCode = response.getCode();
             HttpEntity entity = response.getEntity();

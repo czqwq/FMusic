@@ -1,8 +1,5 @@
 package com.Lilith.FMusic.server.api.qqmusic;
 
-import org.apache.hc.core5.http.HttpMessage;
-import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
-import com.Lilith.FMusic.server.FMusicServer;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -19,12 +16,15 @@ import net.minecraft.util.StatCollector;
 
 import org.apache.hc.client5.http.classic.methods.HttpGet;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
 import org.apache.hc.core5.http.ContentType;
 import org.apache.hc.core5.http.HttpEntity;
+import org.apache.hc.core5.http.HttpMessage;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.io.entity.StringEntity;
 
+import com.Lilith.FMusic.server.FMusicServer;
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.music.MusicHttpClient;
 import com.Lilith.FMusic.server.core.objs.CookieObj;
@@ -269,8 +269,7 @@ public class QQMusicHttpClient {
         return uin.isEmpty() ? "0" : uin;
     }
 
-    private static HttpResObj execute(HttpUriRequestBase request,
-        String errorMsg) {
+    private static HttpResObj execute(HttpUriRequestBase request, String errorMsg) {
         try (CloseableHttpResponse response = MusicHttpClient.client.execute(request)) {
             int httpCode = response.getCode();
             HttpEntity entity = response.getEntity();
