@@ -22,7 +22,7 @@ public class FMusic {
     public static final String MODID = "FMusic";
     public static final Logger LOG = LogManager.getLogger(MODID);
 
-    @SidedProxy(clientSide = "com.Lilith.FMusic.ClientProxy", serverSide = "CommonProxy")
+    @SidedProxy(clientSide = "com.Lilith.FMusic.ClientProxy", serverSide = "com.Lilith.FMusic.CommonProxy")
     public static CommonProxy proxy;
 
     @Mod.EventHandler

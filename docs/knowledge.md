@@ -720,3 +720,22 @@ java.util.logging.Logger 的 single-type-import 冲突 (改用全限定类型 or
   仍显示 `fmusic.api.kugou.album` 占位文本。
 - 酷狗/QQ 仍约有 55 处硬编码中文日志未走 `translateToLocal` (本轮新增日志已全部本地化)。
 
+## 28. 专用服务器崩溃: @SidedProxy 的 serverSide 必须写全限定名 (2026-09)
+
+- **现象**: CI 的 `runServer` 在 CONSTRUCTING → PREINITIALIZATION 阶段致命失败:
+  `ClassNotFoundException: CommonProxy`, 状态表显示 `FMusic` 为 `UE` (Errored)
+  报错上下文: `An error occured trying to load a proxy into {serverSide=CommonProxy, clientSide=com.Lilith.FMusic.ClientProxy}`
+- **根因**: `FMusic.java` 的 `@SidedProxy(clientSide = "com.Lilith.FMusic.ClientProxy", serverSide = "CommonProxy")`
+  里 serverSide **没写包名**。FML 的 `ProxyInjector.inject` 是 `Class.forName(proxyClassName)`
+  (单参版本, 见堆栈 `ProxyInjector.java:59` → `Class.forName0`), 不做包名补全, 因此 `"CommonProxy"` 必然 CNFE。
+- **为什么之前没暴露**: 客户端侧本来就是全限定名, 开发/联机测试跑的都是 `clientSide`;
+  只有 **dedicated server** 才会去加载 `serverSide`。
+  (另外 spotless 会删掉同包下冗余的 `import com.Lilith.FMusic.CommonProxy;`, 这行 import 与注解无关, 不是原因)
+- **修复**: `serverSide = "com.Lilith.FMusic.CommonProxy"` (一行)
+- **验证**: 本地 `gradlew runServer` 实测通过 — `Forge Mod Loader has successfully loaded 18 mods` →
+  `Done (2.457s)!` → `[FMusic]Started - 4.0.0`, netapi/qqmusic/kugou 三个内置音源全部注册,
+  `fmusic_task` / `fMusic_play` / `fmusic_search` 线程与数据库线程均启动
+- **教训**: 1.7.10 的 `@SidedProxy` 两个字符串都必须写全限定名; 改远端/新增 CI 的 dedicated server 任务时,
+  不能只看客户端能启动就认为代理配置正确
+
+
