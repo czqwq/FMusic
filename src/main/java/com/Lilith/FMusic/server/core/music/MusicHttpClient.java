@@ -30,6 +30,13 @@ public class MusicHttpClient {
     private static final int READ_TIMEOUT = 7;
     public static CloseableHttpClient client;
 
+    /**
+     * HTTP 客户端是否初始化成功 (失败时为 false: 音乐功能不可用, 但游戏/服务器仍可正常运行)
+     */
+    public static boolean isReady() {
+        return client != null;
+    }
+
     public static void init() {
         try {
             RequestConfig requestConfig = RequestConfig.custom()
@@ -39,8 +46,13 @@ public class MusicHttpClient {
             client = HttpClients.custom()
                 .setDefaultRequestConfig(requestConfig)
                 .build();
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (Throwable t) {
+            // 必须 catch Throwable: 依赖 (Apache HttpClient 5) 静态初始化失败抛的是
+            // NoClassDefFoundError / NoSuchFieldError 这类 Error, 只 catch Exception 会让它一路冒到
+            // FML 的 serverStarted / loadComplete 事件, 直接把服务器启动打崩。
+            client = null;
+            FMusic.log.data("FMusic: HTTP client init failed, music features are disabled. Cause: " + t);
+            t.printStackTrace();
         }
     }
 

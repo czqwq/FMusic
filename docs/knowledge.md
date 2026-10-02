@@ -738,4 +738,77 @@ java.util.logging.Logger 的 single-type-import 冲突 (改用全限定类型 or
 - **教训**: 1.7.10 的 `@SidedProxy` 两个字符串都必须写全限定名; 改远端/新增 CI 的 dedicated server 任务时,
   不能只看客户端能启动就认为代理配置正确
 
+## 29. 服务器启动崩溃: httpclient5 5.6 在旧版 Java 8 上的链接错误 (2026-10)
+
+### 现象
+
+```
+Description: Exception in server tick loop
+cpw.mods.fml.common.LoaderException: java.lang.NoClassDefFoundError:
+    Could not initialize class com.Lilith.FMusic.shadow.org.apache.hc.client5.http.impl.io.DefaultHttpClientConnectionOperator
+  at cpw.mods.fml.common.LoadController.transition(LoadController.java:163)
+  at cpw.mods.fml.common.Loader.serverStarted(Loader.java:803)
+Caused by: ... at com.Lilith.FMusic.server.core.music.MusicHttpClient.init(MusicHttpClient.java:41)
+                at com.Lilith.FMusic.server.core.FMusic.start(FMusic.java:278)
+                at com.Lilith.FMusic.server.FMusicServer.onServerStarted(FMusicServer.java:65)
+```
+
+### 根因
+
+- `httpclient5 5.6.x` 的 `DefaultHttpClientConnectionOperator.<clinit>` 无条件引用
+  `jdk.net.ExtendedSocketOptions.TCP_KEEPIDLE / TCP_KEEPINTERVAL / TCP_KEEPCOUNT`;
+  `httpcore5 5.4.x` 的 `ReflectionUtils` 也有同样引用。
+- 这些字段**在旧版 Java 8 上不存在**(报告里是 `1.8.0_51`; 较新的 8u492 已包含) →
+  `<clinit>` 首次执行抛 `NoSuchFieldError: TCP_KEEPIDLE`, 之后整个 JVM 里任何触碰该类/字段的代码
+  都变成 `NoClassDefFoundError: Could not initialize class ...`。
+- 客户端侧 `FMusicCore.init()` 会先踩到同样的坑 (它自己 new 了一个 HttpClient), 服务器只是第二个受害者;
+  两条崩溃报告 (2026-10-01 客户端 HUD NPE / 2026-10-02 服务器启动失败) 其实是**同一个根因**。
+- **为什么 CI / 本地没发现**: Linux + 新版 JDK (8u492 / 17~25) 上该字段存在; 只有 Windows + 旧 8u 才炸。
+  报告头部的 `Could not initialize class` 只是二次失败, 真实首因在日志正文里
+  (`FMusic client init failed ... NoSuchFieldError: TCP_KEEPIDLE`)。
+
+### 复现方法 (没有 8u51 也能验证这类 Java 版本链接错误)
+
+用 `-Xbootclasspath/p:` 前置一个**删掉了 TCP_KEEP\* 字段**的 `jdk.net.ExtendedSocketOptions` 桩类,
+在 Java 8 上跑探针即可精确复现 (脚本保留在 `tmp/tmp/hc5probe/`, 不清理):
+
+```powershell
+# 桩: tmp/tmp/hc5probe/jdk/net/ExtendedSocketOptions.java (只留 SO_FLOW_SLA)
+javac jdk/net/ExtendedSocketOptions.java; jar cf oldjdk8-stub.jar jdk/net/ExtendedSocketOptions.class
+# 探针: 用影子包名直接 build 一个 HttpClient
+java -Xbootclasspath/p:oldjdk8-stub.jar -cp "<probe>;FMusic-<ver>.jar" Hc5Probe
+```
+
+- 旧 jar (5.6.1): `RESULT=FAIL java.lang.NoSuchFieldError: TCP_KEEPIDLE`
+  `at ...DefaultHttpClientConnectionOperator.<clinit>(...:87)` —— 与玩家报告逐帧一致
+- 新 jar (5.5):   `RESULT=OK class=...InternalHttpClient`
+
+### 修复
+
+| 位置 | 改动 |
+|---|---|
+| `build.gradle.kts` | `httpclient5:5.6.1 → 5.5`, `httpcore5:5.4.2 → 5.3.6`, `httpcore5-h2:5.4.2 → 5.3.6` |
+| `MusicHttpClient` | `init()` 的 `catch (Exception)` 改为 `catch (Throwable)` 并记录 (`client = null`): `LinkageError` 是 `Error` 不是 `Exception`, 原来会一路冒到 FML 的 `serverStarted` 事件把服务器打崩; 新增 `isReady()` |
+| `NetApiHttpClient.get/post` | 入口判 `MusicHttpClient.isReady()`, 未就绪直接返回 null |
+| `QQMusicHttpClient.execute` / `KugouHttpClient.execute` | 同上判空 |
+
+快速体检 (扫影子 jar 内所有类是否引用 `jdk/net/`): 旧 jar **2 处**
+(`DefaultHttpClientConnectionOperator`, `ReflectionUtils`) → 新 jar **0 处**。
+
+### 验证记录
+
+- `gradlew build` (HC5 5.5): BUILD SUCCESSFUL (含 spotlessCheck / checkstyleMain)
+- Java 8 + 旧 JDK 桩: `Hc5Probe` FAIL → OK; `Hc5HttpProbe` 真实请求 `HTTP=200 bodyLen=3458` + `HTTPPROBE=OK`
+- `gradlew runServer` 回归: `Forge Mod Loader has successfully loaded 18 mods` → `Done (3.629s)!` →
+  netapi/qqmusic/kugou 三个 API 全部注册 → `[FMusic]Started - 4.0.0`
+
+### 教训
+
+- 阴影依赖的版本不能只看 API 兼容: 1.7.10 玩家可能跑很旧的 8u, 依赖里任何 `jdk.net.*` / Java 9+ API
+  引用都会变成"整个游戏起不来"的链接错误。
+- 初始化外部依赖必须 `catch (Throwable)`: `NoClassDefFoundError` / `NoSuchFieldError` / `ExceptionInInitializerError`
+  都是 `Error`; 只 catch `Exception` 会让"依赖坏了"升级成"服务器启动崩溃"。
+- 这类报告要看日志正文里的**第一次失败**, 报告头部的 `Could not initialize class` 只是二次失败。
+
+
 

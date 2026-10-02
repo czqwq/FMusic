@@ -270,6 +270,9 @@ public class QQMusicHttpClient {
     }
 
     private static HttpResObj execute(HttpUriRequestBase request, String errorMsg) {
+        if (!MusicHttpClient.isReady()) {
+            return null;
+        }
         try (CloseableHttpResponse response = MusicHttpClient.client.execute(request)) {
             int httpCode = response.getCode();
             HttpEntity entity = response.getEntity();

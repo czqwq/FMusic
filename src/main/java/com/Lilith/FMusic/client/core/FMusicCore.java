@@ -20,6 +20,7 @@ import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.message.BasicHeader;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.Configuration;
 import org.apache.logging.log4j.core.config.LoggerConfig;
@@ -61,7 +62,32 @@ public class FMusicCore {
      */
     private static FMusicHud hud;
 
+    private static final Logger LOGGER = LogManager.getLogger("FMusic Client");
+
+    /**
+     * 客户端核心未初始化完成的提示只打一次, 避免渲染线程每帧刷屏
+     */
+    private static volatile boolean initWarned = false;
+
     public static final ScheduledExecutorService service = Executors.newScheduledThreadPool(4);
+
+    /**
+     * 客户端核心是否已初始化 (hud 与 player 由 init()/renderInit() 一起创建)
+     */
+    public static boolean isInitialized() {
+        return hud != null && player != null;
+    }
+
+    private static void warnNotInitialized(String where) {
+        if (initWarned) {
+            return;
+        }
+        initWarned = true;
+        LOGGER.warn(
+            "FMusic client core is not initialized ({} called); skipping this action."
+                + " The client init log above explains why.",
+            where);
+    }
 
     /**
      * 更新音频缓存
@@ -194,15 +220,21 @@ public class FMusicCore {
         } catch (Exception e) {
             e.printStackTrace();
         }
-        hud.close();
+        if (hud != null) {
+            hud.close();
+        }
     }
 
     /**
      * 停止播放
      */
     private static void stopPlaying() {
-        player.closePlayer();
-        hud.clear();
+        if (player != null) {
+            player.closePlayer();
+        }
+        if (hud != null) {
+            hud.clear();
+        }
     }
 
     /**
@@ -218,6 +250,10 @@ public class FMusicCore {
      * 更新显示内容
      */
     public static void hudUpdate() {
+        if (hud == null) {
+            warnNotInitialized("hudUpdate");
+            return;
+        }
         hud.update();
     }
 
@@ -236,6 +272,11 @@ public class FMusicCore {
      * @param pack 数据
      */
     public static void packDo(MusicPack pack) {
+        // 核心没初始化好时忽略服务端下发的指令, 避免在 hud/player 上空指针
+        if (hud == null || player == null) {
+            warnNotInitialized("packDo/" + pack.type);
+            return;
+        }
         if (pack.type == CommandType.PLAY) {
             bridge.stopPlayMusic();
         }

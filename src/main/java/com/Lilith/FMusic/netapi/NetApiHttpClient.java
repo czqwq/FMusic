@@ -34,6 +34,9 @@ import com.google.gson.JsonObject;
 public class NetApiHttpClient {
 
     public static HttpResObj get(String path, String data) {
+        if (!MusicHttpClient.isReady()) {
+            return null;
+        }
         try {
             data = URLEncoder.encode(data, StandardCharsets.UTF_8.toString());
             HttpGet request = new HttpGet(path + data);
@@ -76,6 +79,9 @@ public class NetApiHttpClient {
     }
 
     public static HttpResObj post(String url, JsonObject data, EncryptType type, String ourl) {
+        if (!MusicHttpClient.isReady()) {
+            return null;
+        }
         try {
             HttpPost request = new HttpPost(url);
             request.setHeader("Content-Type", "application/x-www-form-urlencoded");

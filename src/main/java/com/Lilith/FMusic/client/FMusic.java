@@ -65,16 +65,64 @@ public class FMusic implements FMusicBridge {
                         .addToSentMessages(finalData));
     }
 
+    /**
+     * 所有模组加载完成后初始化 FMusic 客户端核心。
+     *
+     * <p>
+     * 这里必须失败安全: 核心没初始化好时, 后续的渲染 (RenderGameOverlayEvent) 与
+     * 断线 (ClientDisconnectionFromServerEvent) 事件仍然会触发, 原先会直接 NPE 崩掉客户端。
+     * 所以这里把所有失败原因都记录到日志 (日志不是给玩家看的, 直接用英文),
+     * 并且 FMusicCore 里对 hud/player 做了 null 保护。
+     *
+     * <p>
+     * 注意: 异常不能往外抛。@Mod.EventHandler 抛出的异常会一路冒到
+     * Loader.loadMods 导致启动直接失败 (dedicated server 的 @SidedProxy 崩溃就是这条路径)。
+     */
     public void test(final FMLLoadCompleteEvent event) {
-        Minecraft.getMinecraft()
-            .getSoundHandler();
+        try {
+            Minecraft.getMinecraft()
+                .getSoundHandler();
 
-        Library library = ((IGetSoundHandler) sound).fMusic_Client$getSoundLibrary();
-        IGetSound sound1 = (IGetSound) library;
-        List<Channel> list = sound1.fMusic_Client$getStreamingChannels();
-        ChannelLWJGLOpenAL channel = (ChannelLWJGLOpenAL) list.get(list.size() - 1);
-        FMusicCore.init(new File("config").toPath(), this, channel.ALSource);
-        FMusicCore.renderInit();
+            if (sound == null) {
+                LOGGER.error("FMusic client init aborted: sound system is not available yet (FMusic.sound == null)");
+                return;
+            }
+
+            Library library = ((IGetSoundHandler) sound).fMusic_Client$getSoundLibrary();
+            if (library == null) {
+                LOGGER.error("FMusic client init aborted: sound library is null (sound system not started)");
+                return;
+            }
+
+            List<Channel> list = ((IGetSound) library).fMusic_Client$getStreamingChannels();
+            if (list == null || list.isEmpty()) {
+                LOGGER.error(
+                    "FMusic client init aborted: sound library has no streaming channel (size={})",
+                    list == null ? "null" : String.valueOf(list.size()));
+                return;
+            }
+
+            // 取最后一个流式声道作为播放用的 OpenAL source
+            Object last = list.get(list.size() - 1);
+            if (!(last instanceof ChannelLWJGLOpenAL)) {
+                LOGGER.error(
+                    "FMusic client init aborted: unexpected channel type {} (expected ChannelLWJGLOpenAL)",
+                    last == null ? "null"
+                        : last.getClass()
+                            .getName());
+                return;
+            }
+            ChannelLWJGLOpenAL channel = (ChannelLWJGLOpenAL) last;
+
+            FMusicCore.init(new File("config").toPath(), this, channel.ALSource);
+            FMusicCore.renderInit();
+            LOGGER.info(
+                "FMusic client core initialized: streamingChannels={}, picSize={}",
+                list.size(),
+                FMusicCore.config == null ? "?" : String.valueOf(FMusicCore.config.picSize));
+        } catch (Throwable t) {
+            LOGGER.error("FMusic client init failed; music HUD and playback stay disabled", t);
+        }
     }
 
     public void preload(final FMLPreInitializationEvent evt) {

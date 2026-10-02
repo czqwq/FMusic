@@ -901,6 +901,9 @@ public final class KugouHttpClient {
     }
 
     private static HttpResObj execute(HttpUriRequestBase request, String errorMessage) {
+        if (!MusicHttpClient.isReady()) {
+            return null;
+        }
         try (CloseableHttpResponse response = MusicHttpClient.client.execute(request)) {
             int httpCode = response.getCode();
             HttpEntity entity = response.getEntity();

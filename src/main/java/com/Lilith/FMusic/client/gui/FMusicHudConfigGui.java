@@ -147,6 +147,10 @@ public class FMusicHudConfigGui extends GuiScreen {
      * 鼠标屏幕坐标 -> 模块配置偏移 (按当前 pos 方向反推 FMusicHud.getPos)
      */
     private Point2f inversePos(int mx, int my, HudPosType dir) {
+        if (FMusicCore.bridge == null) {
+            // 客户端核心没初始化好 (例如声音系统不可用): 退化成屏幕绝对坐标, 不要让 GUI 崩掉
+            return new Point2f(mx, my);
+        }
         float sw = FMusicCore.bridge.getScreenWidth();
         float sh = FMusicCore.bridge.getScreenHeight();
         float x = mx;
