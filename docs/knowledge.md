@@ -350,6 +350,15 @@ dependencies {
   实际 `§` 字符 → replace 无匹配静默跳过 → 指令永远走 else 分支显示用法提示
 - **规避**: 涉及转义/Unicode 的修改优先用全量 write 重写; replace 后立即 grep 验证目标内容存在
 
+### 新增文件漏 git add → CI 编译失败 (找不到符号)
+
+- 现象: 本地 `gradlew build` 全绿, CI 上却报
+  `MixinGuiChat.java:16: error: cannot find symbol import com.Lilith.FMusic.client.command.ClientCommandHint;`
+- 根因: 本次改造新增的 `client/command/ClientCommandHint.java` 从未 `git add` (IDE 只 add 了另外 5 个新文件),
+  CI 只构建**提交内容**, 于是混入类看不到它
+- 规避: 提交前 `git status --porcelain` 不应有 `??` 残留 (tmp/ 除外); 想完全复现 CI 就
+  `git clone . tmp/cibuild && cd tmp/cibuild && gradlew build` (本地 clone 共用同一 Gradle 缓存, 可离线)
+
 ### 构建 SSL 证书问题
 
 - 现象: 偶发 `SSLHandshakeException: certificate_unknown` (gradle 换 JVM 后信任库不同)
