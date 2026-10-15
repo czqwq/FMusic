@@ -3,10 +3,10 @@ package com.Lilith.FMusic.server.core.objs.message;
 public class LyricObj {
 
     public String data;
+    public Msg empty1;
+    public Msg empty2;
+    public Msg empty3;
     public String tdata;
-    public String empty1;
-    public String empty2;
-    public String empty3;
 
     public static LyricObj make() {
         LyricObj obj = new LyricObj();
@@ -15,19 +15,12 @@ public class LyricObj {
         return obj;
     }
 
-    public boolean check() {
-        if (data == null) return true;
-        if (tdata == null) return true;
-        if (empty1 == null) return true;
-        if (empty2 == null) return true;
-        return empty3 == null;
-    }
-
     public void init() {
-        if (data == null) data = ARG.lyric;
-        if (tdata == null) tdata = ARG.lyric + "(" + ARG.lyric + ")";
-        if (empty1 == null) empty1 = "没有歌词";
-        if (empty2 == null) empty2 = "没有翻译歌词";
-        if (empty3 == null) empty3 = "没有KTV歌词";
+        // 歌词拼装模板 (纯结构, 不翻译): 由调用方 replace(ARG.lyric, ...) 后使用
+        data = ARG.lyric;
+        tdata = ARG.lyric + "(" + ARG.lyric + ")";
+        empty1 = Msg.plain("fmusic.message.lyric.empty1", MsgColor.WHITE);
+        empty2 = Msg.plain("fmusic.message.lyric.empty2", MsgColor.WHITE);
+        empty3 = Msg.plain("fmusic.message.lyric.empty3", MsgColor.WHITE);
     }
 }

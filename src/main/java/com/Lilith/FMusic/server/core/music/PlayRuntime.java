@@ -10,6 +10,7 @@ import com.Lilith.FMusic.server.FMusicServer;
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
 import com.Lilith.FMusic.server.core.objs.message.ARG;
+import com.Lilith.FMusic.server.core.objs.message.Msg;
 import com.Lilith.FMusic.server.core.objs.music.MusicObj;
 import com.Lilith.FMusic.server.core.objs.music.SongInfoObj;
 import com.Lilith.FMusic.server.core.utils.HudUtils;
@@ -197,14 +198,14 @@ public class PlayRuntime {
                 vote = PlayMusic.nextVote();
                 if (vote != null) {
                     if (vote.getType() == VoteItem.VoteType.NEXT) {
-                        String data = FMusic.getMessage().vote.bq;
+                        Msg data = FMusic.getMessage().vote.bq;
                         data = data.replace(ARG.player, vote.getVoteSender())
                             .replace(ARG.time, String.valueOf(FMusic.getConfig().vote.voteTime))
                             .replace(ARG.countAll, String.valueOf(PlayRuntime.getMiniVote()));
                         FMusic.side.broadcast(data);
                         FMusic.side.broadcast(
-                            FMusic.side.miniMessage(FMusic.getMessage().vote.bq1)
-                                .append(FMusic.side.miniMessageRun(FMusic.getMessage().vote.bq2, "/music agree")));
+                            FMusic.getMessage().vote.bq1.component()
+                                .append(FMusic.side.button(FMusic.getMessage().vote.bq2, "/music agree")));
                     } else if (vote.getType() == VoteItem.VoteType.PUSH) {
                         SongInfoObj music = PlayMusic.getMusic(vote.getId(), vote.getApi());
                         if (music == null) {
@@ -212,7 +213,7 @@ public class PlayRuntime {
                             PlayMusic.removeVote();
                             return;
                         }
-                        String data = FMusic.getMessage().push.bq;
+                        Msg data = FMusic.getMessage().push.bq;
                         data = data.replace(ARG.player, vote.getVoteSender())
                             .replace(ARG.time, String.valueOf(FMusic.getConfig().vote.voteTime))
                             .replace(ARG.musicName, music.getName())
@@ -220,8 +221,8 @@ public class PlayRuntime {
                             .replace(ARG.countAll, String.valueOf(PlayRuntime.getMiniVote()));
                         FMusic.side.broadcast(data);
                         FMusic.side.broadcast(
-                            FMusic.side.miniMessage(FMusic.getMessage().push.bq1)
-                                .append(FMusic.side.miniMessageRun(FMusic.getMessage().push.bq2, "/music agree")));
+                            FMusic.getMessage().push.bq1.component()
+                                .append(FMusic.side.button(FMusic.getMessage().push.bq2, "/music agree")));
                     }
                 }
             }
@@ -243,7 +244,8 @@ public class PlayRuntime {
                         if (music != null) {
                             IMusicApi api = FMusic.MUSIC_APIS.get(music.api);
                             if (api != null && !api.isBusy()) {
-                                PlayMusic.addMusic(null, music.id, api, FMusic.getMessage().custom.idle, true);
+                                PlayMusic
+                                    .addMusic(null, music.id, api, FMusic.getMessage().custom.idle.resolve(), true);
                             }
                         }
                     }
@@ -265,7 +267,7 @@ public class PlayRuntime {
                         ? api.getPlayUrl(PlayMusic.nowPlayMusic.getId())
                         : PlayMusic.nowPlayMusic.getPlayerUrl();
                     if (PlayMusic.url == null) {
-                        String data = FMusic.getMessage().musicPlay.emptyCanPlay;
+                        Msg data = FMusic.getMessage().musicPlay.emptyCanPlay;
                         FMusic.side.broadcastInTask(data.replace(ARG.musicId, displayName()));
                         PlayMusic.nowPlayMusic = null;
                         continue;
@@ -285,7 +287,7 @@ public class PlayRuntime {
                         if (!FMusic.getConfig().mutePlayMessage) {
                             SongInfoObj music = PlayMusic.nowPlayMusic;
                             if (FMusic.getConfig().showInBar) {
-                                String info = FMusic.getMessage().musicPlay.nowPlay
+                                Msg info = FMusic.getMessage().musicPlay.nowPlay
                                     .replace(ARG.musicName, HudUtils.messageLimit(music.getName()))
                                     .replace(ARG.musicAuthor, HudUtils.messageLimit(music.getAuthor()))
                                     .replace(ARG.musicAl, HudUtils.messageLimit(music.getAl()))
@@ -293,8 +295,7 @@ public class PlayRuntime {
                                     .replace(ARG.player, music.getCall());
                                 FMusic.side.sendBarInTask(info);
                             } else {
-                                String info = FMusic.getMessage().musicPlay.nowPlay
-                                    .replace(ARG.musicName, music.getName())
+                                Msg info = FMusic.getMessage().musicPlay.nowPlay.replace(ARG.musicName, music.getName())
                                     .replace(ARG.musicAuthor, music.getAuthor())
                                     .replace(ARG.musicAl, music.getAl())
                                     .replace(ARG.musicAlia, music.getAlia())
@@ -324,7 +325,7 @@ public class PlayRuntime {
                         }
                         FMusic.side.sendStop();
                     } else {
-                        String data = FMusic.getMessage().musicPlay.emptyCanPlay;
+                        Msg data = FMusic.getMessage().musicPlay.emptyCanPlay;
                         FMusic.side.broadcastInTask(data.replace(ARG.musicId, displayName()));
                     }
                     clear();

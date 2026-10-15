@@ -1,7 +1,10 @@
 package com.Lilith.FMusic.server;
 
+import java.util.List;
+
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextComponent;
+import net.kyori.adventure.text.TranslatableComponent;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
@@ -74,14 +77,37 @@ public class ChatComponentSerializer {
             }
         }
 
-        // 文本内容
-        String text;
-        if (component instanceof TextComponent) {
-            text = ((TextComponent) component).content();
+        // 文本内容: translate 组件只发 key + 参数, 客户端按自己的语言渲染
+        if (component instanceof TranslatableComponent) {
+            TranslatableComponent translatable = (TranslatableComponent) component;
+            prop(sb, first, "translate", quote(translatable.key()));
+            first = false;
+
+            List<Component> args = translatable.args();
+            if (!args.isEmpty()) {
+                StringBuilder with = new StringBuilder("[");
+                boolean firstArg = true;
+                for (Component arg : args) {
+                    if (!firstArg) {
+                        with.append(',');
+                    }
+                    writeComponent(with, arg);
+                    firstArg = false;
+                }
+                with.append(']');
+                prop(sb, first, "with", with.toString());
+                first = false;
+            }
         } else {
-            text = "";
-        }
-        if (!text.isEmpty()) {
+            String text;
+            if (component instanceof TextComponent) {
+                text = ((TextComponent) component).content();
+            } else {
+                text = "";
+            }
+            // 必须总是写出 text: 只带样式没有内容的组件会变成 {"color":"yellow"} / {},
+            // 1.7.10 的 IChatComponent.Serializer 无法解析 (Don't know how to turn ... into a Component),
+            // 服务端 tick 路径上解析失败会崩服 (见 docs/knowledge.md §17/§32)
             prop(sb, first, "text", quote(text));
             first = false;
         }
@@ -118,8 +144,10 @@ public class ChatComponentSerializer {
             case RUN_COMMAND:
                 return "run_command";
             case SUGGEST_COMMAND:
-                // 1.7.10 无 suggest_command; 转为 run_command 使按钮可用
-                return "run_command";
+                // MC 1.7.10 支持 suggest_command: GuiChat#mouseClicked 会把它填进输入框
+                // (原版 /help 的按钮就是这么做的)。此前误转成 run_command, 导致"点我选择"
+                // 变成直接执行指令。
+                return "suggest_command";
             case OPEN_URL:
                 return "open_url";
             case CHANGE_PAGE:

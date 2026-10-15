@@ -50,6 +50,11 @@ public class CommandHud extends ACommand {
     }
 
     @Override
+    public Map<String, ICommand> subs() {
+        return commandList;
+    }
+
+    @Override
     public void execute(Object sender, String name, String[] args) {
         if (args.length == 1) {
             FMusic.side.sendMessage(sender, FMusic.getMessage().command.error);

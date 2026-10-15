@@ -2,9 +2,9 @@ package com.Lilith.FMusic.server.core.objs.message;
 
 public class ListMusicObj {
 
-    public String head;
-    public String item;
-    public String get;
+    public Msg get;
+    public Msg head;
+    public Msg item;
 
     public static ListMusicObj make() {
         ListMusicObj obj = new ListMusicObj();
@@ -13,27 +13,17 @@ public class ListMusicObj {
         return obj;
     }
 
-    public boolean check() {
-        boolean res = head == null;
-        if (item == null) res = true;
-        if (get == null) res = true;
-
-        return res;
-    }
-
     public void init() {
-        if (head == null) head = "<gold>[FMusic]<yellow>队列中有歌曲数：" + ARG.count;
-        if (item == null) item = "<yellow>" + ARG.index
-            + "->"
-            + ARG.musicName
-            + " | "
-            + ARG.musicAuthor
-            + " | "
-            + ARG.musicAl
-            + " | "
-            + ARG.musicAlia
-            + " | by: "
-            + ARG.player;
-        if (get == null) get = "<gold>[FMusic]<yellow>歌曲列表" + ARG.name + "获取成功";
+        head = Msg.prefixed("fmusic.message.listMusic.head", MsgColor.YELLOW)
+            .arg(ARG.count);
+        item = Msg.plain("fmusic.message.listMusic.item", MsgColor.YELLOW)
+            .arg(ARG.index)
+            .arg(ARG.musicName)
+            .arg(ARG.musicAuthor)
+            .arg(ARG.musicAl)
+            .arg(ARG.musicAlia)
+            .arg(ARG.player);
+        get = Msg.prefixed("fmusic.message.listMusic.get", MsgColor.YELLOW)
+            .arg(ARG.name);
     }
 }

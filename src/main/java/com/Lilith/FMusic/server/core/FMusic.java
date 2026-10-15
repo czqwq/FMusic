@@ -77,10 +77,6 @@ public class FMusic {
      */
     public static final String configVersion = "402";
     /**
-     * 语言文件配置版本号
-     */
-    public static final String messageVersion = "401";
-    /**
      * 日志
      */
     public static IFMusicLogger log;
@@ -116,10 +112,6 @@ public class FMusic {
      * Cookie文件
      */
     private static File cookieFile;
-    /**
-     * 语言文件
-     */
-    private static File messageFile;
 
     private static File apis;
     /**
@@ -139,17 +131,6 @@ public class FMusic {
             config = ConfigObj.make();
             log.data(StatCollector.translateToLocal("fmusic.log.core.config_wrong"));
             saveConfig();
-        }
-    }
-
-    /**
-     * 检查语言文件完整性
-     */
-    private static void messageCheck() {
-        if (message == null || message.check()) {
-            message = MessageObj.make();
-            log.data(StatCollector.translateToLocal("fmusic.log.core.message_wrong"));
-            saveMessage();
         }
     }
 
@@ -210,13 +191,12 @@ public class FMusic {
     }
 
     /**
-     * 获取语言文件
+     * 获取消息模板 (文本本身在 lang 文件里, 由客户端按自己的语言渲染)
      *
-     * @return 语言对象
+     * @return 消息对象
      */
     public static MessageObj getMessage() {
         if (message == null) {
-            log.data(StatCollector.translateToLocal("fmusic.log.core.message_wrong_default"));
             message = MessageObj.make();
         }
         return message;
@@ -240,17 +220,7 @@ public class FMusic {
     }
 
     public static void saveMessage() {
-        try {
-            String data = gson.toJson(message);
-            FileOutputStream out = new FileOutputStream(messageFile);
-            OutputStreamWriter write = new OutputStreamWriter(out, StandardCharsets.UTF_8);
-            write.write(data);
-            write.close();
-            out.close();
-        } catch (Exception e) {
-            log.data(StatCollector.translateToLocal("fmusic.log.core.message_save_err"));
-            e.printStackTrace();
-        }
+        // 文本已迁移到 lang i18n (assets/fmusic/lang), 不再有 message.json
     }
 
     /**
@@ -357,17 +327,6 @@ public class FMusic {
             reader.close();
             configCheck();
 
-            reader = new InputStreamReader(Files.newInputStream(messageFile.toPath()), StandardCharsets.UTF_8);
-            bf = new BufferedReader(reader);
-            message = gson.fromJson(bf, MessageObj.class);
-            bf.close();
-            reader.close();
-            messageCheck();
-
-            if (!message.version.equalsIgnoreCase(messageVersion)) {
-                log.data(StatCollector.translateToLocal("fmusic.log.core.lang_version_wrong"));
-            }
-
             reader = new InputStreamReader(Files.newInputStream(cookieFile.toPath()), StandardCharsets.UTF_8);
             bf = new BufferedReader(reader);
             Type listType = new TypeToken<ArrayList<CookieObj>>() {}.getType();
@@ -452,13 +411,9 @@ public class FMusic {
             file.mkdir();
 
             configFile = new File(file, "config.json");
-            messageFile = new File(file, "message.json");
             cookieFile = new File(file, "cookie.json");
             if (!configFile.exists()) {
                 configFile.createNewFile();
-            }
-            if (!messageFile.exists()) {
-                messageFile.createNewFile();
             }
             if (!cookieFile.exists()) {
                 cookieFile.createNewFile();

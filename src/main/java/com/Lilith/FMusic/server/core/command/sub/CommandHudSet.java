@@ -99,6 +99,11 @@ public class CommandHudSet extends AHudCommand {
     }
 
     @Override
+    public Map<String, ICommand> subs() {
+        return commandList;
+    }
+
+    @Override
     public void execute(Object sender, String name, String[] args) {
         if (args.length == 2) {
             FMusic.side.sendMessage(sender, FMusic.getMessage().command.error);

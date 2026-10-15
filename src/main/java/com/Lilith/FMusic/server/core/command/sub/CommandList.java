@@ -4,6 +4,7 @@ import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.command.ACommand;
 import com.Lilith.FMusic.server.core.music.PlayMusic;
 import com.Lilith.FMusic.server.core.objs.message.ARG;
+import com.Lilith.FMusic.server.core.objs.message.Msg;
 
 public class CommandList extends ACommand {
 
@@ -12,7 +13,7 @@ public class CommandList extends ACommand {
         if (PlayMusic.nowPlayMusic == null || PlayMusic.nowPlayMusic.isNull()) {
             FMusic.side.sendMessage(sender, FMusic.getMessage().musicPlay.emptyPlayingMusic);
         } else {
-            String info = FMusic.getMessage().musicPlay.nowPlay;
+            Msg info = FMusic.getMessage().musicPlay.nowPlay;
             info = info.replace(ARG.musicName, PlayMusic.nowPlayMusic.getName())
                 .replace(ARG.musicAuthor, PlayMusic.nowPlayMusic.getAuthor())
                 .replace(ARG.musicAl, PlayMusic.nowPlayMusic.getAl())

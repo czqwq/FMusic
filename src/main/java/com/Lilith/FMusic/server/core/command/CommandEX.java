@@ -37,9 +37,11 @@ import com.Lilith.FMusic.server.core.command.sub.CommandVote;
 import com.Lilith.FMusic.server.core.music.MusicSearch;
 import com.Lilith.FMusic.server.core.music.PlayMusic;
 import com.Lilith.FMusic.server.core.objs.message.ARG;
+import com.Lilith.FMusic.server.core.objs.message.Msg;
 import com.Lilith.FMusic.server.core.objs.music.PlayerAddMusicObj;
 import com.Lilith.FMusic.server.core.saves.BanSave;
 import com.Lilith.FMusic.server.core.saves.SaveTask;
+import com.Lilith.FMusic.server.core.utils.Function;
 
 public class CommandEX {
 
@@ -190,7 +192,7 @@ public class CommandEX {
      * @param message 结果消息
      * @return 结果
      */
-    public static boolean cost(Object sender, String name, int cost, String message) {
+    public static boolean cost(Object sender, String name, int cost, Msg message) {
         if (!FMusic.getConfig().cost.useCost || FMusic.economy == null) {
             return false;
         }
@@ -326,11 +328,18 @@ public class CommandEX {
     /**
      * 获取Tab指令列表
      *
+     * <p>
+     * 返回的候选必须已按当前输入词 (最后一个参数) 过滤: 客户端 GuiChat 依据该列表的公共前缀
+     * 自动补全, 若返回未过滤的整张表, 公共前缀恒为空, 按 Tab 会退化成 "从列表第一项开始逐个轮换"。
+     *
      * @param name 用户名
      * @param arg  参数
      * @return 指令列表
      */
     public static List<String> getTabList(Object sender, String name, String[] arg) {
+        if (arg == null) {
+            arg = new String[0];
+        }
         List<String> arguments = new ArrayList<>();
         if (arg.length == 0) {
             arguments.addAll(normal);
@@ -340,7 +349,8 @@ public class CommandEX {
             // 已注册音源 (qqmusic/kugou/netapi): /music <api> <id|url>
             arguments.addAll(FMusic.MUSIC_APIS.keySet());
             if (MusicSearch.getSearch(name) != null) {
-                return search;
+                arguments.clear();
+                arguments.addAll(search);
             }
         } else {
             if (arg[0] == null || arg[0].isEmpty() || arg.length == 1) {
@@ -351,7 +361,8 @@ public class CommandEX {
                 arguments.addAll(FMusic.MUSIC_APIS.keySet());
                 if (arg[0] == null || arg[0].isEmpty()) {
                     if (MusicSearch.getSearch(name) != null) {
-                        return search;
+                        arguments.clear();
+                        arguments.addAll(search);
                     }
                 }
             } else {
@@ -368,7 +379,7 @@ public class CommandEX {
             }
         }
 
-        return arguments;
+        return Function.filterStartsWith(arguments, arg.length == 0 ? "" : arg[arg.length - 1]);
     }
 
     /**

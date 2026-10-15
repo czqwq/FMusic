@@ -2,8 +2,8 @@ package com.Lilith.FMusic.server.core.objs.message;
 
 public class CommandObj {
 
-    public String error;
-    public String noPer;
+    public Msg error;
+    public Msg noPer;
 
     public static CommandObj make() {
         CommandObj obj = new CommandObj();
@@ -12,13 +12,8 @@ public class CommandObj {
         return obj;
     }
 
-    public boolean check() {
-        if (error == null) return true;
-        return noPer == null;
-    }
-
     public void init() {
-        if (error == null) error = "<gold>[FMusic]<red>参数错误，请输入/music help获取帮助";
-        if (noPer == null) noPer = "<gold>[FMusic]<red>你没有权限执行这个操作";
+        error = Msg.prefixed("fmusic.message.command.error", MsgColor.RED);
+        noPer = Msg.prefixed("fmusic.message.command.noPer", MsgColor.RED);
     }
 }

@@ -5,25 +5,25 @@ import com.Lilith.FMusic.codec.HudType;
 
 public class HudNameObj {
 
-    public String list;
-    public String lyric;
-    public String info;
-    public String state;
-    public String all;
-    public String pic;
-    public String picRoute;
-    public String picSpeed;
-    public String enable;
-    public String disable;
-    public String pos1;
-    public String pos2;
-    public String pos3;
-    public String pos4;
-    public String pos5;
-    public String pos6;
-    public String pos7;
-    public String pos8;
-    public String pos9;
+    public Msg all;
+    public Msg disable;
+    public Msg enable;
+    public Msg info;
+    public Msg list;
+    public Msg lyric;
+    public Msg pic;
+    public Msg picRoute;
+    public Msg picSpeed;
+    public Msg pos1;
+    public Msg pos2;
+    public Msg pos3;
+    public Msg pos4;
+    public Msg pos5;
+    public Msg pos6;
+    public Msg pos7;
+    public Msg pos8;
+    public Msg pos9;
+    public Msg state;
 
     public static HudNameObj make() {
         HudNameObj obj = new HudNameObj();
@@ -32,28 +32,30 @@ public class HudNameObj {
         return obj;
     }
 
-    public boolean check() {
-        if (list == null) return true;
-        if (lyric == null) return true;
-        if (state == null) return true;
-        if (info == null) return true;
-        if (all == null) return true;
-        if (picRoute == null) return true;
-        if (picSpeed == null) return true;
-        if (enable == null) return true;
-        if (pos1 == null) return true;
-        if (pos2 == null) return true;
-        if (pos3 == null) return true;
-        if (pos4 == null) return true;
-        if (pos5 == null) return true;
-        if (pos6 == null) return true;
-        if (pos7 == null) return true;
-        if (pos8 == null) return true;
-        if (pos9 == null) return true;
-        return pic == null;
+    public void init() {
+        list = Msg.plain("fmusic.message.hudName.list", MsgColor.WHITE);
+        state = Msg.plain("fmusic.message.hudName.state", MsgColor.WHITE);
+        lyric = Msg.plain("fmusic.message.hudName.lyric", MsgColor.WHITE);
+        info = Msg.plain("fmusic.message.hudName.info", MsgColor.WHITE);
+        pic = Msg.plain("fmusic.message.hudName.pic", MsgColor.WHITE);
+        all = Msg.plain("fmusic.message.hudName.all", MsgColor.WHITE);
+        picRoute = Msg.plain("fmusic.message.hudName.picRoute", MsgColor.WHITE);
+        picSpeed = Msg.plain("fmusic.message.hudName.picSpeed", MsgColor.WHITE);
+        enable = Msg.plain("fmusic.message.hudName.enable", MsgColor.WHITE);
+        disable = Msg.plain("fmusic.message.hudName.disable", MsgColor.WHITE);
+        pos1 = Msg.plain("fmusic.message.hudName.pos1", MsgColor.WHITE);
+        pos2 = Msg.plain("fmusic.message.hudName.pos2", MsgColor.WHITE);
+        pos3 = Msg.plain("fmusic.message.hudName.pos3", MsgColor.WHITE);
+        pos4 = Msg.plain("fmusic.message.hudName.pos4", MsgColor.WHITE);
+        pos5 = Msg.plain("fmusic.message.hudName.pos5", MsgColor.WHITE);
+        pos6 = Msg.plain("fmusic.message.hudName.pos6", MsgColor.WHITE);
+        pos7 = Msg.plain("fmusic.message.hudName.pos7", MsgColor.WHITE);
+        pos8 = Msg.plain("fmusic.message.hudName.pos8", MsgColor.WHITE);
+        pos9 = Msg.plain("fmusic.message.hudName.pos9", MsgColor.WHITE);
     }
 
-    public String getHud(HudType data) {
+    /** HUD 模块显示名 (作为消息参数时保持可翻译) */
+    public Msg getHud(HudType data) {
         if (data == null) {
             return all;
         }
@@ -66,11 +68,13 @@ public class HudNameObj {
                 return lyric;
             case STATE:
                 return state;
+            default:
+                return all;
         }
-        return null;
     }
 
-    public String getDir(HudPosType data) {
+    /** 对齐方式显示名 (作为消息参数时保持可翻译) */
+    public Msg getDir(HudPosType data) {
         if (data == null) {
             return all;
         }
@@ -95,27 +99,5 @@ public class HudNameObj {
                 return pos9;
         }
         return null;
-    }
-
-    public void init() {
-        if (list == null) list = "待播放列表";
-        if (state == null) state = "播放进度";
-        if (lyric == null) lyric = "歌词";
-        if (info == null) info = "歌曲信息";
-        if (pic == null) pic = "图片";
-        if (all == null) all = "所有位置";
-        if (picRoute == null) picRoute = "图片旋转";
-        if (picSpeed == null) picSpeed = "图片旋转速度";
-        if (enable == null) enable = "启用";
-        if (disable == null) disable = "关闭";
-        if (pos1 == null) pos1 = "左上";
-        if (pos2 == null) pos2 = "上";
-        if (pos3 == null) pos3 = "右上";
-        if (pos4 == null) pos4 = "左";
-        if (pos5 == null) pos5 = "居中";
-        if (pos6 == null) pos6 = "右";
-        if (pos7 == null) pos7 = "左下";
-        if (pos8 == null) pos8 = "下";
-        if (pos9 == null) pos9 = "右下";
     }
 }

@@ -11,6 +11,7 @@ import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
 import com.Lilith.FMusic.server.core.objs.SearchMusicObj;
 import com.Lilith.FMusic.server.core.objs.message.ARG;
+import com.Lilith.FMusic.server.core.objs.message.Msg;
 import com.Lilith.FMusic.server.core.objs.music.PlayerAddMusicObj;
 import com.Lilith.FMusic.server.core.objs.music.SearchPageObj;
 
@@ -74,32 +75,29 @@ public class MusicSearch {
     public static void showSearch(Object sender, SearchPageObj search) {
         int index = search.getIndex();
         SearchMusicObj item;
-        String info;
         FMusic.side.sendMessage(sender, "");
         if (search.haveLastPage()) {
             FMusic.side.sendMessage(
                 sender,
-                FMusic.side.miniMessage(FMusic.getMessage().search.lastPage)
-                    .append(FMusic.side.miniMessageRun(FMusic.getMessage().page.last, "/music lastpage")));
+                FMusic.getMessage().search.lastPage.component()
+                    .append(FMusic.side.button(FMusic.getMessage().page.last, "/music lastpage")));
         }
         for (int a = 0; a < index; a++) {
             item = search.getRes(a + search.getPage() * 10);
-            info = FMusic.getMessage().page.choice;
-            info = info.replace(ARG.index, "" + (a + 1))
+            Msg info = FMusic.getMessage().page.choice.replace(ARG.index, "" + (a + 1))
                 .replace(ARG.musicName, item.name)
                 .replace(ARG.musicAuthor, item.author)
                 .replace(ARG.musicAl, item.al);
             FMusic.side.sendMessage(
                 sender,
-                FMusic.side.miniMessage(info)
-                    .append(
-                        FMusic.side.miniMessageRun(FMusic.getMessage().click.clickRun, "/music select " + (a + 1))));
+                info.component()
+                    .append(FMusic.side.button(FMusic.getMessage().click.clickRun, "/music select " + (a + 1))));
         }
         if (search.haveNextPage()) {
             FMusic.side.sendMessage(
                 sender,
-                FMusic.side.miniMessage(FMusic.getMessage().search.nextPage)
-                    .append(FMusic.side.miniMessageRun(FMusic.getMessage().page.next, "/music nextpage")));
+                FMusic.getMessage().search.nextPage.component()
+                    .append(FMusic.side.button(FMusic.getMessage().page.next, "/music nextpage")));
         }
         FMusic.side.sendMessage(sender, "");
     }

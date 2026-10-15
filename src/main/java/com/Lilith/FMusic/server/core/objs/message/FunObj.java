@@ -2,7 +2,7 @@ package com.Lilith.FMusic.server.core.objs.message;
 
 public class FunObj {
 
-    public String rain;
+    public Msg rain;
 
     public static FunObj make() {
         FunObj obj = new FunObj();
@@ -11,13 +11,7 @@ public class FunObj {
         return obj;
     }
 
-    public boolean check() {
-        boolean res = rain == null;
-
-        return res;
-    }
-
     public void init() {
-        if (rain == null) rain = "<gold>[FMusic]<yellow>天空开始变得湿润";
+        rain = Msg.prefixed("fmusic.message.fun.rain", MsgColor.YELLOW);
     }
 }

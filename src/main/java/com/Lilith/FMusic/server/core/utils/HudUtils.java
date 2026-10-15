@@ -138,7 +138,7 @@ public class HudUtils {
     public static void sendHudNowData() {
         String info;
         if (PlayMusic.nowPlayMusic == null) {
-            info = FMusic.getMessage().hud.emptyMusic;
+            info = FMusic.getMessage().hud.emptyMusic.resolve();
         } else {
             info = FMusic.getMessage().hud.music.replace(ARG.name, infoLimit(PlayMusic.nowPlayMusic.getName()))
                 .replace(ARG.musicAuthor, infoLimit(PlayMusic.nowPlayMusic.getAuthor()))
@@ -164,7 +164,7 @@ public class HudUtils {
         String ktv;
         LyricSave obj = PlayMusic.lyric;
         if (obj == null) {
-            lyr = FMusic.getMessage().hud.emptyLyric;
+            lyr = FMusic.getMessage().hud.emptyLyric.resolve();
             tran = "";
             ktv = "";
         } else {

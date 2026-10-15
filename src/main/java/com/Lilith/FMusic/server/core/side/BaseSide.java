@@ -5,6 +5,8 @@ import java.util.Collection;
 import java.util.Locale;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.format.TextDecoration;
 import net.minecraft.util.StatCollector;
 
 import com.Lilith.FMusic.codec.CommandType;
@@ -13,6 +15,7 @@ import com.Lilith.FMusic.codec.MusicPack;
 import com.Lilith.FMusic.server.FMusicServer;
 import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.music.PlayMusic;
+import com.Lilith.FMusic.server.core.objs.message.Msg;
 import com.Lilith.FMusic.server.core.objs.music.PlayerAddMusicObj;
 import com.Lilith.FMusic.server.core.objs.music.SongInfoObj;
 import com.Lilith.FMusic.server.core.saves.HudSave;
@@ -521,6 +524,50 @@ public abstract class BaseSide {
     }
 
     /**
+     * 在主线程广播 i18n 消息
+     *
+     * @param msg 消息
+     */
+    public final void broadcastInTask(Msg msg) {
+        broadcastInTask(msg.component());
+    }
+
+    /**
+     * 在主线程更新信息栏 (i18n)
+     *
+     * @param msg 消息
+     */
+    public final void sendBarInTask(Msg msg) {
+        sendBarInTask(msg.component());
+    }
+
+    /**
+     * 可点击按钮: 文本走 i18n, 点击执行指令 (run_command)
+     *
+     * @param label   按钮文本
+     * @param command 点击执行的指令
+     * @return 组件
+     */
+    public final Component button(Msg label, String command) {
+        return label.component()
+            .decorate(TextDecoration.UNDERLINED)
+            .clickEvent(ClickEvent.runCommand(command));
+    }
+
+    /**
+     * 可点击按钮: 文本走 i18n, 点击把指令<b>填入聊天框</b> (suggest_command)
+     *
+     * @param label   按钮文本
+     * @param command 点击填入的指令
+     * @return 组件
+     */
+    public final Component suggestButton(Msg label, String command) {
+        return label.component()
+            .decorate(TextDecoration.UNDERLINED)
+            .clickEvent(ClickEvent.suggestCommand(command));
+    }
+
+    /**
      * 在主线程发送消息
      *
      * @param obj     接受对象
@@ -528,6 +575,16 @@ public abstract class BaseSide {
      */
     public final void sendMessageTask(Object obj, String message) {
         runTask(() -> sendMessage(obj, miniMessage(message)));
+    }
+
+    /**
+     * 在主线程发送 i18n 消息 (服务端只发 key + 参数, 各客户端按自己的语言渲染)
+     *
+     * @param obj 接受对象
+     * @param msg 消息
+     */
+    public final void sendMessageTask(Object obj, Msg msg) {
+        runTask(() -> sendMessage(obj, msg.component()));
     }
 
     /**
@@ -540,6 +597,15 @@ public abstract class BaseSide {
     }
 
     /**
+     * 广播 i18n 消息
+     *
+     * @param msg 消息
+     */
+    public final void broadcast(Msg msg) {
+        broadcast(msg.component());
+    }
+
+    /**
      * 发送消息
      *
      * @param obj     接受对象
@@ -547,6 +613,16 @@ public abstract class BaseSide {
      */
     public final void sendMessage(Object obj, String message) {
         sendMessage(obj, miniMessage(message));
+    }
+
+    /**
+     * 发送 i18n 消息
+     *
+     * @param obj 接受对象
+     * @param msg 消息
+     */
+    public final void sendMessage(Object obj, Msg msg) {
+        sendMessage(obj, msg.component());
     }
 
     /**
@@ -561,6 +637,20 @@ public abstract class BaseSide {
             return;
         }
         sendMessage(player, miniMessage(message));
+    }
+
+    /**
+     * 按玩家名发送 i18n 消息 (上游 AllMusic 兼容重载)
+     *
+     * @param name 玩家名
+     * @param msg  消息
+     */
+    public final void sendMessage(String name, Msg msg) {
+        Object player = getPlayer(name);
+        if (player == null) {
+            return;
+        }
+        sendMessage(player, msg.component());
     }
 
     public abstract Component miniMessage(String input);

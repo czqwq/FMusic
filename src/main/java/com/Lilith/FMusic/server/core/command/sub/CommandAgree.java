@@ -7,6 +7,7 @@ import com.Lilith.FMusic.server.core.music.PlayMusic;
 import com.Lilith.FMusic.server.core.music.PlayRuntime;
 import com.Lilith.FMusic.server.core.music.VoteItem;
 import com.Lilith.FMusic.server.core.objs.message.ARG;
+import com.Lilith.FMusic.server.core.objs.message.Msg;
 
 /**
  * /music agree 同意当前投票 (移植自 AllMusic 4.2.0 投票序列)
@@ -32,7 +33,7 @@ public class CommandAgree extends ACommand {
         }
 
         FMusic.side.sendMessage(name, FMusic.getMessage().vote.agree);
-        String data = FMusic.getMessage().vote.bqAgree;
+        Msg data = FMusic.getMessage().vote.bqAgree;
         data = data.replace(ARG.player, name)
             .replace(ARG.count, String.valueOf(vote.votePlayer.size()))
             .replace(ARG.countAll, String.valueOf(PlayRuntime.getMiniVote()));

@@ -15,6 +15,7 @@ import com.Lilith.FMusic.server.core.FMusic;
 import com.Lilith.FMusic.server.core.IMusicApi;
 import com.Lilith.FMusic.server.core.objs.config.LimitObj;
 import com.Lilith.FMusic.server.core.objs.message.ARG;
+import com.Lilith.FMusic.server.core.objs.message.Msg;
 import com.Lilith.FMusic.server.core.objs.music.MusicObj;
 import com.Lilith.FMusic.server.core.objs.music.PlayerAddMusicObj;
 import com.Lilith.FMusic.server.core.objs.music.SongInfoObj;
@@ -278,7 +279,7 @@ public class PlayMusic {
         if (sender != null) {
             // 此处只有音源内部标识(酷狗为 32 位 hash, 玩家看不懂), 不显示 ID;
             // 解析完成后由 "音乐列表添加<歌名>" 展示歌名, 播放失败时展示 "歌名(数字ID)"
-            String text = FMusic.getMessage().musicPlay.checkMusic.replace(ARG.musicId, "…");
+            Msg text = FMusic.getMessage().musicPlay.checkMusic.replace(ARG.musicId, "…");
             FMusic.side.sendMessageTask(sender, text);
         }
         FMusic.log.data(StatCollector.translateToLocalFormatted("fmusic.log.core.player_request", player, id));
@@ -287,7 +288,7 @@ public class PlayMusic {
             if (info == null) {
                 if (sender != null) {
                     // 解析失败时没有歌名/数字 ID 可用, 不显示音源内部标识(酷狗是 32 位 hash)
-                    String data = FMusic.getMessage().musicPlay.emptyCanPlay;
+                    Msg data = FMusic.getMessage().musicPlay.emptyCanPlay;
                     FMusic.side.sendMessageTask(sender, data.replace(ARG.musicId, "…"));
                 }
                 return;
@@ -302,7 +303,7 @@ public class PlayMusic {
             playList.add(info);
             if (!FMusic.getConfig().muteAddMessage) {
                 if (FMusic.getConfig().showInBar) {
-                    String data = FMusic.getMessage().musicPlay.addMusic
+                    Msg data = FMusic.getMessage().musicPlay.addMusic
                         .replace(ARG.musicName, HudUtils.messageLimit(info.getName()))
                         .replace(ARG.musicAuthor, HudUtils.messageLimit(info.getAuthor()))
                         .replace(ARG.musicAl, HudUtils.messageLimit(info.getAl()))
@@ -310,7 +311,7 @@ public class PlayMusic {
                         .replace(ARG.player, info.getCall());
                     FMusic.side.sendBarInTask(data);
                 } else {
-                    String data = FMusic.getMessage().musicPlay.addMusic.replace(ARG.musicName, info.getName())
+                    Msg data = FMusic.getMessage().musicPlay.addMusic.replace(ARG.musicName, info.getName())
                         .replace(ARG.musicAuthor, info.getAuthor())
                         .replace(ARG.musicAl, info.getAl())
                         .replace(ARG.musicAlia, info.getAlia())
@@ -401,7 +402,7 @@ public class PlayMusic {
         SongInfoObj info;
         for (int i = 0; i < playList.size(); i++) {
             info = playList.get(i);
-            a = FMusic.getMessage().musicPlay.listMusic.item;
+            a = FMusic.getMessage().musicPlay.listMusic.item.resolve();
             a = a.replace(ARG.index, String.valueOf(i + 1))
                 .replace(ARG.musicName, info.getName())
                 .replace(ARG.musicAuthor, info.getAuthor())

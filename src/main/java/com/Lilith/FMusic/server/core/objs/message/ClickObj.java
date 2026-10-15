@@ -2,8 +2,8 @@ package com.Lilith.FMusic.server.core.objs.message;
 
 public class ClickObj {
 
-    public String clickRun;
-    public String clickCheck;
+    public Msg clickCheck;
+    public Msg clickRun;
 
     public static ClickObj make() {
         ClickObj obj = new ClickObj();
@@ -12,13 +12,8 @@ public class ClickObj {
         return obj;
     }
 
-    public boolean check() {
-        if (clickRun == null) return true;
-        return clickCheck == null;
-    }
-
     public void init() {
-        if (clickRun == null) clickRun = "<aqua>[<underlined>点我选择</underlined>]";
-        if (clickCheck == null) clickCheck = "<aqua>[<underlined>点我查看</underlined>]";
+        clickRun = Msg.plain("fmusic.message.click.clickRun", MsgColor.AQUA);
+        clickCheck = Msg.plain("fmusic.message.click.clickCheck", MsgColor.AQUA);
     }
 }

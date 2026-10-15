@@ -9,6 +9,9 @@ Minecraft 1.7.10 (Forge) 音乐模组
 ## 功能
 
 - **点歌系统**: `/music` 指令 (搜索/点歌/选歌/列表/取消/投票切歌/插歌)
+- **指令帮助**: `/music help [子指令...]` 多级帮助 (用法 + 说明 + 子指令), 每行都可点击把指令填入聊天框
+- **输入即提示**: 打开聊天框输入 `/music ...` 时, 输入框上方实时显示当前子指令的用法与候选
+- **消息 i18n**: 玩家可见文本全部在 `assets/fmusic/lang/{zh_CN,en_US}.lang`, 服务端只发 i18n key + 参数, 各客户端按自己的语言渲染 (不再有 message.json; 改文案可用资源包覆盖 lang)
 - **HUD 显示**: 歌曲信息、滚动歌词、翻译歌词、KTV 逐字高亮、旋转唱片封面、播放进度条
 - **音频播放**: 服务端推送播放地址, 客户端直接流式拉取播放 (HTTP Range 断点续传)
 - **格式支持**: MP3 / FLAC / OGG / M4A (AAC)
@@ -37,7 +40,7 @@ gradlew.bat build
 
 ## 运行时
 
-- 服务端配置目录: `fmusic_server/` (config.json / message.json / ban.json / hud.json / music.json / players/) —— **单人游戏同样适用**: 客户端内嵌集成服务器,进入单机世界时也会读取该配置并运行完整音乐系统
+- 服务端配置目录: `fmusic_server/` (config.json / ban.json / hud.json / music.json / players/) —— **单人游戏同样适用**: 客户端内嵌集成服务器,进入单机世界时也会读取该配置并运行完整音乐系统
 - 客户端配置: `config/fmusic_client.json` (picSize 封面大小, queueSize 音频缓冲队列)
 - 网络信道: `fmusic:channel` (仅服务端→客户端)
 - 音乐 API: 内置 **netapi** (网易云音乐) / **qqmusic** (QQ音乐) / **kugou** (酷狗音乐),

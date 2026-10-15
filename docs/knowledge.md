@@ -87,7 +87,7 @@ FMusic.loadComplete   → ClientProxy: fMusicClient.test(event)
 - **信道**: 服务端 FMusicServer.channel 用于 sendTo 发包;客户端 preload 再次 newEventDrivenChannel("fmusic:channel") 用于收包。FML 按名字分发表,后者覆盖前者,两端各取所需,无需改动。
 - **proxy 持有实例** (非静态调用): 原 @Mod.EventHandler 是实例方法且要 register(this),故 CommonProxy/ClientProxy 各持有一个 final 实例字段。
 - **服务端代码在客户端同样运行** (集成服务器),与原版行为一致。**单人游戏实测通过** (runClient):
-  - 客户端 preInit 即执行 commonSetup → 在客户端运行目录创建/读取 `fmusic_server/` (config.json/message.json/ban.json/hud.json/music.json/cookie.json/players/api)
+  - 客户端 preInit 即执行 commonSetup → 在客户端运行目录创建/读取 `fmusic_server/` (config.json/ban.json/hud.json/music.json/cookie.json/players/api)
   - 进入单机世界 → FMLServerStarting/Started 事件触发 → FMusic.start() (线程+音乐API)
   - /music 指令在单人游戏中可用, 退出时 serverStopping → FMusic.stop()
   - 客户端运行目录: run/client (gradle.properties runClientWorkingDirectory)
@@ -159,8 +159,8 @@ FMusic.loadComplete   → ClientProxy: fMusicClient.test(event)
 ## 6. 服务端核心
 
 ### FMusic (com.Lilith.FMusic.server.core.FMusic) — 静态单例式
-- 常量: SERVER_DIR="fmusic_server/", channel="fmusic:channel", channelBC="fmusic:channelbc", version="4.0.0", configVersion="401", messageVersion="400"
-- 配置文件: config.json / message.json / cookie.json / ban.json / hud.json / music.json / players/*.json / api/(API jar 目录)
+- 常量: SERVER_DIR="fmusic_server/", channel="fmusic:channel", channelBC="fmusic:channelbc", version="4.0.0", configVersion="402" (messageVersion 已随 message.json 一并移除, 见 §31)
+- 配置文件: config.json / cookie.json / ban.json / hud.json / music.json / players/*.json / api/(API jar 目录)
 - init(File): 建目录→loadConfig→BanSave/HudSave/MusicListSave 加载→MusicApiLoader 扫 api/ 目录 jar
 - start(): MusicHttpClient.init + PlayMusic/PlayRuntime/MusicSearch/SaveTask 线程启动 + MUSIC_APIS 注册
 - stop(): PlayRuntime/SaveTask 停止 + side.sendStop() 广播停止包
@@ -169,6 +169,7 @@ FMusic.loadComplete   → ClientProxy: fMusicClient.test(event)
 ### 指令系统 (core/command)
 - CommandEX 静态注册表: commandList(普通 14 个: stop/help/list/vote/mute/search/searchapi/select/nextpage/lastpage/hud/push/join/cancel) + commandAdminList(管理员 12 个: reload/next/ban/unban/banplayer/unbanplayer/delete/addlist/clearlist/clearban/clearbanplayer/test)
 - CommandForge (/music) 转发: CommandEX.execute(sender, name, args) + tab 补全
+  (补全返回值**必须**已按当前输入词过滤, 见 §30)
 - **/music test 修复**: 原版对非整数 ID 静默无反应 (checkId 失败直接跳过);
   现支持 http/https 链接直接播放 (sendMusic(name, url) → PLAY 包), 非法 ID 给出明确反馈
 - 权限: needPermission 配置开关 → side.checkPermission / adminList; 经济: IEconomy 接口 + cost 配置
@@ -250,7 +251,7 @@ dependencies {
 
 ## 10. 运行时行为与测试
 
-- 配置目录: `fmusic_server/` (config.json, message.json, cookie.json, ban.json, hud.json, music.json, players/, api/)
+- 配置目录: `fmusic_server/` (config.json, cookie.json, ban.json, hud.json, music.json, players/, api/)
 - 首次启动自动生成默认配置 (check() 校验失败会覆盖)
 - 线程: fmusic_task(歌曲处理) / fMusic_play(播放) / fmusic_search(搜索) / 数据库线程(SaveTask) / allmusic_pic(图片) / fmusic_run(OpenAL 播放) / fmusic_ogg
 - 冒烟测试: `gradlew runServer` **不会自动退出**,需手动 kill (job_kill); 需 run/server/eula.txt 含 eula=true; 端口在 run/server/server.properties (本机 25565 被系统占用,测试用 25599)
@@ -272,11 +273,13 @@ dependencies {
   (声明 4.8.1 无效, gradle 解析到 4.26.1)
 - **修复**: 自写 ChatComponentSerializer (com.Lilith.FMusic.server) 输出 1.7.10 原生格式:
   - text/extra/color(小写命名色, 1.7.10 大小写不敏感)/bold/italic/underlined/strikethrough/obfuscated
-  - clickEvent: run_command/open_url/change_page; suggest_command → 转 run_command (1.7.10 无此动作)
+  - clickEvent: run_command/open_url/change_page; **1.7.10 有 suggest_command**
+      (ClickEvent.Action 枚举含 SUGGEST_COMMAND, GuiChat#mouseClicked 收到它会把内容填进输入框,
+      原版 /help 就是这么做的) —— 早前误转成 run_command 导致"点我选择"变成直接执行, 已修正 (见 §31)
   - hex 颜色不支持 (1.7.10 无), 忽略
 - **配色方案**: 前缀 <gold>[FMusic], 普通提示 <white>, 信息 <yellow>, 错误 <red>, 按钮 <aqua>
   (原: light_purple 前缀 + dark_green 正文; 36 个文件批量替换)
-- 注意: 运行时 message.json 是生成物, 老配色需删除重载或手动替换
+- 注意: 玩家可见文本已全部迁到 `assets/fmusic/lang` (见 §31), 不再有 message.json
 
 ## 13. netapi 内置音乐 API (网易云音乐)
 
@@ -513,8 +516,9 @@ java.util.logging.Logger 的 single-type-import 冲突 (改用全限定类型 or
 
 ### 范围与取舍
 - 已提取: 全部用户可见消息 + 命令反馈 + 新增模块日志 + 客户端日志 + netapi + 服务端核心日志
-- **未提取 (有意)**: objs/message 包的默认消息模板 (message.json 默认值, 支持用户改配置本地化;
-  若走 translateToLocal, dedicated 服务端(恒 en_US)首次生成会得到英文默认消息)
+- **已迁移 (2026-10, 见 §31)**: objs/message 的消息模板与 message.json 已全部移除;
+  消息改为 `Msg`(i18n key + 有序参数), 服务端只发 translate 组件, 客户端按自己的语言渲染;
+  服务端自身渲染的场景 (HUD 数据组装/日志) 用 `Msg#resolve()` = 服务端语言 (dedicated 恒英文)
 - **未提取 (待办)**: Kugou/QQ 的少量复杂多行日志 (含敏感信息处理逻辑: 不打印可转发凭据等),
   约 40 条, 处理需谨慎保持安全逻辑
 
@@ -537,7 +541,7 @@ java.util.logging.Logger 的 single-type-import 冲突 (改用全限定类型 or
   HelpNormalObj 加 agree (注意上游 init 有 bug: join= 应为 agree=, 已修正)
 - CommandVote/CommandPush 重写为 VoteItem 模型; CommandEX 注册 agree;
   CommandHelp 加 agree 行; CommandBan 用 getId; SongInfoObj 加 getId() 别名 (getID 保留兼容)
-- 用户配置文件已同步: config.json (limit/vote 块), message.json (新字段 + version 401)
+- 用户配置文件已同步: config.json (limit/vote 块); message.json 已于 §31 移除
 
 ### 说明
 - **IMusicApi 未升级到 4.2.0 接口** (search(String[]) 单参 + reload/command/tab):
@@ -810,5 +814,194 @@ java -Xbootclasspath/p:oldjdk8-stub.jar -cp "<probe>;FMusic-<ver>.jar" Hc5Probe
   都是 `Error`; 只 catch `Exception` 会让"依赖坏了"升级成"服务器启动崩溃"。
 - 这类报告要看日志正文里的**第一次失败**, 报告头部的 `Could not initialize class` 只是二次失败。
 
+## 30. Tab 补全退化为"从列表首项开始轮换": 候选必须按输入词过滤 (2026-10)
+
+### 现象
+
+聊天栏输入 `/music` 后用 Tab 补全, 已输入的前缀被**整张指令表的第一项覆盖**:
+`/music se` + Tab → 变成 `/music stop`, 再按 Tab 就在 `stop / help / list / vote ...` 之间逐个轮换,
+而不是补全成 `search`。`/music hud` + Tab 同样变 `stop` (前缀完全不参与匹配)。
+
+### 根因
+
+1.7.10 的补全链路 (源码 `build/rfg/minecraft-src/java/net/minecraft/client/gui/GuiChat.java`):
+
+1. `func_146404_p_()`: 按 Tab → `func_146405_a()` 发 `C14PacketTabComplete`, 同时清空候选表并返回
+   (首次按 Tab 客户端自己不会改输入框)
+2. 服务端 `NetHandlerPlayServer#processTabComplete` → `MinecraftServer#getPossibleCompletions`
+   → `CommandHandler#getPossibleCommands` → `CommandForge#addTabCompletionOptions` → `CommandEX#getTabList`
+3. 回包交给 `GuiChat#func_146406_a(String[])`:
+   `s2 = StringUtils.getCommonPrefix(服务端列表)`; 只有 **`s2` 非空且与当前词不同** 才写回 `s2` (自动补全),
+   否则置 `field_146417_i = true` 并调 `func_146404_p_()`, **从候选表第 0 项开始写并逐个轮换**。
+
+`CommandEX#getTabList` 当时把 `normal + admin + MUSIC_APIS` 全表直接返回 (`arg.length <= 1` 分支),
+子指令的 `command.tab(...)` 返回值也没过滤 → `getCommonPrefix(全表)` 恒为 `""` → 必然走第 3 步的轮换分支,
+于是"列表第一项"被写进输入框。列表顺序是 `HashMap.keySet()`, 所以首项是 `stop` 这种与输入毫无关系的指令。
+
+### 修复
+
+| 位置 | 改动 |
+|---|---|
+| `Function` (新增) | `filterStartsWith(list, prefix)`: 忽略大小写的前缀过滤, 语义 = vanilla `CommandBase#doesStringStartWith` / `getListOfStringsMatchingLastWord`; **返回新列表**, 不就地修改入参 |
+| `CommandEX#getTabList` | 末尾统一 `return Function.filterStartsWith(arguments, arg[arg.length - 1])` (最后一个参数 = 光标所在词); 子指令 tab() 的结果也被同一层过滤, 各 `Command*#tab` 无需自行实现前缀匹配 |
+| `CommandEX#getTabList` | `return search;` 改为拷回 `arguments`, 不再把静态列表交给调用方 (`ClientCommandHandler#autoComplete` 会就地 `commands.set(i, GRAY + name + RESET)`) |
+
+修复后行为与其它 MC 指令一致: 前缀唯一或可延长 → 直接补全
+(`/music se` → `search`, `/music sel` → `select`, `/music searchapi q` → `qqmusic`, `/music ban St` → `Steve`);
+只有确实存在多个候选时才在**候选内部**轮换 (`/music se` 第二次 Tab → `searchapi`)。
+
+### 验证记录
+
+- `gradlew --offline build` (含 spotlessCheck) 通过
+- `tmp/tabverify/` (保留, 可重跑):
+  - `FunctionFilterTest`: 用真实 `Function.java` 与 vanilla 语义 oracle 逐项对照 (15 个前缀 + null/空表/大小写/
+    返回列表独立性) 全绿
+  - `TabCompleteSim`: 按 `GuiChat#func_146404_p_ / func_146406_a` 原样建模, 修复前后对拍 ——
+    修复前 `/music se` → TAB#1 `stop`, TAB#2 `help`…; 修复后 `/music se` → `search` → `searchapi` → `select`
+  - 编译运行: `javac -encoding UTF-8 -d tmp/tabverify/out src/main/java/com/Lilith/FMusic/server/core/utils/Function.java tmp/tabverify/*.java`
+    → `java -cp tmp/tabverify/out FunctionFilterTest` / `TabCompleteSim`
+- `/fmusic` (客户端指令, `ClientProxy` 注册到 `ClientCommandHandler`) 不受影响: 服务端没有该指令 →
+  回包为空 → 公共前缀恒为空 (仍是轮换式), 但 `CommandFMusic#addTabCompletionOptions` 自己按前缀过滤,
+  所以 `/fmusic p` → `pause_at_freeze`、`/fmusic h` → `hudconfig` 正常
+
+### 教训
+
+服务端 `addTabCompletionOptions` 返回的不是"候选项集合", 而是**客户端据以计算公共前缀的字符串表**:
+必须先在服务端按当前输入词过滤, 否则 MC 会退化成"从列表首项开始的轮换菜单"。
+新增带 Tab 补全的指令时, 只要复用 `CommandEX#getTabList` (或 `Function#filterStartsWith`) 即可。
 
 
+
+
+## 31. 指令体验改造: 输入即提示 / 多级帮助 / 消息 i18n / 点击填充 (2026-10)
+
+### 背景
+
+原 `/music help` 是一次性打印 47 行固定文本 (message.json 的 `help.normal.*` / `help.admin.*`),
+没有二级帮助; 文本全部硬编码中文 (英文客户端也是中文); "点我选择"按钮因为把 suggest_command
+误转成 run_command 而变成直接执行; 玩家打字时没有任何用法提示。
+
+### 改动一览
+
+| 位置 | 内容 |
+|---|---|
+| `Msg` / `MsgColor` (新增) | 消息 = i18n key + 样式 + 有序参数槽; `replace(ARG.x, value)` 绑定值 (不可变), `component()` 出 translate 组件, `resolve()` 出服务端纯文本 |
+| `ChatComponentSerializer` | 支持 `TranslatableComponent` -> `{"translate":key,"with":[args]}` (1.7.10 原生支持, 客户端各自翻译); `SUGGEST_COMMAND` 恢复为 `suggest_command` |
+| `MessageObj` + 20 个 `*Obj` | 全部字段由 `String`(文案) 改为 `Msg`(key+参数); 删除 `message.json` 的生成/加载/校验 (`FMusic.messageFile/messageCheck/saveMessage/messageVersion`) 与 `HelpObj/HelpNormalObj/HelpAdminObj` |
+| `lang/zh_CN.lang` + `en_US.lang` | 新增 `fmusic.message.*` (129 条)、`fmusic.usage.*` / `fmusic.desc.*` (每指令节点 2 条)、`fmusic.help.*`、`fmusic.hint.*`; 语言文件里**不得**出现 MiniMessage 标签 (客户端只会原样显示) |
+| `CommandRegistry` (新增) | 指令树只读视图 (roots/children/find/fullPath) + 由路径推导 `fmusic.usage.<path>` / `fmusic.desc.<path>`; 各指令只需按需实现 `subs()` (hud 两级) |
+| `CommandHelp` (重写) | `/music help [子指令...]` 多级帮助: 总览(普通/管理分区) + 单节点详情(用法/说明/子指令/上一级); 每行 `suggest_command` 点击填入聊天框 |
+| `CommandHint` + `ClientCommandHint` (新增) | 纯逻辑提示 (不依赖 MC 类, 可独立测试) + 客户端 `StatCollector` 翻译; 随输入实时解析 token 路径, 给出候选/用法/说明 |
+| `MixinGuiChat` (新增) | `@Inject(drawScreen, TAIL)` 在聊天输入框上方一行绘制提示 (半透明底 + 描边字), 随打字即时刷新; mc/width/height 来自父类 GuiScreen, 用 `(GuiScreen)(Object)this` 取, 不能 @Shadow |
+| `CommandEX.getTabList` | (上一轮 §30) 按当前词过滤 + 大小写不敏感, 使 `/music HELP` + Tab 自动变成 `/music help`, 而直接执行 `/music HELP` 依旧不识别 (按歌名搜索) |
+
+### 关键约定
+
+- **聊天消息**: 服务端 `Msg#component()` -> translate 组件 -> 客户端渲染; 服务端不再拼文本。
+- **服务端自身渲染** (HUD 数据、日志、当作普通名称用的字符串): `Msg#resolve()`, 用服务端语言 (dedicated 恒英文)。
+- **样式**: 颜色/装饰放在组件上 (Msg 的 bodyColor/argColor), **不能**写进 lang (否则客户端显示 `<gold>` 原文)。
+- 新增指令时: 在 `CommandEX` 注册 + (可选) 实现 `subs()`; 用法/说明只要在 lang 里加
+  `fmusic.usage.<路径>` / `fmusic.desc.<路径>` 即可, 帮助与提示自动生效。
+
+### 验证记录 (`tmp/i18n/verify/VerifyI18n.java`, 跑真实编译产物)
+
+- `gradlew --offline build` 通过 (含 spotlessCheck/mixin AP/refmap)
+- lang 完整性: 130 条 Msg 的 key 在 zh/en 均存在, `%s` 个数与声明参数一一对应, 无标签残留;
+  69 个指令节点的 usage/desc key 齐备
+- `Msg` -> JSON: `{"color":"gold","text":"[FMusic]","extra":[{"color":"yellow","translate":...}]}`,
+  嵌套 HUD 名参数也是 translate 组件
+- 点击填充: `{"action":"suggest_command","value":"/music hud "}`
+- 提示: `/music` `/music ` `/music se` `/music HELP` `/music hud ` `/music hud info`
+  `/music hud info color ` `/music hud info color #FF0000` `/music 周杰伦` `/hello` 行为符合预期
+- Tab 容错: 服务端 `filterStartsWith` + GuiChat 算法对拍 —— `HELP -> help`, `SE -> search`,
+  `SEL -> select`, `HUD -> hud`, `zzz -> 无候选`
+
+### 教训
+
+- 1.7.10 的 `ClickEvent.Action.SUGGEST_COMMAND` 是存在的 (GuiChat 会填输入框), 不要凭印象降级成 run_command。
+- lang 文案由**客户端**渲染, 任何 MiniMessage/`§` 标记都会原样显示: 样式必须挂在组件上。
+- 帮助/提示这类要在客户端遍历的结构, 不能依赖配置或玩家状态 (客户端没有服务端上下文)。
+
+## 32. 空参数/纯样式组件序列化成 {"color":"..."} 导致聊天解析失败 (2026-10)
+
+### 现象
+
+`/music search` 出结果时服务端刷警告并回退纯文本 (客户端看到 adventure 的 toString 调试串),
+且只有"专辑名为空"的那一行炸, 其余行正常:
+
+```
+[FMusic] 聊天JSON解析失败, 回退纯文本: {"color":"yellow","translate":"fmusic.message.page.choice","with":[...,{"color":"yellow"}],...}
+com.google.gson.JsonParseException: Don't know how to turn {"color":"yellow"} into a Component
+```
+
+### 根因
+
+i18n 改造后消息参数是组件: 歌曲专辑名/别名可能为空串 -> `Msg` 的参数槽生成
+`Component.text("").color(YELLOW)`; ChatComponentSerializer 原先只在 text 非空时写 `"text"`,
+于是该节点序列化成只有颜色的 `{"color":"yellow"}` —— 1.7.10 的
+`IChatComponent$Serializer.deserialize` 要求节点必须有 `text` 或 `translate`, 否则抛异常
+(与 §17 的 `{}` 是同一类问题; 服务端 tick 路径抛异常会崩服, 这里被 parse 兜底救回, 但玩家看到调试串)。
+
+### 修复
+
+| 位置 | 改动 |
+|---|---|
+| `ChatComponentSerializer` | 非 translate 组件**总是**输出 `"text"` (空串也写), 保证每个节点都有 text/translate |
+| `Msg.Slot#asComponent` | 空字符串参数直接返回 `Component.empty()` (不再挂颜色) |
+
+### 验证
+
+- `tmp/i18n/verify/VerifyI18n#checkRoundTrip`: 把序列化结果交给**真实 1.7.10 解析器**
+  `IChatComponent.Serializer.func_150699_a(json)` 回环解析, 覆盖 空参数搜索行+按钮 / 嵌套 translate /
+  空组件 / 纯样式组件 / 无前缀消息, 7 条全通过
+- 修复后的搜索行 JSON (空专辑名): `...,{"color":"yellow","text":"辰星、"},{"text":""}],"extra":[...]}`
+
+### 教训
+
+"组件 = 内容(text/translate) + 样式" 的序列化必须保证每个节点都有内容字段: 只带样式没有内容的节点
+在 1.7.10 是非法的。给消息加参数后, 空值路径也要过一遍"真解析器回环"测试。
+
+## 33. 迁移遗漏: HUD/歌词模板被写成 = null (HudUtils NPE) (2026-10)
+
+### 现象
+
+播放音乐 / HUD 刷新时线程抛 NPE (聊天消息正常, 只有 HUD 链路炸):
+
+```
+java.lang.NullPointerException: Cannot invoke "String.replace(...)"
+  because "com.Lilith.FMusic.server.core.FMusic.getMessage().hud.music" is null
+	at HudUtils.sendHudNowData(HudUtils.java:143)
+	at PlayRuntime.musicPlayTask(PlayRuntime.java:318)
+```
+
+歌词刷新同理, 只是字段换成 `hud.klyric` (HudUtils.java:175)。
+
+### 根因
+
+迁移脚本把"参数拼装模板"误判成可翻译消息, 这 4 个字段在生成的 Java 里落成了 `= null`:
+
+| 字段 | 用途 |
+|---|---|
+| `HudObj.music` | HUD 歌曲信息行 (`%name% %music_author%\n...by: %player%`) |
+| `HudObj.klyric` | KTV 歌词 (`§b` + 歌词) |
+| `LyricObj.tdata` | 翻译歌词 (`%lyric%(%lyric%)`) |
+| `MusicPlayObj.musicInfo` | 歌单信息 (`SongInfoObj#getInfo`) |
+
+(`HudObj.lyric` / `tlyric` / `LyricObj.data` 因为原表达式恰好是纯 `ARG.lyric`, 生成出的 Java 仍可编译才侥幸正常。)
+message.json 时代这些字段由 JSON 反序列化填充, 改成 Java 初始化后没人赋值 → null。
+
+### 修复
+
+按 `git show HEAD` 的原文恢复 4 个模板表达式 (纯结构拼接, 不做 i18n), 并加注释说明"这是模板不是消息"。
+
+### 验证 (新增两道防线)
+
+- `VerifyI18n#checkNoNullFields`: 递归检查 `MessageObj` 对象树所有字段非 null, 并断言模板里
+  `ARG.name` / `ARG.player` / `ARG.musicName` / `ARG.lyric` 占位符仍然存在
+- `tmp/i18n/audit_args.py`: 静态审计 37 条带参消息 / 45 个调用点, 比对"声明参数槽 vs 调用点 replace 绑定"
+  (剩余 3 处命中 `CommandEX.cost()` 内部绑定, 已确认误报)
+
+### 教训
+
+"默认值原本靠配置反序列化填充"的字段, 改成代码初始化时必须逐个确认; 迁移脚本产出的 `= null` 一律当红旗排查。
+对象树非空检查 + 调用点参数绑定审计, 一起兜住这一类遗漏。
