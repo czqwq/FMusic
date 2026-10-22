@@ -1014,3 +1014,46 @@ message.json 时代这些字段由 JSON 反序列化填充, 改成 Java 初始�
 
 "默认值原本靠配置反序列化填充"的字段, 改成代码初始化时必须逐个确认; 迁移脚本产出的 `= null` 一律当红旗排查。
 对象树非空检查 + 调用点参数绑定审计, 一起兜住这一类遗漏。
+
+## 34. 手改 config.json 被重置回默认 (issues/2) (2026-10)
+
+### 现象
+
+手动修改 `fmusic_server/config.json` (`mutePlayMessage` / `muteAddMessage` / `adminList`) 后启动游戏,
+修改不生效且文件被覆盖回默认值; 开局域网作弊后 `/music reload` 同样被重置。稳定复现。
+
+### 根因 (两条叠加)
+
+1. **整体重置**: `FMusic.configCheck()` 原来只要 `ConfigObj.check()` 返回 true (= 配置缺任何一个段:
+   `adminList` / `economy` / `funConfig` / `limit` / `cost` / `vote` / `lyricReplace` 任一为 null),
+   就 `config = ConfigObj.make()` + `saveConfig()` —— 用**全默认**覆盖用户文件。
+   而 `ConfigObj.check()` 本身是修补式的 (原地补齐缺失段), 修补结果被外层直接丢弃。
+   旧版本 mod 生成的配置缺新版本新增的段 -> 每次启动都触发 -> 用户手改每次都被抹掉。
+   这也是 `/music reload` 的原因: `CommandReload` -> `BaseSide.reload()` -> `FMusic.init()` 走同一条 loadConfig 路。
+2. **解析失败静默用默认**: `loadConfig()` 的 catch 吞掉 Gson 异常后 `config` 保持 null,
+   后续 `getConfig()` 静默返回**内存**默认值 (不落盘) -> 表现就是"改了不生效"。
+   常见触发: 手改时多了/少了逗号引号; 或 Windows 记事本把文件存成 **UTF-8 with BOM**
+   (Gson 遇到 \uFEFF 直接 `JsonSyntaxException`, 而文件在磁盘上看起来完全正常)。
+
+### 修复
+
+| 位置 | 改动 |
+|---|---|
+| `FMusic.configCheck()` | 缺段时**保留** `check()` 修补后的对象 (用户其余设置不变), 只补 `version` 并落盘; 仅文件为空/不存在 (首次启动) 才生成完整默认配置 |
+| `FMusic.loadConfig()` | 新增 `openUtf8()`: 用 PushbackReader 剥离 BOM 后再交给 Gson (config.json + cookie.json); 解析失败时用默认配置继续运行但**不写盘**, 保留用户文件 (修好 JSON 后 `/music reload` 即可生效) |
+| `ConfigObj.check()` | `cost` 缺失分支不再顺带重置 `vote` (原来的语义错误) |
+
+### 验证 (`tmp/i18n/verify/VerifyConfig.java`, 直接跑真实 `FMusic.init()` / `loadConfig()`)
+
+- 老逻辑对照: 缺 `funConfig` 段的配置 -> `check()=true` -> 结果 `mutePlayMessage=false, adminList=[color_yr]` (复现 bug)
+- 修复后: 内存与落盘都保留 `mutePlayMessage=true / muteAddMessage=true / adminList=[WanQueen]`, 且 `funConfig` 自动补齐
+- UTF-8 with BOM 的 config.json 可正常读取 (旧逻辑解析失败)
+- 坏 JSON: 用默认值继续运行, 用户文件**原样保留** (未被覆盖)
+- 首次启动 (空文件): 仍生成完整默认配置
+- 回归: i18n 验证套件 27/27, `gradlew --offline build` 通过
+
+### 教训
+
+- "校验失败"不等于"必须整体重置": 能修补就修补, 只有文件不可用 (空/不存在) 时才重建。
+- 读用户可手改的 JSON 必须容忍 BOM (Windows 编辑器常见)。
+- 解析失败时宁可"内存用默认值 + 文件不动", 也不要覆盖用户手写的文件。

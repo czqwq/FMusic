@@ -604,3 +604,4 @@ fmusic.help.click=fill
 fmusic.message.push.err3=This song already has a push vote
 fmusic.usage.hud.reset=
 fmusic.desc.hud.reset=Reset all HUD positions
+fmusic.log.core.config_repair=<gold>[FMusic]<yellow>config.json was missing some sections, they were added and your settings were kept

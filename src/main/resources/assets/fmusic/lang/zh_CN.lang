@@ -605,3 +605,4 @@ fmusic.help.click=填入
 fmusic.message.push.err3=这首歌已经在插歌投票中了
 fmusic.usage.hud.reset=
 fmusic.desc.hud.reset=重置全部界面位置
+fmusic.log.core.config_repair=<gold>[FMusic]<yellow>配置文件缺少部分设置，已自动补齐并保留原有配置

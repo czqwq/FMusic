@@ -145,7 +145,6 @@ public class ConfigObj {
         if (cost == null) {
             saveConfig = true;
             cost = CostObj.make();
-            vote = VoteObj.make();
         }
         if (vote == null) {
             saveConfig = true;

@@ -1,11 +1,12 @@
 package com.Lilith.FMusic.server.core;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.io.PushbackReader;
+import java.io.Reader;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -125,11 +126,22 @@ public class FMusic {
 
     /**
      * 检查配置文件完整性
+     *
+     * <p>
+     * 缺个别配置段时只补齐缺失段并保留用户其余设置 (issues/2: 旧版本整体重置成默认,
+     * 会把手改的 mutePlayMessage/adminList 等全部覆盖掉)。只有文件为空/不存在时才生成完整默认配置。
      */
     public static void configCheck() {
-        if (config == null || config.check()) {
+        if (config == null) {
             config = ConfigObj.make();
             log.data(StatCollector.translateToLocal("fmusic.log.core.config_wrong"));
+            saveConfig();
+            return;
+        }
+        if (config.check()) {
+            // check() 已经在原地补齐缺失的段: 直接落盘, 用户手改的其余设置原样保留
+            config.version = configVersion;
+            log.data(StatCollector.translateToLocal("fmusic.log.core.config_repair"));
             saveConfig();
         }
     }
@@ -318,21 +330,11 @@ public class FMusic {
      */
     private static void loadConfig() {
         try {
-            InputStreamReader reader = new InputStreamReader(
-                Files.newInputStream(configFile.toPath()),
-                StandardCharsets.UTF_8);
-            BufferedReader bf = new BufferedReader(reader);
-            config = gson.fromJson(bf, ConfigObj.class);
-            bf.close();
-            reader.close();
+            config = gson.fromJson(openUtf8(configFile), ConfigObj.class);
             configCheck();
 
-            reader = new InputStreamReader(Files.newInputStream(cookieFile.toPath()), StandardCharsets.UTF_8);
-            bf = new BufferedReader(reader);
             Type listType = new TypeToken<ArrayList<CookieObj>>() {}.getType();
-            cookie = gson.fromJson(bf, listType);
-            bf.close();
-            reader.close();
+            cookie = gson.fromJson(openUtf8(cookieFile), listType);
             if (cookie == null) {
                 cookie = new ArrayList<>();
                 saveCookie();
@@ -342,12 +344,12 @@ public class FMusic {
             KugouHttpClient.clearCookieCache();
             QQMusicHttpClient.clearCookieCache();
 
-            if (!FMusic.configVersion.equalsIgnoreCase(config.version)) {
+            if (config != null && !configVersion.equalsIgnoreCase(config.version)) {
                 log.data(StatCollector.translateToLocal("fmusic.log.core.config_update"));
             }
 
             replacer = new StringReplacer();
-            if (!config.lyricReplace.isEmpty()) {
+            if (config != null && !config.lyricReplace.isEmpty()) {
                 for (Map.Entry<String, String> item : config.lyricReplace.entrySet()) {
                     replacer.put(item.getKey(), item.getValue());
                 }
@@ -357,9 +359,34 @@ public class FMusic {
             HudSave.loadHud();
             MusicListSave.loadMusic();
         } catch (Exception e) {
+            // JSON 语法/编码错误 (常见: 手改时多了/少了逗号引号, 或编辑器存成 UTF-8 with BOM):
+            // 用默认配置继续运行, 但不写盘 —— 用户手改的文件必须保留, 修好 JSON 后 /music reload 即可生效
             log.data(StatCollector.translateToLocal("fmusic.log.core.config_read_err"));
             e.printStackTrace();
+            if (config == null) {
+                config = ConfigObj.make();
+            }
+            replacer = new StringReplacer();
         }
+    }
+
+    /**
+     * 以 UTF-8 打开文本文件并剥离可能存在的 BOM。
+     *
+     * <p>
+     * Windows 记事本等编辑器会把文件保存成 UTF-8 with BOM, 而 UTF-8 的 InputStreamReader
+     * 不会剥掉 \uFEFF, Gson 遇到它直接解析失败 (issues/2 "手改 config.json 不生效"的帮凶)。
+     */
+    static Reader openUtf8(File file) throws IOException {
+        PushbackReader reader = new PushbackReader(
+            new InputStreamReader(Files.newInputStream(file.toPath()), StandardCharsets.UTF_8),
+            1);
+        int first = reader.read();
+        // 0xFEFF = BOM; 用数值避免源码里出现不可见字符
+        if (first != -1 && first != 0xFEFF) {
+            reader.unread(first);
+        }
+        return reader;
     }
 
     /**
