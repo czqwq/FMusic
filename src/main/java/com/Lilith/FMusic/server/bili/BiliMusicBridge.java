@@ -237,6 +237,8 @@ public final class BiliMusicBridge {
     }
 
     /** 默认配置 (JSON, 与原 config.yml 键一致) */
+    //恶俗啊
+    //TODO: Rework config system
     private static final String DEFAULT_CONFIG = "{" + "\"room-id\": 0,"
         + "\"auto-connect\": true,"
         + "\"cookie-file\": \"cookie.json\","

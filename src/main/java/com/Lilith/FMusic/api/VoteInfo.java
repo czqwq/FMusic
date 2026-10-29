@@ -38,6 +38,7 @@ public final class VoteInfo {
         this.queuedCount = queuedCount;
     }
 
+    //TODO: Fuck out that hard code
     @Override
     public String toString() {
         return "VoteInfo{" + type
