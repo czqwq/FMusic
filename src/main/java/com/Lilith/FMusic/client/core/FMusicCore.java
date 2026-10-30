@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import net.minecraft.util.StatCollector;
+
 import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.Header;
@@ -296,6 +298,10 @@ public class FMusicCore {
                 break;
             case PLAY:
                 MusicPack.StringMusicPack pack5 = (MusicPack.StringMusicPack) pack;
+                FMusicLog.debug(
+                    LOGGER,
+                    StatCollector
+                        .translateToLocalFormatted("fmusic.log.player.recv_play", pack5.data, player.isPlay()));
                 stopPlaying();
                 player.setMusic(pack5.data);
                 break;
@@ -304,6 +310,7 @@ public class FMusicCore {
                 hud.setImg(pack6.data);
                 break;
             case STOP:
+                FMusicLog.debug(LOGGER, StatCollector.translateToLocal("fmusic.log.player.recv_stop"));
                 stopPlaying();
                 break;
             case CLEAR:

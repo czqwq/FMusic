@@ -1057,3 +1057,49 @@ message.json 时代这些字段由 JSON 反序列化填充, 改成 Java 初始�
 - "校验失败"不等于"必须整体重置": 能修补就修补, 只有文件不可用 (空/不存在) 时才重建。
 - 读用户可手改的 JSON 必须容忍 BOM (Windows 编辑器常见)。
 - 解析失败时宁可"内存用默认值 + 文件不动", 也不要覆盖用户手写的文件。
+
+## 35. 播放器 nowTask 跨线程竞态 NPE (fml-client 日志) (2026-10)
+
+### 现象
+
+客户端日志 (STDERR/FMusic, fmusic_run 线程) 偶发:
+
+```
+java.lang.NullPointerException: Cannot read field "time" because "this.nowTask" is null
+    at FMusicPlayer.run(FMusicPlayer.java:283)
+```
+
+并且崩溃后没有清理: HTTP 连接/解码器泄漏, `isPlay` 停在 true (客户端原版音乐被持续压制),
+直到下一次 PLAY 前播放线程都无法回到干净状态。
+
+### 根因 (跨线程竞态)
+
+- `FMusicPlayer.nowTask` 是 `fmusic_run` 线程的"当前任务", 但 `closePlayer()` 由网络包线程调用
+  (FMLNetworkEvent 处理 PLAY/STOP 时, packDo → stopPlaying), 会直接把 nowTask 置 null。
+- `run()` 在 `tasks.pop()` 后把任务写入 nowTask, 然后**用 nowTask 走完整个初始化流程**:
+  `connect()`/`decoder.set()` 包含 HTTP 请求与解码表初始化, 网络慢时可达数秒。
+  这段窗口内若服务端发来 STOP (或下一首 PLAY), 包线程把 nowTask 置 null,
+  run 线程随后读取 `nowTask.time` / `nowTask.url` 就会 NPE (第 283 行 `if (nowTask.time != 0)`)。
+- 典型触发: 玩家进入世界时服务端补发 PLAY, 客户端 connect 歌曲 URL 较慢;
+  歌曲结束/切歌时服务端 sendStop 紧随其后 → 两个包落在同一段初始化窗口内。
+- 原来的外层 catch 只 `e.printStackTrace()` 就回到 `semaphore.acquire()`, 没有 streamClose/decodeClose,
+  状态也停留在初始化中途。
+
+### 修复 (client/core/FMusicPlayer)
+
+- 共享状态 (`nowTask`/`tasks`/`isClose`/`reload`/`pendingTime`) 统一由 `lock` 保护; 跨线程标志改 `volatile`。
+- `run()` 只使用局部变量 `task`, 不再解引用 `nowTask`; 长耗时初始化之后检查 `isCancelled(task)`
+  (nowTask 已不是它) → 关闭流/解码器并丢弃任务, 不再继续播旧歌或重复初始化。
+- seek 区分阶段: 启动阶段 (isPlay=false) 只更新 task.time, 由 run 在解码器就绪后统一应用;
+  播放阶段才 isClose+重排队重启。取消/失败路径补 streamClose/decodeClose/finishTask,
+  外层异常兜底 cleanupAfterFailure 释放资源。
+- 异步 OGG 解码线程在流关闭后 read 时抛 IOException (`requireContent()`), 避免二次 NPE。
+- 诊断: FMusicCore 的 PLAY/STOP 分支补上 `recv_play`/`recv_stop` debug 日志 (lang key 早已存在但未使用),
+  新增 `task_cancelled` 日志; 开启 FMusic.cfg 的 debug 后可直接看出"CANCEL 先于初始化完成"的时序。
+
+### 验证
+
+- `./gradlew --offline spotlessCheck build` 通过 (compileJava/refmap/checkstyle/shadowJar/reobfJar)。
+- 复现条件依赖网络慢 + 切歌/停止同时到达, 无单机自动化用例; 现场开启 debug 日志后
+  `task_cancelled` 与 `recv_stop` 相邻出现即命中本路径 (且不再有 NPE 堆栈)。
+

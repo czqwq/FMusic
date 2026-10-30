@@ -52,9 +52,10 @@ fmusic.bili.request_prefix=Request
 
 # Player debug logs (FMusicLog)
 fmusic.log.player.seek_cached=[FMusic] Seek requested while not playing, cached
-fmusic.log.player.seek_request=[FMusic] Seek requested
+fmusic.log.player.seek_request=[FMusic] Seek requested: %s ms
 fmusic.log.player.seek_applied=[FMusic] Applied cached seek: %s ms
 fmusic.log.player.task_start=[FMusic] Playback task started: %s time=%s ms
+fmusic.log.player.task_cancelled=[FMusic] Playback task cancelled by STOP/new PLAY, dropping this init
 fmusic.log.player.fetch_fail=[FMusic] Failed to fetch music: %s
 fmusic.log.player.fmt_m4a=[FMusic] Format: M4A (AAC)
 fmusic.log.player.fmt_mp3_id3=[FMusic] Format: MP3 (ID3)

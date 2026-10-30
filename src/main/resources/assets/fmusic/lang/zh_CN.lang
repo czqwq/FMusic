@@ -52,9 +52,10 @@ fmusic.bili.request_prefix=点歌
 
 # 播放器调试日志 (FMusicLog)
 fmusic.log.player.seek_cached=[FMusic] 跳转请求: 播放未开始, 已缓存
-fmusic.log.player.seek_request=[FMusic] 跳转请求
+fmusic.log.player.seek_request=[FMusic] 跳转请求: %s ms
 fmusic.log.player.seek_applied=[FMusic] 应用缓存跳转: %s ms
 fmusic.log.player.task_start=[FMusic] 播放任务开始: %s time=%s ms
+fmusic.log.player.task_cancelled=[FMusic] 播放任务已被 STOP/新 PLAY 取消, 丢弃本次初始化
 fmusic.log.player.fetch_fail=[FMusic] 获取音乐失败: %s
 fmusic.log.player.fmt_m4a=[FMusic] 格式: M4A (AAC)
 fmusic.log.player.fmt_mp3_id3=[FMusic] 格式: MP3 (ID3)

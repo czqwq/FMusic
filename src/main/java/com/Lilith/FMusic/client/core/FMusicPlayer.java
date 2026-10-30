@@ -31,23 +31,40 @@ import com.Lilith.FMusic.client.core.player.decoder.mp3.Mp3Decoder;
 import com.Lilith.FMusic.client.core.player.decoder.ogg.OggDecoder;
 import com.Lilith.FMusic.server.core.FMusic;
 
+/**
+ * OpenAL 流式音乐播放器。
+ * <p>
+ * 线程模型: 连接/解码/入队/清理等播放逻辑只在 fmusic_run 线程执行; 网络包线程
+ * (FMLNetworkEvent 处理 PLAY/STOP/POS)、客户端 tick 线程和定时器线程通过本类的公开方法
+ * 提交命令。共享状态 (nowTask/tasks/isClose/reload/pendingTime) 统一由 {@link #lock} 保护,
+ * 播放线程只持有短临界区, 不会在持锁时做网络连接、解码等耗时操作。
+ * <p>
+ * 播放线程必须通过局部变量 {@code task} 访问当前任务, 不能直接解引用 {@link #nowTask}:
+ * STOP/新 PLAY/退出服务器会在任意时刻把 nowTask 置 null, 直接解引用会抛 NullPointerException
+ * (历史 bug: 慢速 connect() 期间收到 STOP, run 线程在任务初始化尾部读取 nowTask.time 崩溃)。
+ */
 public class FMusicPlayer extends InputStream {
 
     private static final Logger LOGGER = LogManager.getLogger("FMusic Player");
 
+    /** 外部命令线程与 fmusic_run 线程的共享状态锁 */
+    private final Object lock = new Object();
     private final Stack<PlayTaskObj> tasks = new Stack<>();
     private final Semaphore semaphore = new Semaphore(0);
     private final Semaphore semaphoreReload = new Semaphore(0);
 
-    private PlayTaskObj nowTask;
+    /** 当前播放任务 (仅 fmusic_run 线程写入/置空, 外部请求停止时为 null); 播放线程只读局部快照 */
+    private volatile PlayTaskObj nowTask;
+    /** 当前任务的 URL, 仅 fmusic_run 线程访问 (断点续传重连用) */
+    private String taskUrl;
     private CloseableHttpResponse response;
     private BufferedInputStream content;
-    private boolean isClose = false;
-    private boolean reload = false;
+    private volatile boolean isClose = false;
+    private volatile boolean reload = false;
     private IDecoder decoder;
-    private boolean isPlay = false;
-    private boolean wait = false;
-    private int index = -1;
+    private volatile boolean isPlay = false;
+    private volatile boolean wait = false;
+    private volatile int index = -1;
     private final IntBuffer source;
     private long local;
     private long contentLength = -1;
@@ -55,15 +72,15 @@ public class FMusicPlayer extends InputStream {
     private long totalLength = -1;
     private int reconnectCount = 0;
     private int decodeErrorCount = 0;
-    private boolean isRun;
-    private boolean isChat;
+    private volatile boolean isRun;
+    private volatile boolean isChat;
     private int chatCount = 0;
     /**
      * 游戏暂停(单人按Esc, pause_at_freeze=true)时音乐是否被冻结
      */
-    private boolean frozen;
+    private volatile boolean frozen;
     /**
-     * POS 先于 PLAY 到达时缓存的跳转时间 (ms), 任务开始时应用
+     * POS 先于 PLAY 到达时缓存的跳转时间 (ms), 任务开始时应用; 由 lock 保护
      */
     private int pendingTime = 0;
 
@@ -75,9 +92,13 @@ public class FMusicPlayer extends InputStream {
 
     public void stop() {
         isRun = false;
-        isClose = true;
         semaphore.release();
         semaphoreReload.release();
+        synchronized (lock) {
+            isClose = true;
+            nowTask = null;
+            tasks.clear();
+        }
     }
 
     public void setChat() {
@@ -85,8 +106,10 @@ public class FMusicPlayer extends InputStream {
     }
 
     public void timerTick() {
-        if (isPlay && nowTask != null) {
-            nowTask.time += 10;
+        synchronized (lock) {
+            if (isPlay && nowTask != null) {
+                nowTask.time += 10;
+            }
         }
     }
 
@@ -95,23 +118,33 @@ public class FMusicPlayer extends InputStream {
     }
 
     public void setTime(int time) {
-        if (nowTask == null) {
-            // 播放任务尚未开始 (PLAY/POS 同批到达时 POS 先于任务弹出), 缓存待任务开始时应用
-            FMusicLog.debug(LOGGER, StatCollector.translateToLocal("fmusic.log.player.seek_cached"));
-            pendingTime = time;
-            return;
+        synchronized (lock) {
+            PlayTaskObj task = nowTask;
+            if (task == null) {
+                // 播放任务尚未开始 (PLAY/POS 同批到达时 POS 先于任务弹出), 缓存待任务开始时应用
+                FMusicLog.debug(LOGGER, StatCollector.translateToLocal("fmusic.log.player.seek_cached"));
+                pendingTime = time;
+                return;
+            }
+            FMusicLog.debug(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.seek_request", time));
+            task.time = time;
+            if (!isPlay) {
+                // 任务仍在启动阶段 (连接/解码器初始化), run 线程会在解码器就绪后应用新的 time, 无需重启
+                return;
+            }
+            isClose = true;
+            tasks.clear();
+            tasks.push(task);
+            semaphore.release();
         }
-        FMusicLog.debug(LOGGER, StatCollector.translateToLocal("fmusic.log.player.seek_request"));
-        isClose = true;
-        nowTask.time = time;
-        tasks.clear();
-        tasks.push(nowTask);
-        semaphore.release();
     }
 
     public void connect() throws IOException {
         streamClose();
-        HttpGet request = new HttpGet(nowTask.url);
+        if (taskUrl == null) {
+            throw new IOException("No active play task url");
+        }
+        HttpGet request = new HttpGet(taskUrl);
         request.setHeader("Range", "bytes=" + local + "-");
         response = FMusicCore.client.execute(request);
         int statusCode = response.getCode();
@@ -188,6 +221,85 @@ public class FMusicPlayer extends InputStream {
         }
     }
 
+    /**
+     * 从任务队列取出下一个播放任务 (fmusic_run 线程调用)。无任务时返回 null。
+     * 只在持锁的短临界区内修改共享状态, 后续耗时操作全部使用返回的局部 task。
+     */
+    private PlayTaskObj takeTask() {
+        synchronized (lock) {
+            if (tasks.isEmpty()) {
+                return null;
+            }
+            PlayTaskObj task = tasks.pop();
+            tasks.clear();
+            if (task == null || task.url == null || task.url.isEmpty()) {
+                nowTask = null;
+                return null;
+            }
+            if (pendingTime > 0) {
+                // 应用 PLAY 前到达的 POS 缓存, 避免从头播放
+                task.time = pendingTime;
+                FMusicLog.debug(
+                    LOGGER,
+                    StatCollector.translateToLocalFormatted("fmusic.log.player.seek_applied", pendingTime));
+                pendingTime = 0;
+            }
+            nowTask = task;
+            taskUrl = task.url;
+            isClose = false;
+            reload = false;
+            isPlay = false;
+            return task;
+        }
+    }
+
+    /**
+     * 任务是否已被 STOP / 新 PLAY / 退出服务器取消 (nowTask 不再是它)
+     */
+    private boolean isCancelled(PlayTaskObj task) {
+        synchronized (lock) {
+            return nowTask != task;
+        }
+    }
+
+    /**
+     * 结束当前任务: 复位播放标志并清空共享的当前任务引用 (只在 nowTask 仍是它时清空)
+     */
+    private void finishTask(PlayTaskObj task) {
+        frozen = false;
+        decodeErrorCount = 0;
+        taskUrl = null;
+        synchronized (lock) {
+            isPlay = false;
+            if (nowTask == task) {
+                nowTask = null;
+            }
+        }
+    }
+
+    /**
+     * 未预期异常兜底: 释放流/解码器并复位状态, 避免播放线程带着旧连接/解码器回到等待
+     */
+    private void cleanupAfterFailure() {
+        try {
+            streamClose();
+        } catch (Exception ignored) {
+            // 兜底清理, 忽略二次异常
+        }
+        try {
+            decodeClose();
+        } catch (Exception ignored) {
+            // 兜底清理, 忽略二次异常
+        }
+        frozen = false;
+        decodeErrorCount = 0;
+        taskUrl = null;
+        synchronized (lock) {
+            isPlay = false;
+            nowTask = null;
+        }
+    }
+
     private void run() {
         if (isRun) {
             return;
@@ -214,34 +326,23 @@ public class FMusicPlayer extends InputStream {
                 dequeue();
                 resetSource();
 
-                if (tasks.isEmpty()) {
+                PlayTaskObj task = takeTask();
+                if (task == null) {
                     continue;
                 }
 
-                nowTask = tasks.pop();
-                if (nowTask == null || nowTask.url == null || nowTask.url.isEmpty()) {
-                    continue;
-                }
-                tasks.clear();
-                if (pendingTime > 0) {
-                    // 应用 PLAY 前到达的 POS 缓存, 避免从头播放
-                    nowTask.time = pendingTime;
-                    FMusicLog.debug(
-                        LOGGER,
-                        StatCollector.translateToLocalFormatted("fmusic.log.player.seek_applied", pendingTime));
-                    pendingTime = 0;
-                }
                 FMusicLog.debug(
                     LOGGER,
-                    StatCollector.translateToLocalFormatted("fmusic.log.player.task_start", nowTask.url, nowTask.time));
+                    StatCollector.translateToLocalFormatted("fmusic.log.player.task_start", task.url, task.time));
                 try {
                     local = 0;
                     connect();
                 } catch (Exception e) {
                     FMusicLog.warn(
                         LOGGER,
-                        StatCollector.translateToLocalFormatted("fmusic.log.player.fetch_fail", nowTask.url));
+                        StatCollector.translateToLocalFormatted("fmusic.log.player.fetch_fail", task.url));
                     FMusicCore.bridge.sendMessage(StatCollector.translateToLocal("fmusic.player.fetch_fail"));
+                    finishTask(task);
                     continue;
                 }
 
@@ -271,23 +372,43 @@ public class FMusicPlayer extends InputStream {
 
                 if (!decoder.set()) {
                     streamClose();
+                    decodeClose();
                     FMusicCore.bridge.sendMessage(StatCollector.translateToLocal("fmusic.player.unsupported"));
+                    finishTask(task);
                     continue;
                 }
 
-                isPlay = true;
+                // connect()/decoder.set() 可能耗时数秒 (网络慢), 期间外部可能已发来 STOP 或新的 PLAY,
+                // 此时 nowTask 已不是当前 task: 必须放弃本任务, 否则会继续播放/重复初始化旧歌
+                if (isCancelled(task)) {
+                    FMusicLog.debug(LOGGER, StatCollector.translateToLocal("fmusic.log.player.task_cancelled"));
+                    streamClose();
+                    decodeClose();
+                    finishTask(task);
+                    continue;
+                }
 
                 int frequency = decoder.getOutputFrequency();
                 int channels = decoder.getOutputChannels();
-                if (channels != 1 && channels != 2) continue;
-                if (nowTask.time != 0) {
-                    FMusicLog.debug(
-                        LOGGER,
-                        StatCollector.translateToLocalFormatted("fmusic.log.player.seek_exec", nowTask.time));
-                    decoder.set(nowTask.time);
+                if (channels != 1 && channels != 2) {
+                    streamClose();
+                    decodeClose();
+                    finishTask(task);
+                    continue;
                 }
 
-                isClose = false;
+                int seek;
+                synchronized (lock) {
+                    // 启动阶段到达的 POS 只更新了 task.time, 这里统一读取并应用
+                    seek = task.time;
+                    isPlay = true;
+                }
+                if (seek != 0) {
+                    FMusicLog
+                        .debug(LOGGER, StatCollector.translateToLocalFormatted("fmusic.log.player.seek_exec", seek));
+                    decoder.set(seek);
+                }
+
                 boolean eof = false;
 
                 while (true) {
@@ -350,7 +471,7 @@ public class FMusicPlayer extends InputStream {
                             // 注意不能用 != AL_PLAYING: 暂停(PAUSED)状态下不能视为结束
                             FMusicLog.debug(
                                 LOGGER,
-                                StatCollector.translateToLocalFormatted("fmusic.log.player.play_end", nowTask.time));
+                                StatCollector.translateToLocalFormatted("fmusic.log.player.play_end", task.time));
                             break;
                         }
                     } catch (Exception e) {
@@ -390,29 +511,35 @@ public class FMusicPlayer extends InputStream {
                     resetSource();
                 }
 
-                if (reload) {
+                if (reload && !isCancelled(task)) {
                     FMusicLog.warn(
                         LOGGER,
-                        StatCollector
-                            .translateToLocalFormatted("fmusic.log.player.reload_replay", nowTask.time, local));
+                        StatCollector.translateToLocalFormatted("fmusic.log.player.reload_replay", task.time, local));
                     wait = true;
-                    if (semaphoreReload.tryAcquire(1, TimeUnit.SECONDS)) {
-                        if (reload) {
-                            reload = false;
-                            index = -1;
-                            tasks.push(nowTask);
-                            semaphore.release();
-                            continue;
+                    boolean acquired = semaphoreReload.tryAcquire(1, TimeUnit.SECONDS);
+                    wait = false;
+                    boolean replay = false;
+                    synchronized (lock) {
+                        // 等待期间可能已被 STOP/新 PLAY 取消, 取消后不能再重放旧任务
+                        if (acquired && reload && nowTask == task) {
+                            replay = true;
                         }
+                        reload = false;
+                    }
+                    if (replay) {
+                        index = -1;
+                        synchronized (lock) {
+                            tasks.push(task);
+                        }
+                        semaphore.release();
+                        continue;
                     }
                 }
 
-                isPlay = false;
-                frozen = false;
-                decodeErrorCount = 0;
                 FMusicLog.debug(
                     LOGGER,
                     StatCollector.translateToLocalFormatted("fmusic.log.player.task_end", reload, isClose));
+                finishTask(task);
 
                 if (!isRun) {
                     return;
@@ -423,6 +550,7 @@ public class FMusicPlayer extends InputStream {
                     StatCollector.translateToLocalFormatted("fmusic.log.player.task_exception", e.toString()),
                     e);
                 e.printStackTrace();
+                cleanupAfterFailure();
             }
         }
     }
@@ -456,28 +584,40 @@ public class FMusicPlayer extends InputStream {
         }
     }
 
+    /**
+     * 停止当前播放 (STOP/新 PLAY/退出服务器); 只清共享状态, 实际资源释放由播放线程完成
+     */
     public void closePlayer() {
+        synchronized (lock) {
+            closePlayerLocked();
+        }
+    }
+
+    private void closePlayerLocked() {
         isClose = true;
+        reload = false;
         nowTask = null;
         tasks.clear();
         pendingTime = 0;
     }
 
     public void setMusic(String url) {
-        if (nowTask != null && nowTask.url.equalsIgnoreCase(url)) {
-            return;
-        }
-        for (PlayTaskObj item : tasks) {
-            if (item.url.equalsIgnoreCase(url)) {
+        synchronized (lock) {
+            if (nowTask != null && nowTask.url != null && nowTask.url.equalsIgnoreCase(url)) {
                 return;
             }
-        }
+            for (PlayTaskObj item : tasks) {
+                if (item.url != null && item.url.equalsIgnoreCase(url)) {
+                    return;
+                }
+            }
 
-        closePlayer();
-        PlayTaskObj taskObj = new PlayTaskObj();
-        taskObj.time = 0;
-        taskObj.url = url;
-        tasks.push(taskObj);
+            closePlayerLocked();
+            PlayTaskObj taskObj = new PlayTaskObj();
+            taskObj.time = 0;
+            taskObj.url = url;
+            tasks.push(taskObj);
+        }
         semaphore.release();
     }
 
@@ -490,6 +630,18 @@ public class FMusicPlayer extends InputStream {
             content.close();
             content = null;
         }
+    }
+
+    /**
+     * 取当前音频流; 流已关闭时抛 IOException。
+     * 异步解码线程 (fmusic_ogg) 可能在播放线程关闭流之后还在读, 不能让它拿到 null 后 NPE。
+     */
+    private BufferedInputStream requireContent() throws IOException {
+        BufferedInputStream stream = content;
+        if (stream == null) {
+            throw new IOException("FMusic player stream is closed");
+        }
+        return stream;
     }
 
     private void decodeClose() throws Exception {
@@ -508,7 +660,7 @@ public class FMusicPlayer extends InputStream {
 
     @Override
     public int read() throws IOException {
-        int temp = content.read();
+        int temp = requireContent().read();
         if (temp >= 0) {
             local++;
         }
@@ -523,7 +675,7 @@ public class FMusicPlayer extends InputStream {
     @Override
     public long skip(long n) throws IOException {
         if (n <= 2048) {
-            long temp = content.skip(n);
+            long temp = requireContent().skip(n);
             local += temp;
             return temp;
         } else {
@@ -535,8 +687,10 @@ public class FMusicPlayer extends InputStream {
 
     @Override
     public synchronized int read(byte[] buf, int off, int len) throws IOException {
+        // 流已关闭 (播放任务被停止/切换) 时直接抛 IOException, 不触发断点重连
+        BufferedInputStream stream = requireContent();
         try {
-            int temp = content.read(buf, off, len);
+            int temp = stream.read(buf, off, len);
             if (temp > 0) {
                 local += temp;
                 reconnectCount = 0;
@@ -566,7 +720,7 @@ public class FMusicPlayer extends InputStream {
 
     @Override
     public synchronized int available() throws IOException {
-        return content.available();
+        return requireContent().available();
     }
 
     @Override
