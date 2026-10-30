@@ -217,19 +217,31 @@ public class ICStream implements Constants, HCB, ScaleFactorTable, IQTable {
                         Arrays.fill(data, off, off + width, 0);
                     }
                 } else if (hcb == NOISE_HCB) {
-                    // apply PNS: fill with random values
+                    // apply PNS: 用 LCG 生成伪随机谱线, 再把频带能量缩放到解码出的噪声能量
                     for (w = 0; w < groupLen; w++, off += 128) {
                         float energy = 0;
 
                         for (k = 0; k < width; k++) {
-                            randomState *= 1664525 + 1013904223;
+                            // LCG: state = state * 1664525 + 1013904223 (int 溢出即 mod 2^32)
+                            // 注意不能写成 randomState *= 1664525 + 1013904223:
+                            // 只乘不加会让状态在约 14 个样本后变成 0 (而且永远 0), 之后
+                            // energy=0 -> scale=Infinity -> 谱线 NaN -> 整帧解码成静音,
+                            // 表现为播放"断断续续/卡顿音"
+                            randomState = randomState * 1664525 + 1013904223;
                             data[off + k] = randomState;
                             energy += data[off + k] * data[off + k];
                         }
 
-                        final float scale = (float) (scaleFactors[idx] / Math.sqrt(energy));
-                        for (k = 0; k < width; k++) {
-                            data[off + k] *= scale;
+                        if (energy > 0) {
+                            final float scale = (float) (scaleFactors[idx] / Math.sqrt(energy));
+                            for (k = 0; k < width; k++) {
+                                data[off + k] *= scale;
+                            }
+                        } else {
+                            // 兜底: 避免 0/0 产生 NaN 污染后续 IMDCT 状态
+                            for (k = 0; k < width; k++) {
+                                data[off + k] = 0;
+                            }
                         }
                     }
                 } else {

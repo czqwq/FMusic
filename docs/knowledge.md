@@ -1154,4 +1154,55 @@ java.lang.NullPointerException: Cannot read field "time" because "this.nowTask" 
   不使用 size/br 估算, 无此 8 秒量化问题; 本次只影响 netapi (网易云)。
 - `fixSongTime` 语义不变: 正值=多给尾部留时间, 负值=提前切歌; 现在它只影响停止时机, 不再污染 HUD 总时长。
 
+## 37. AAC PNS 伪随机数 bug → 部分歌曲播放"断断续续/卡顿音" (2026-10)
+
+### 现象
+
+网易云歌曲 (`https://music.163.com/song?id=1958749017`, 96 kbps standard AAC) 播放时声音断断续续,
+大量片段无声 (不是网络卡: 下载正常、解码不报错、进度条/时间正常走), 换一首高码率歌 (exhigh 256 kbps) 却正常。
+
+### 根因 (AAC 解码器 PNS 的 LCG 写错 + NaN 传播)
+
+`m4a/aac/syntax/ICStream.decodeSpectralData` 的 PNS (Perceptual Noise Substitution) 分支:
+
+```java
+randomState *= 1664525 + 1013904223;   // BUG: 只乘不加
+```
+
+正确 LCG 是 `randomState = randomState * 1664525 + 1013904223` (int 溢出即 mod 2^32)。
+`randomState` 是 static 字段 (seed `0x1F2E3D4C`), 只乘不加会让它的 2 的幂因子每次 +2,
+**约 14 个样本后 randomState 变成 0, 且永远为 0** (0 乘任何数还是 0)。之后每个 PNS 频带:
+
+```
+energy = 0 → scale = scaleFactors / sqrt(0) = ±Infinity → data *= Inf → 0*Inf = NaN
+```
+
+NaN 经 IMDCT/窗叠加 (filterbank 的 overlap 是跨帧状态) 污染后续帧 → 成片静音。
+96 kbps 这类高压缩 AAC 大量使用 PNS 编码噪声频带, 所以整首歌 72.8% 的帧解出静音;
+高码率 AAC (256 kbps) 几乎不用 PNS, 所以正常 → 与"只有部分歌卡顿"的现场一致。
+PNS 频带原本应该解成"能量正确的噪声", 写错后变成静音, 听感就是音乐断断续续。
+
+### 修复 (`m4a/aac/syntax/ICStream`)
+
+- `randomState = randomState * 1664525 + 1013904223` (正确 LCG)
+- energy<=0 时直接填 0 兜底, 避免 `0/0` 产生 NaN 再污染 IMDCT 跨帧状态
+
+### 验证 (项目解码器 vs ffmpeg 参考解码, 逐帧)
+
+- 复现脚本: `tmp/bench/DecodeToPcm.java` (项目 M4ADecoder 解码为 PCM)、`tmp/bench/DecodeBench.java` (帧耗时)、
+  `tmp/netapi_pcm_compare.py` (与 ffmpeg 参考 PCM 逐帧 RMS 对比)
+- 修复前 (song 1958749017): 9441 帧中 **6873 帧 (72.8%)** ffmpeg 有声、项目解码器静音
+- 修复后: **2 帧** (仅在首尾/静音边界, 因为 ffmpeg 会按 edit list 裁掉 2 帧 AAC priming);
+  按 2 帧对齐后逐帧 RMS 误差从 2486 降到 **34.4**
+- 解码性能无回归: 147x 实时, 最慢单帧 25.8 ms (仅第 0 帧 JIT 预热), 每帧 PCM 样本数恒为 1024
+- 对照歌曲 3427211241 (256 kbps, 几乎无 PNS): 修复前后都无静音帧差异
+- `./gradlew --offline spotlessCheck build` 通过
+
+### 备注
+
+- 该 bug 是 JAAD 移植代码原样带入的 (`git log` 显示随 "Complete music func port" 一起提交),
+  所有走 m4a/AAC 的歌曲都会受影响, 只是 PNS 使用比例不同; 本次仅改解码器 PNS, 不影响其他格式。
+- 项目解码器不做 AAC priming (edit list) 裁剪, 相对 ffmpeg 参考有 ~2 帧 (≈46 ms) 的固定偏移, 听感无影响。
+
+
 
