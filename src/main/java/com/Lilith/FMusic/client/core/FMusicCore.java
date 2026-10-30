@@ -234,6 +234,13 @@ public class FMusicCore {
         if (player != null) {
             player.closePlayer();
         }
+        clearHudOnly();
+    }
+
+    /**
+     * 只清 HUD, 不打断当前播放 (用于已到文件尾的收尾 STOP/切歌, 让尾部缓冲自然播完)
+     */
+    private static void clearHudOnly() {
         if (hud != null) {
             hud.clear();
         }
@@ -302,8 +309,17 @@ public class FMusicCore {
                     LOGGER,
                     StatCollector
                         .translateToLocalFormatted("fmusic.log.player.recv_play", pack5.data, player.isPlay()));
-                stopPlaying();
-                player.setMusic(pack5.data);
+                if (player.isNearEnd()) {
+                    // 上一首已解码到文件尾, 只剩缓冲里的尾巴: 不硬切, 新歌排队等它自然播完
+                    FMusicLog.debug(
+                        LOGGER,
+                        StatCollector.translateToLocalFormatted("fmusic.log.player.next_queued", pack5.data));
+                    clearHudOnly();
+                    player.queueMusic(pack5.data);
+                } else {
+                    stopPlaying();
+                    player.setMusic(pack5.data);
+                }
                 break;
             case IMG:
                 MusicPack.StringMusicPack pack6 = (MusicPack.StringMusicPack) pack;
@@ -311,7 +327,14 @@ public class FMusicCore {
                 break;
             case STOP:
                 FMusicLog.debug(LOGGER, StatCollector.translateToLocal("fmusic.log.player.recv_stop"));
-                stopPlaying();
+                if (player.isNearEnd()) {
+                    // 服务端按歌曲时长到点发的 STOP: 尾部还在客户端缓冲里, 让缓冲自然播完再结束
+                    FMusicLog.debug(LOGGER, StatCollector.translateToLocal("fmusic.log.player.graceful_stop"));
+                    player.discardPending();
+                    clearHudOnly();
+                } else {
+                    stopPlaying();
+                }
                 break;
             case CLEAR:
                 hud.clear();

@@ -56,6 +56,8 @@ fmusic.log.player.seek_request=[FMusic] Seek requested: %s ms
 fmusic.log.player.seek_applied=[FMusic] Applied cached seek: %s ms
 fmusic.log.player.task_start=[FMusic] Playback task started: %s time=%s ms
 fmusic.log.player.task_cancelled=[FMusic] Playback task cancelled by STOP/new PLAY, dropping this init
+fmusic.log.player.next_queued=[FMusic] Previous track already at EOF, queued next track until it finishes: %s
+fmusic.log.player.graceful_stop=[FMusic] STOP received while already at EOF, letting buffered tail play out
 fmusic.log.player.fetch_fail=[FMusic] Failed to fetch music: %s
 fmusic.log.player.fmt_m4a=[FMusic] Format: M4A (AAC)
 fmusic.log.player.fmt_mp3_id3=[FMusic] Format: MP3 (ID3)

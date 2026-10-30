@@ -1050,7 +1050,7 @@ message.json 时代这些字段由 JSON 反序列化填充, 改成 Java 初始�
 - UTF-8 with BOM 的 config.json 可正常读取 (旧逻辑解析失败)
 - 坏 JSON: 用默认值继续运行, 用户文件**原样保留** (未被覆盖)
 - 首次启动 (空文件): 仍生成完整默认配置
-- 回归: i18n 验证套件 27/27, `gradlew --offline build` 通过
+- 回归: i18n 验证套件 27/27, `gradlew build` 通过
 
 ### 教训
 
@@ -1099,7 +1099,59 @@ java.lang.NullPointerException: Cannot read field "time" because "this.nowTask" 
 
 ### 验证
 
-- `./gradlew --offline spotlessCheck build` 通过 (compileJava/refmap/checkstyle/shadowJar/reobfJar)。
+- `./gradlew spotlessCheck build` 通过 (compileJava/refmap/checkstyle/shadowJar/reobfJar)。
 - 复现条件依赖网络慢 + 切歌/停止同时到达, 无单机自动化用例; 现场开启 debug 日志后
   `task_cancelled` 与 `recv_stop` 相邻出现即命中本路径 (且不再有 NPE 堆栈)。
+
+## 36. 歌曲尾部截断: 时长被整数除法量化到 8 秒 (2026-10, netapi)
+
+### 现象
+
+2:03 的歌, 客户端进度条总时长只显示 2:00, 并且播到 2:00 就停 (最后约 3 秒被切掉)。
+用户测试环境: `defaultApi = netapi`, 直链 `https://music.163.com/song?id=3427211241`。
+
+### 根因 (netapi 时长估算的整数除法)
+
+- netapi 详情接口 `/weapi/v3/song/detail` 同时返回 `dt` (毫秒总时长) 和 `l/m/h` (size+br),
+  但 `InfoObj` 只映射了 `l/m/h`, 用 `size / br * 8000` 估算时长。
+- `size`/`br` 都是 long, `size / br` 是**整数除法**: `size/br = 真实秒数/8`,
+  取整后再 ×8000 → 时长永远向下截断到 **8 秒的整数倍**。
+- 实测 (song 3427211241「唯有追赶风的方向」): `dt = 123871 ms (2:03.871)`,
+  但 `1983021 / 128000 = 15` (floor) `× 8000 = 120000 ms (2:00.000)`。
+  服务端 `musicLessTime` 按 2:00 到点 → `sendStop()` → 客户端 `closePlayer()` 硬切尾部。
+- 批量验证 8 首网易云歌曲: **8/8** 旧公式等于 `floor(dt/8s)*8s`, 平均误差 **3888 ms** (最大 7.0 s)。
+
+### 修复
+
+| 位置 | 改动 |
+|---|---|
+| `netapi/obj/music/info/InfoObj.Songs` | 新增 `dt` 字段, `getLength()` 优先返回 `dt` (精确毫秒) |
+| `netapi/obj/music/info/InfoObj.h` | 回退公式改 `(size*8000L + br/2) / br` (先乘后除+四舍五入), `size/br<=0` 返回 0 |
+| `netapi/obj/program/info/PrInfoObj` | 同样处理 (`mainSong.dt` 优先, `size*8000/bitrate` 兜底) — 电台节目链路 |
+| `server/music/PlayRuntime` | `musicAllTime`=真实时长 (进度条/总时长), `musicLessTime`=时长+`fixSongTime` (停止倒计时); `time1` 把 `musicNowTime` 截断到 `musicAllTime` (fixSongTime>0 时进度条不再超过 100%) |
+| `client/core/FMusicPlayer` | 新增 `eofReached`/`nearEnd`: 解码已到文件尾且 AL 队列剩余 ≤200 个 buffer (`isNearEnd()`), 以及 `queueMusic()`/`discardPending()` |
+| `client/core/FMusicCore` | 收到 STOP/下一个 PLAY 时若 `player.isNearEnd()`: 不硬切, 让缓冲里的尾部音频自然播完 (新歌排队等自然结束) |
+
+说明: 客户端起播比服务端计时晚 (连接+解码初始化 ~0.2-0.5 s), 服务端按歌曲时长到点发 STOP 时,
+真正的结尾往往还在客户端 AL 缓冲队列里。服务端 play 循环的 `sendDelay` 天然会晚 0~1 s 发 STOP,
+但不保证每次都够; `isNearEnd` 的收尾逻辑让"尾部不截断"变成确定行为, 也不再需要靠 `fixSongTime` 猜延迟。
+
+### 验证 (真实接口 + 实际音频)
+
+- 复现脚本 (cookie 取自 `run/client/fmusic_server/cookie.json`, 复刻 CryptoUtil.weapiEncrypt):
+  - `tmp/netapi_verify.py`: 单曲详情/播放地址/下载实际 m4a, 解析 MP4 `mvhd`/`mdhd`
+  - `tmp/netapi_verify_multi.py`: 搜索 8 首歌批量对比旧公式/新公式/dt
+- 单曲结果: `dt=123871 ms`; 实际下载的 exhigh AAC 文件 `mvhd`/`mdhd` 均为 **123871 ms** (与 dt 一致);
+  旧公式 `120000 ms`; 新公式 `123939 ms` (差 68 ms, 来自 ID3/容器标签字节, `dt` 存在时不会用到)
+- 批量结果: 旧公式 8/8 命中 8 秒量化, 平均误差 3888 ms → 新公式平均误差 63 ms
+- `./gradlew --offline spotlessCheck build` 通过
+- 现场验证: 开启 `config/FMusic.cfg` 的 `debug=true`, 歌曲结尾应看到
+  `收到 STOP 但已到文件尾, 让缓冲尾部自然播完` / `上一首已到文件尾, 新歌排队`, 且进度条总时长显示 2:03
+
+### 备注
+
+- QQ 音乐 (`QQSong.parseDuration`) / 酷狗 (`KugouSong.normalizeDuration`) 已做过毫秒归一化,
+  不使用 size/br 估算, 无此 8 秒量化问题; 本次只影响 netapi (网易云)。
+- `fixSongTime` 语义不变: 正值=多给尾部留时间, 负值=提前切歌; 现在它只影响停止时机, 不再污染 HUD 总时长。
+
 

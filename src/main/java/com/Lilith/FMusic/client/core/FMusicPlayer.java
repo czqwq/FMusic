@@ -47,6 +47,9 @@ public class FMusicPlayer extends InputStream {
 
     private static final Logger LOGGER = LogManager.getLogger("FMusic Player");
 
+    /** 判定"自然结束在即"的剩余 AL buffer 数量 (每个 buffer 约 20~30ms 音频) */
+    private static final int NEAR_END_BUFFERS = 200;
+
     /** 外部命令线程与 fmusic_run 线程的共享状态锁 */
     private final Object lock = new Object();
     private final Stack<PlayTaskObj> tasks = new Stack<>();
@@ -79,6 +82,14 @@ public class FMusicPlayer extends InputStream {
      * 游戏暂停(单人按Esc, pause_at_freeze=true)时音乐是否被冻结
      */
     private volatile boolean frozen;
+    /**
+     * 解码是否已到文件尾 (之后只剩 AL 队列里已缓冲的音频)
+     */
+    private volatile boolean eofReached;
+    /**
+     * 是否已到文件尾且缓冲所剩无几 (自然结束在即)
+     */
+    private volatile boolean nearEnd;
     /**
      * POS 先于 PLAY 到达时缓存的跳转时间 (ms), 任务开始时应用; 由 lock 保护
      */
@@ -115,6 +126,40 @@ public class FMusicPlayer extends InputStream {
 
     public boolean isPlay() {
         return isPlay;
+    }
+
+    /**
+     * 当前曲目是否已到文件尾且缓冲所剩无几 (自然结束在即)。
+     * <p>
+     * 客户端起播比服务端计时晚 (网络连接 + 解码初始化), 所以服务端按歌曲时长到点发 STOP 时,
+     * 歌曲真正的结尾往往还在客户端缓冲队列里。此时不应硬切, 应让缓冲尾部自然播完。
+     */
+    public boolean isNearEnd() {
+        return isPlay && nearEnd;
+    }
+
+    /**
+     * 只排队下一首, 不打断当前曲目: 用于当前曲目已到结尾、服务端切歌的场景,
+     * 让缓冲中的尾部音频自然播完后再开始新歌。
+     */
+    public void queueMusic(String url) {
+        synchronized (lock) {
+            PlayTaskObj taskObj = new PlayTaskObj();
+            taskObj.time = 0;
+            taskObj.url = url;
+            tasks.push(taskObj);
+        }
+        semaphore.release();
+    }
+
+    /**
+     * 丢弃排队中的任务 (不打断当前播放)
+     */
+    public void discardPending() {
+        synchronized (lock) {
+            tasks.clear();
+            pendingTime = 0;
+        }
     }
 
     public void setTime(int time) {
@@ -249,6 +294,8 @@ public class FMusicPlayer extends InputStream {
             isClose = false;
             reload = false;
             isPlay = false;
+            eofReached = false;
+            nearEnd = false;
             return task;
         }
     }
@@ -268,6 +315,8 @@ public class FMusicPlayer extends InputStream {
     private void finishTask(PlayTaskObj task) {
         frozen = false;
         decodeErrorCount = 0;
+        eofReached = false;
+        nearEnd = false;
         taskUrl = null;
         synchronized (lock) {
             isPlay = false;
@@ -293,6 +342,8 @@ public class FMusicPlayer extends InputStream {
         }
         frozen = false;
         decodeErrorCount = 0;
+        eofReached = false;
+        nearEnd = false;
         taskUrl = null;
         synchronized (lock) {
             isPlay = false;
@@ -434,6 +485,7 @@ public class FMusicPlayer extends InputStream {
                             BuffPack output = decoder.decodeFrame();
                             if (output == null) {
                                 eof = true;
+                                eofReached = true;
                                 break;
                             }
                             decodeErrorCount = 0;
@@ -465,6 +517,11 @@ public class FMusicPlayer extends InputStream {
                         checkChat();
                         checkVolume();
                         dequeue();
+
+                        // 已解码到文件尾后, 队列里只剩最后一点缓冲: 用于区分"自然结尾"和"中途停止"
+                        if (eofReached) {
+                            nearEnd = AL10.alGetSourcei(index, AL10.AL_BUFFERS_QUEUED) <= NEAR_END_BUFFERS;
+                        }
 
                         if (eof && !frozen && AL10.alGetSourcei(index, AL10.AL_SOURCE_STATE) == AL10.AL_STOPPED) {
                             // 解码完毕且缓冲队列真正播完(AL_STOPPED), 自然结束;

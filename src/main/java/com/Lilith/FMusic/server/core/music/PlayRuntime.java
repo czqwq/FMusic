@@ -113,6 +113,10 @@ public class PlayRuntime {
         }
         if (isPlay) {
             PlayMusic.musicNowTime += 10;
+            // 进度不应超过总时长: fixSongTime>0 时倒计时比真实时长多走一段, 这段时间保持 100%
+            if (PlayMusic.musicAllTime > 0 && PlayMusic.musicNowTime > PlayMusic.musicAllTime) {
+                PlayMusic.musicNowTime = PlayMusic.musicAllTime;
+            }
             if (PlayMusic.musicLessTime >= 10) {
                 PlayMusic.musicLessTime -= 10;
             } else {
@@ -277,9 +281,12 @@ public class PlayRuntime {
                         PlayMusic.lyric = api.getLyric(PlayMusic.nowPlayMusic.getId());
                     else PlayMusic.lyric = new LyricSave();
 
-                    if (PlayMusic.nowPlayMusic.getLength() != 0) {
-                        PlayMusic.musicAllTime = PlayMusic.musicLessTime = PlayMusic.nowPlayMusic.getLength()
-                            + FMusic.getConfig().fixSongTime;
+                    long length = PlayMusic.nowPlayMusic.getLength();
+                    if (length != 0) {
+                        // 进度条/总时长用真实时长; 停止倒计时单独加 fixSongTime
+                        // (正值 = 给客户端起播延迟/网络留尾巴, 避免服务端按真实时长到点发 STOP 时切掉尾部缓冲)
+                        PlayMusic.musicAllTime = length;
+                        PlayMusic.musicLessTime = length + FMusic.getConfig().fixSongTime;
                         isPlay = true;
                         FMusicServer.LOGGER.debug(
                             StatCollector.translateToLocalFormatted("fmusic.log.server.play_task", PlayMusic.url));
