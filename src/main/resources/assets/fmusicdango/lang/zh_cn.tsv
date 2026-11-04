@@ -1,0 +1,409 @@
+# English source text<TAB>Simplified Chinese
+Language	语言
+Choose the player interface language	选择播放器界面语言
+Settings	设置
+Changes apply instantly and are saved automatically	修改立即生效并自动保存
+Lyrics	歌词
+Music & HUD	音乐与 HUD
+Player	播放器
+Playback	播放设置
+Hotkeys	快捷键
+Click, then press a key · Backspace clears	点击后按键设置，退格键清除
+Song card	歌曲卡片
+Overlay	悬浮显示
+Dynamic Island	灵动岛
+Placement	位置
+In the world	世界中的歌词
+Glow	发光
+Deep Glow	柔和光晕
+Motion	动态效果
+Animation	动画
+Now playing	正在播放
+Classic overlay	经典悬浮显示
+Other	其他
+More	更多设置
+Press a key	请按键
+None	未绑定
+Volume	音量
+Playback volume	播放音量
+Shuffle	随机播放
+Play songs in random order	以随机顺序播放歌曲
+Repeat one	单曲循环
+Repeat the current song when it finishes	歌曲播完后自动重播
+Open key	打开播放器
+Key that opens the player	打开播放器界面的快捷键
+Play / Pause	播放 / 暂停
+Hotkey to play or pause	播放或暂停的快捷键
+Previous	上一首
+Hotkey for the previous song	切换上一首的快捷键
+Next	下一首
+Hotkey for the next song	切换下一首的快捷键
+Volume up	增大音量
+Hotkey to raise the volume by 5%	每次增大 5% 音量
+Volume down	减小音量
+Hotkey to lower the volume by 5%	每次减小 5% 音量
+Toggle lyrics	开关歌词
+Hotkey to turn lyrics on or off	显示或隐藏歌词的快捷键
+3D lyrics	3D 歌词
+Show lyrics floating in the world	在世界中显示漂浮歌词
+Show the current song in the top left	在左上角显示当前歌曲
+Cover	封面
+Show the album cover in the top left	在左上角显示专辑封面
+Scale	大小
+Lyrics size	歌词大小
+Distance	距离
+How far away 3D lyrics appear (blocks)	3D 歌词的显示距离（方块）
+Deep Glow style: white-hot core, wide soft halo	明亮文字与宽阔柔和的光晕
+Glow strength	发光强度
+Glow brightness	光晕亮度
+Glow radius	发光范围
+Halo spread: higher is wider and softer	数值越大，光晕越宽越柔和
+Smooth font	平滑字体
+Smooth font instead of the Minecraft pixel font	用平滑字体替代游戏像素字体
+Wiggle	抖动
+Low-fps jitter on every letter, like hand-drawn animation	让每个字呈现手绘动画般的低帧率抖动
+Wiggle fps	抖动帧率
+Jitter frame rate: lower feels more hand-drawn	帧率越低，手绘感越强
+Wiggle amount	抖动幅度
+Jitter strength	文字抖动的强度
+Text flash	文闪
+Words slam onto the screen one by one, synced to the beat	文字随节拍逐个闪现
+Word pop	逐词弹出
+Words pop in one by one as they are sung	跟随演唱进度逐词弹出
+Flash size	文闪大小
+Text flash size	文闪文字大小
+Face player	朝向玩家
+Lyrics keep turning to face you	歌词始终转向玩家
+Keep away	保持距离
+Lyrics back off when you walk or sprint into them	靠近歌词时自动向后避让
+Stay on screen	保持在屏幕内
+Lyrics glide back into view when you turn away, so they never leave the screen	转动视角时，歌词平滑移回屏幕内
+Above ground	保持离地
+Lyrics never appear below your eyes, so they don't sink into the ground	避免歌词过低或沉入地面
+Spread	分布范围
+How far left or right each line can appear (degrees)	每句歌词的左右偏移范围（度）
+Split lines	自动拆句
+Split two lines written as one (NetEase often does this) so they appear separately	将网易云合并在一行的两句歌词分开显示
+Card size	歌曲卡片大小
+Show when paused	暂停时显示
+Keep the card visible while paused	暂停播放后仍显示歌曲卡片
+Pos X	水平位置
+Horizontal position (or drag it with chat open)	水平位置，也可打开聊天栏后拖动
+Pos Y	垂直位置
+Vertical position (or drag it with chat open)	垂直位置，也可打开聊天栏后拖动
+Liquid glass	液态玻璃
+Liquid glass background; off is a solid black pill	关闭后使用纯黑背景
+Music	音乐
+Show what the built-in player is playing	显示内置播放器的当前歌曲
+Song notify	歌曲通知
+Expand to show the song on track change or pause	切歌或暂停时展开显示歌曲
+Island size	灵动岛大小
+Notify time	通知时长
+How long song notifications stay (seconds)	歌曲通知的显示时间（秒）
+Home	首页
+Charts	排行榜
+Now Playing	正在播放
+Listen Together	一起听歌
+Listen Together · 	一起听歌 · 
+DISCOVER	发现音乐
+MY PLAYLISTS	我的歌单
+Search songs...	搜索歌曲…
+Loading...	加载中…
+No playlists	暂无歌单
+Log in to see your playlists	登录后查看你的歌单
+Logged in	已登录
+Log out	退出登录
+Log in to NetEase	登录网易云音乐
+Not playing	尚未播放
+Your playlists	你的歌单
+Recommended playlists	推荐歌单
+Welcome to Dango Music!	欢迎使用 Dango Music！
+%d charts	%d 个排行榜
+Searching...	搜索中…
+Search failed: 	搜索失败：
+No results	暂无结果
+Nothing in the queue yet	播放队列为空
+%d of %d songs	共 %2$d 首，筛选出 %1$d 首
+%d songs	%d 首歌曲
+Search  "%s"	搜索「%s」
+No songs match "%s"	没有匹配「%s」的歌曲
+Play all	播放全部
+List	列表
+Covers	封面墙
+Locate	定位当前歌曲
+Filter this list...	筛选当前列表…
+TITLE	歌曲
+TIME	时长
+Play the same song in sync with friends who also have this mod	和同样安装本模组的朋友同步听歌
+You are the host · everyone in the room follows your music	你是房主，房间内的成员将同步你的音乐
+Following 	正在跟随 
+Listen Together is not set up (missing firebase.properties)	一起听歌尚未配置（缺少 firebase.properties）
+Working...	处理中…
+Create a room	创建房间
+OR JOIN WITH A ROOM CODE	或输入房间码加入
+ROOM CODE	房间码
+Join	加入
+Copied	已复制
+Copy	复制
+IN THIS ROOM · 	房间成员 · 
+  (you)	  （你）
+HOST	房主
+Close room	关闭房间
+Leave room	离开房间
+Resync	重新同步
+Everyone streams from their own NetEase account, so VIP songs need VIP on each side.	每位成员使用自己的网易云账号播放，VIP 歌曲需要各自拥有会员。
+Refresh QR	刷新二维码
+Failed to get QR code	获取二维码失败
+Getting QR code…	正在获取二维码…
+Scan with the NetEase Cloud Music app	打开手机网易云音乐 App 扫码
+Scanned. Confirm login on your phone	已扫码，请在手机上确认登录
+QR code expired	二维码已过期
+Something went wrong. Please try again	出错了，请重试
+Please wait…	请稍候…
+Reading playlists…	正在读取歌单…
+No playlists found (check your connection or login)	没有读到歌单（检查网络或登录）
+Failed to read playlists	读取歌单失败
+Loading…	加载中…
+Unable to get playback URL	拿不到播放地址
+You don't have permission to play this song	这首歌没有播放权限
+Log in to play (VIP songs require membership)	需要登录才能播放（VIP 歌曲）
+Preview only	仅试听片段
+Load failed: 	加载失败：
+Playback failed: 	播放失败：
+PAUSED	已暂停
+LOADING	加载中
+NOW PLAYING	正在播放
+Creating room…	正在创建房间…
+Firebase is not configured (firebase.properties)	还没配置 Firebase（firebase.properties）
+The host closed the room	房主关闭了房间
+Room expired. Create or join a room again	房间已失效（掉线太久），请重新创建或加入
+Joining %s…	正在加入 %s …
+Room %s does not exist	房间 %s 不存在
+Room %s is empty	房间 %s 已经没人了
+Unable to connect to Firebase: %s	连不上 Firebase（%s）
+Failed to create room: %s	创建房间失败（%s）
+Failed to join room: %s	加入失败（%s）
+Reset	重置
+NetEase	网易云
+QQ Music	QQ 音乐
+Kugou	酷狗
+Music source	音乐来源
+Select a music provider	选择音乐平台
+Guest beta	游客模式 · Beta
+Search this platform using the search box.	在左侧搜索框输入歌名或歌手，即可搜索当前平台。
+Guest mode: accounts, playlists and charts are coming later.	游客测试版：登录、歌单和排行榜暂未开放。
+Some songs require login or payment and cannot play in this beta.	部分歌曲受登录、付费或地区限制，本测试版可能无法播放。
+Lyrics use line timing. NetEase word timing is unchanged.	新音源暂用逐行歌词；网易云逐字歌词仍然可用。
+Guest beta: search and play. Accounts and playlists are not available yet.	游客测试版：支持搜索和播放，登录及个人歌单暂未开放。
+Source unavailable. Please retry.	音乐来源暂时不可用，请重试。
+No guest MP3 available. Login, payment or regional restrictions may apply.	未取得游客可播放的 MP3，可能受登录、付费或地区限制。
+Unable to download this guest MP3. Try another song.	音频下载失败，请尝试其他歌曲。
+QQ / Kugou listening parties are not available in this beta. Leave the room first.	测试版暂不支持 QQ／酷狗一起听歌，请先退出房间。
+QQ / Kugou listening parties are not available in this beta. Play a NetEase song first.	测试版暂不支持 QQ／酷狗一起听歌，请先播放网易云歌曲。
+Log in	登录
+Log in to QQ Music	登录 QQ 音乐
+Log in to Kugou	登录酷狗
+Scan with the mobile QQ app	使用手机 QQ 扫码
+Scan with the Kugou Music app	使用酷狗音乐 App 扫码
+Playlists coming later	个人歌单暂未开放
+Scan the QR code to use your account.	扫码登录后，使用自己的账号权限播放。
+Playback uses your account permissions.	当前播放使用你自己的账号权限。
+Personal playlists and charts are coming later.	个人歌单和排行榜暂未开放。
+Membership and regional restrictions still apply.	会员权限和平台地区限制仍然适用。
+Beta: search and play. Personal playlists and charts are not available yet.	测试版支持登录、搜索和播放，个人歌单及排行榜暂未开放。
+Login request failed. Refresh the QR code and try again.	登录请求失败，请刷新二维码重试。
+The platform requires additional verification. Please refresh and try again.	平台要求额外验证，请刷新二维码重试。
+Unable to clear the saved login. Please try again.	未能清除本地登录状态，请重试。
+No playable MP3. Your login may have expired, or this song is restricted by membership or region.	未取得可播放的 MP3，登录可能过期，或歌曲受会员、地区限制。
+Playback request failed. Check your connection or log in again.	播放请求失败，请检查网络或重新登录。
+Kugou requires additional security verification. Please try again later.	酷狗要求额外安全验证，请稍后重试。
+Scan with the QQ Music app	使用 QQ 音乐 App 扫码
+Login was cancelled on your phone. Refresh to retry.	你已在手机上取消登录，请刷新重试。
+QQ Music rejected the login. Please check your account and try again.	QQ 音乐未接受登录，请检查账号状态后重试。
+QQ Music device limit reached. Remove an unused device in the app and retry.	QQ 音乐登录设备已达上限，请在 App 中移除闲置设备后重试。
+Too many login attempts. Please try again later.	登录尝试过于频繁，请稍后重试。
+Login expired. Refresh the QR code.	登录已过期，请刷新二维码。
+Login failed	登录失败
+Phone confirmed. Verifying desktop login...	手机已确认，正在校验游戏端登录状态…
+Phone confirmed. The desktop login could not be verified. Please retry.	手机已确认，但游戏端登录状态校验未通过，请重试。
+The phone confirmation did not include login credentials. Please retry.	手机授权结果缺少有效登录凭据，请重试。
+QQ Music request failed. Please retry or log in again.	QQ 音乐请求失败，请重试或重新登录。
+QQ Music returned an incomplete response. Please retry.	QQ 音乐返回的数据不完整，请重试。
+QQ Music profile is unavailable. Please retry or log in again.	暂时无法读取 QQ 音乐资料，请重试或重新登录。
+Your playlists loaded, but QQ Music favorites could not be read. Please retry or log in again.	已载入自建歌单，但收藏歌单读取失败，请重试或重新登录。
+QQ Music returned too many playlists. Please retry.	QQ 音乐歌单返回异常，请重试。
+QQ Music returned too many songs. Please retry.	QQ 音乐歌曲返回异常，请重试。
+QQ Music repeated a playlist page. Please retry.	QQ 音乐重复返回同一页歌曲，请重试。
+Please reopen the playlist and try again.	请重新打开歌单后重试。
+Log in to QQ Music to read your playlists.	请登录 QQ 音乐以读取你的歌单。
+This source is unavailable in this room. Create a new room with the updated mod.	此房间不支持该音源，请使用新版模组重新创建房间。
+This room requires a newer DangoMusic version.	此房间需要更新版本的 DangoMusic。
+Kugou listening parties are not available yet. Play a NetEase or QQ Music song first.	暂未支持酷狗一起听歌，请先播放网易云或 QQ 音乐歌曲。
+Everyone streams from their own music account. VIP and region permissions apply to each member.	每个人使用自己的音乐账号播放，会员和地区权限分别生效。
+QQ Music playback request failed. Please retry.	QQ 音乐播放请求失败，请重试。
+QQ Music login is no longer valid. Please log in again.	QQ 音乐登录已失效，请重新登录。
+QQ Music did not return a playable MP3 for this song. Try another version.	QQ 音乐未返回这首歌的可播放 MP3，请尝试其他版本。
+Kugou library request failed. Please retry or log in again.	酷狗歌单请求失败，请重试或重新登录。
+Kugou login is no longer valid. Please log in again.	酷狗登录已失效，请重新登录。
+Kugou returned incomplete library data. Please retry.	酷狗返回的歌单数据不完整，请重试。
+Kugou recommendations are unavailable. Please retry.	暂时无法读取酷狗新歌首发，请重试。
+Kugou repeated a library page. Please retry.	酷狗重复返回同一页内容，请重试。
+Kugou returned too many library pages. Please retry.	酷狗返回的歌单页数异常，请重试。
+Log in to Kugou to read your playlists.	请登录酷狗以读取你的歌单。
+CONNECTION	连接方式
+System proxy	跟随系统
+Direct	直连
+Manual	手动
+Re-detect	重新检测
+Connecting directly	直接连接，不走代理
+Detecting system proxy...	正在检测系统代理…
+System proxy unreachable, connecting directly for now: 	系统代理连不上，暂时改用直连：
+Using system proxy 	使用系统代理 
+ (PAC script ignored)	（已忽略 PAC 脚本）
+System uses a PAC script, which is not supported. Connecting directly; choose Manual to enter the proxy address.	系统代理使用 PAC 自动配置脚本，暂不支持，将直连；可以选“手动”填代理地址。
+Could not read system proxy, connecting directly: 	读取系统代理失败，将直连：
+No system proxy found, connecting directly	没检测到系统代理，将直连
+Proxy address, e.g. 127.0.0.1:7890	代理地址，例如 127.0.0.1:7890
+Enter the proxy address and press Enter	填好代理地址后按回车
+Invalid proxy address	代理地址格式不对（例如 127.0.0.1:7890 或 socks5://127.0.0.1:7891）
+Cannot reach proxy 	代理连不上：
+Using proxy 	使用代理 
+Only used for Listen Together. Music sources are not affected.	只用于一起听歌，不影响音乐播放
+Can't reach Google sign-in. In mainland China this usually needs a proxy; set it under Connection	连不上 Google 登录服务。国内网络通常需要开代理，可在“连接方式”里设置
+Can't reach the Firebase database. In mainland China this usually needs a proxy; set it under Connection	连不上 Firebase 数据库。国内网络通常需要开代理，可在“连接方式”里设置
+Can't reach the proxy. Check that the proxy app is running and the port is right, or pick another Connection option	代理连不上。请确认代理软件已打开、端口正确，或在“连接方式”里换一种
+Server: via relay	服务器：经中转连接
+Server: relay unavailable, connecting to Firebase directly for now	服务器：中转暂时不可用，改为直连 Firebase
+Couldn't reach the relay or Firebase directly. Check your network, or turn on a proxy under Connection	中转和直连 Firebase 都连不上。请检查网络，或在“连接方式”里开代理
+Check for updates	检查更新
+Look for a newer release on GitHub once per launch and remind you	每次启动查一次 GitHub 上有没有新版本，有就提醒
+Updates	更新
+GitHub releases	GitHub 发布
+New version available: 	发现新版本：
+You have 	当前版本 
+Copy download link	复制下载链接
+Dango Music update: 	Dango Music 有新版本：
+Copy the download link in the player's settings	可在播放器设置里复制下载链接
+Loaded %d of %d songs	已加载 %d / %d 首
+You are the host · everyone in the room can pick songs and control playback	你是房主，房间里的人都能切歌和控制播放
+ · you can pick songs and control playback too	，你也能切歌和控制播放
+ · the host turned off member control	，房主关闭了成员控制
+ · the host's mod is older, only the host can control playback	，房主的版本较旧，只能由房主控制
+Let members control playback	允许成员切歌和控制播放
+Members can't control playback: the Firebase database rules need updating	成员控制被数据库拒绝了，请房间所在的 Firebase 更新数据库规则
+Translation	歌词翻译
+Show the translation under each lyric line when the song has one	歌曲有翻译时，在每句歌词下面显示翻译
+Translation animation	翻译出场动画
+The translation appears character by character like the lyrics	翻译像歌词一样逐字出现
+Translation wiggle	翻译抖动
+The translation wiggles like the lyrics (uses the Wiggle speed and amount)	翻译也像歌词一样抖动（用抖动的速度和幅度）
+Lyric color	歌词颜色
+Color of the 3D lyrics	3D 歌词的文字颜色
+Translation color	翻译颜色
+Color of the translation	翻译的文字颜色
+Under each line	原文下方
+Dance	跳舞
+Mobs on the beat	生物跟着节奏
+Mob dance	生物跟着节奏弹
+Every creature in the world squashes and stretches on the beat of the song	世界里所有生物踩着歌曲的节拍压扁再拉长
+Spin	转圈
+Creatures also spin around steadily	生物同时匀速转圈
+Dance amount	摇的幅度
+How much creatures squash and stretch	压扁拉长得多厉害
+Beat offset	踩点偏移
+Move the bounce earlier or later if it doesn't land on the beat	没踩在点上时，把弹的时刻往前或往后挪
+Auto BPM	自动测 BPM
+Work out the song's BPM from its drum beats	从歌里的鼓点自动算出 BPM
+Tap BPM	自己点 BPM
+Left-click 16 times on the beat to set the BPM yourself; counting starts with your first click (recommended, most accurate)	跟着节拍左键点 16 下自己定 BPM，点第一下才开始算（最推荐，最准）
+Night glow only	只在晚上发光
+Turn glow off in daylight and back on when it gets dark	白天关掉发光，天黑了自动打开
+Kugou rejected the login (error %s). Refresh the QR code and try again.	酷狗拒绝了这次登录（错误 %s），请刷新二维码重试。
+Environment audio	环境音效
+Sound around you	音乐跟着环境变
+Echo follows the room you are in (size and materials), muffled underwater	回声跟着你所在的空间变（大小、墙的材质），水下变闷
+Rain	下雨压低
+A little quieter in rain and thunder	下雨、打雷时音量稍微降低
+Effect strength	效果强度
+How strong the environment effects are	环境音效的强弱
+Scan with Kugou Lite	使用酷狗概念版 App 扫码
+Free VIP claimed for you every day	每天自动领免费会员
+Kugou asks for a security check. Open the Kugou app, play a song there, then try again.	酷狗要求做一次安全验证。请打开酷狗 App 放一首歌，然后再试一次。
+Lite	概念版
+Preview only: membership is needed for the full song	仅试听片段：需要会员才能听完整首
+The original was unavailable, playing another version	原版放不了，已换成其他版本
+Volume normalization	音量均衡
+Keep songs at a similar loudness	让不同的歌听起来差不多响
+Could not add to Liked songs. Please retry.	没能加入"我喜欢"，请重试。
+Could not remove from Liked songs. Please retry.	没能取消红心，请重试。
+Show sound rays	显示声音射线
+Debug: draw the rays used to measure the room, and its numbers	调试用：把测量房间的射线画出来，并在左上角显示算出的参数
+Lyric font	歌词字体
+Default	默认
+Fonts folder: 	字体文件夹：
+ (put .ttf / .otf files here)	（把 .ttf / .otf 放进去）
+Lyric colors	歌词配色
+Where the lyric and translation colors come from	歌词和翻译用什么颜色
+Custom color	自定义颜色
+Cover color	封面主色
+Cover gradient	封面渐变
+Rainbow	彩虹
+Rainbow speed	彩虹速度
+How fast the rainbow flows across the lyrics	彩虹在歌词上流动的快慢
+Pixel font, smooth font, or a .ttf / .otf font from config/dangomusic/fonts	原版像素字体、平滑字体，或者放进 config/dangomusic/fonts 文件夹的 .ttf / .otf 字体
+Pixel font	像素字体
+Top-left song info	左上角歌曲信息
+Show cover	显示封面
+Bounce amount	弹的幅度
+Custom lyric color	自定义歌词颜色
+Custom translation color	自定义翻译颜色
+Used when Lyric colors is set to Custom color	歌词配色选"自定义颜色"时使用
+Show now playing	显示正在播放
+Environment audio strength	环境音效强度
+Appearance	外观
+Font and colors	字体和颜色
+Position	位置
+Where the lyrics float	歌词在世界里的位置
+Song info	歌曲信息
+Top left, classic style	左上角，原版风格
+
+
+Auto-skip stopped after repeated playback failures.	连续播放失败，已停止自动跳过。
+No decodable audio was found.	没有可解码的音频。
+This song could not be played. Skipped to the next song.	该歌曲无法播放，已跳过到下一首。
+
+ · Unable to play	 · 无法播放
+Unable to play this song	无法播放这首歌
+Someone in the room cannot play this song. Check the room member list; account access, region or network may be the cause.	房间里有人无法播放这首歌，请查看成员列表；可能与账号权限、地区或网络有关。
+Ogg Opus audio is not supported yet.	暂不支持 Ogg Opus 音频。
+Unrecognized Ogg audio encoding.	无法识别 Ogg 音频的编码。
+Cloud drive	云盘
+NetEase login has expired. Please log in again.	网易云登录已失效，请重新登录。
+NetEase rejected the playback request. Please retry later.	网易云拒绝了播放请求，请稍后重试。
+No playable cloud audio was returned. Check this upload in the official NetEase client.	未取得可播放的云盘音频，请在网易云官方客户端检查这首上传歌曲。
+Log in to NetEase to read your cloud drive.	请登录网易云以读取云盘。
+Unable to load the NetEase cloud drive. Please retry or log in again.	无法加载网易云云盘，请重试或重新登录。
+The NetEase cloud drive repeated a page. Please retry.	网易云云盘返回了重复分页，请重试。
+The NetEase cloud drive returned too many pages.	网易云云盘返回的分页过多。
+NetEase returned an audio format that this player does not support yet.	网易云返回了播放器尚不支持的音频格式。
+
+Android detected. If music playback causes FPS drops, try appending -Ddangomusic.openal=true to your launcher's JVM arguments (separated from other arguments by a space), then restart the game.	检测到你是安卓玩家。如果播放音乐时掉帧，可点击复制 -Ddangomusic.openal=true，并追加到启动器的 JVM 参数末尾（与其他参数用空格隔开），保存后重启游戏。
+Click to copy JVM argument	点击复制 JVM 参数
+
+Only uploads matched to QQ Music's catalog are shown. Original unmatched files are not supported.	仅显示已匹配 QQ 音乐曲库的云盘歌曲，暂不支持未匹配的原始文件。
+Cloud uploads support MP3, Ogg Vorbis and FLAC. Private cloud tracks cannot be shared in Listen Together.	云盘支持 MP3、Ogg Vorbis、FLAC；私人云盘歌曲暂不支持一起听。
+Log in to QQ Music to read your cloud drive.	请登录 QQ 音乐以读取云盘。
+QQ Music returned incomplete cloud data. Please retry.	QQ 音乐返回的云盘数据不完整，请重试。
+QQ Music repeated a cloud page. Please retry.	QQ 音乐云盘返回了重复分页，请重试。
+QQ Music returned too many cloud pages. Please retry.	QQ 音乐云盘分页过多，请重试。
+Log in to Kugou to read your cloud drive.	请登录酷狗以读取云盘。
+Log in to Kugou to play your cloud uploads.	请登录酷狗以播放云盘歌曲。
+Kugou cloud request failed. Please retry or log in again.	酷狗云盘请求失败，请重试或重新登录。
+Kugou returned incomplete cloud data. Please retry.	酷狗返回的云盘数据不完整，请重试。
+Kugou repeated a cloud page. Please retry.	酷狗云盘返回了重复分页，请重试。
+Kugou returned too many cloud pages. Please retry.	酷狗云盘分页过多，请重试。
+This cloud audio format is not supported. Only MP3, Ogg Vorbis and FLAC are supported.	暂不支持这首云盘歌曲的音频格式，目前仅支持 MP3、Ogg Vorbis 和 FLAC。
+No playable cloud audio was returned. Check this upload in the official Kugou client.	未取得可播放的云盘音频，请在酷狗官方客户端检查这首上传歌曲。
+Private Kugou cloud tracks cannot be shared in Listen Together. Leave the room to play them.	酷狗私人云盘歌曲暂不支持一起听，请退出房间后播放。
+Switch away from the private Kugou cloud track before creating a room.	请先切换到非酷狗私人云盘歌曲，再创建房间。
+No cloud songs to display	没有可显示的云盘歌曲

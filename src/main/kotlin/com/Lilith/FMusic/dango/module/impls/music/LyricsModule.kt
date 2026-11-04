@@ -1,0 +1,1135 @@
+package com.Lilith.FMusic.dango.module.impls.music
+
+import com.Lilith.FMusic.dango.DangoClient
+import com.Lilith.FMusic.dango.DangoMusic
+import com.Lilith.FMusic.dango.event.EventHandler
+import com.Lilith.FMusic.dango.events.HudRenderEvent
+import com.Lilith.FMusic.dango.events.WorldRenderEndEvent
+import com.Lilith.FMusic.dango.gfx.CjkStyle
+import com.Lilith.FMusic.dango.lyrics.LyricLine
+import com.Lilith.FMusic.dango.lyrics.LyricSplit
+import com.Lilith.FMusic.dango.lyrics.Lyrics
+import com.Lilith.FMusic.dango.lyrics.LyricsProvider
+import com.Lilith.FMusic.dango.lyrics.TextFlash
+import com.Lilith.FMusic.dango.module.Category
+import com.Lilith.FMusic.dango.module.Module
+import com.Lilith.FMusic.dango.module.ModuleMeta
+import com.Lilith.FMusic.dango.module.values.BooleanValue
+import com.Lilith.FMusic.dango.module.values.TextValue
+import com.Lilith.FMusic.dango.music.LyricFonts
+import com.Lilith.FMusic.dango.module.values.ColorValue
+import com.Lilith.FMusic.dango.module.values.FloatValue
+import com.Lilith.FMusic.dango.module.values.IntValue
+import com.Lilith.FMusic.dango.module.values.ModuleValue
+import com.Lilith.FMusic.dango.music.CoverArt
+import com.Lilith.FMusic.dango.music.Dance
+import com.Lilith.FMusic.dango.music.MusicPlayer
+import com.Lilith.FMusic.dango.music.NeteaseTrack
+
+import java.util.Random
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import kotlin.math.abs
+import kotlin.math.asin
+import kotlin.math.atan
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.exp
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.roundToInt
+import kotlin.math.sin
+import kotlin.math.sqrt
+import kotlin.math.tan
+
+/** "Above ground"：歌词中心最低在眼睛下面多少格 */
+private const val GROUND_MARGIN = 0.5
+
+/** Stay on screen 弹簧的快慢（越大跟得越紧；12 大约 0.3 秒回到位） */
+private const val SPRING = 12.0
+
+/** 天黑到这个程度（原版 sky darken，0 = 白天，11 = 半夜）就算晚上 */
+private const val NIGHT_SKY_DARKEN = 4
+
+/** 翻译的字号是原文的多少 */
+private const val TRANSLATION_SCALE = 0.72f
+
+/** 翻译按多宽换行（原文是 200；字小了，按画出来差不多宽算） */
+private const val TRANSLATION_WRAP = 270
+
+/**
+ * 歌词：内置播放器放歌时，从网易云取（逐字）歌词，一句句以动画漂浮在世界里。
+ * 另外负责左上角原版风格的"正在播放"（Now playing / Cover）。
+ */
+@ModuleMeta(Category.MUSIC, "Lyrics")
+class LyricsModule : Module() {
+
+    /** 默认关：FMusic 原有 HUD 已经在显示歌词，世界里的 3D 歌词让玩家在播放器设置里自己开 */
+    @ModuleValue("3D lyrics", "Show lyrics floating in the world")
+    private val worldMode = BooleanValue(false)
+
+    /** 快捷键"开关歌词"用 */
+    fun toggleLyrics() = worldMode.toggle()
+
+    @ModuleValue("Top-left song info", "Show the current song in the top left")
+    private val nowPlaying = BooleanValue(false)
+
+    @ModuleValue("Show cover", "Show the album cover in the top left")
+    private val showCover = BooleanValue(true)
+
+    @ModuleValue("Scale", "Lyrics size")
+    private val scale = FloatValue(0.5f, 3f, 1f, 1)
+
+    @ModuleValue("Distance", "How far away 3D lyrics appear (blocks)")
+    private val distance = FloatValue(3f, 40f, 10f, 1)
+
+    @ModuleValue("Glow", "Deep Glow style: white-hot core, wide soft halo")
+    private val glow = BooleanValue(true)
+
+    @ModuleValue("Night glow only", "Turn glow off in daylight and back on when it gets dark")
+    private val glowNightOnly = BooleanValue(false)
+
+    @ModuleValue("Glow strength", "Glow brightness")
+    private val glowStrength = FloatValue(0f, 3f, 0.3f, 2)
+
+    @ModuleValue("Glow radius", "Halo spread: higher is wider and softer")
+    private val glowRadius = FloatValue(0f, 1f, 0.5f, 2)
+
+    /** 平滑字体还是原版像素字体：设置页里和"歌词字体"合成一项，不单独显示 */
+    @ModuleValue("Smooth font", "Smooth font instead of the Minecraft pixel font")
+    private val smoothFont = BooleanValue(false)
+
+    @ModuleValue("Lyric font", "Pixel font, smooth font, or a .ttf / .otf font from config/fmusic/dango/fonts")
+    private val lyricFont = TextValue("")
+
+    @ModuleValue("Wiggle", "Low-fps jitter on every letter, like hand-drawn animation")
+    private val wiggle = BooleanValue(true)
+
+    @ModuleValue("Wiggle fps", "Jitter frame rate: lower feels more hand-drawn")
+    private val wiggleFps = IntValue(4, 24, 8)
+
+    @ModuleValue("Wiggle amount", "Jitter strength")
+    private val wiggleAmount = FloatValue(0f, 2f, 0.8f, 2)
+
+    @ModuleValue("Text flash", "Words slam onto the screen one by one, synced to the beat")
+    private val textFlash = BooleanValue(false)
+
+    @ModuleValue("Word pop", "Words pop in one by one as they are sung")
+    private val wordPop = BooleanValue(true)
+
+    @ModuleValue("Flash size", "Text flash size")
+    private val flashSize = FloatValue(0.5f, 2f, 1f, 2)
+
+    @ModuleValue("Face player", "Lyrics keep turning to face you")
+    private val facePlayer = BooleanValue(true)
+
+    @ModuleValue("Keep away", "Lyrics back off when you walk or sprint into them")
+    private val keepAway = BooleanValue(true)
+
+    @ModuleValue("Stay on screen", "Lyrics glide back into view when you turn away, so they never leave the screen")
+    private val stayOnScreen = BooleanValue(false)
+
+    @ModuleValue("Above ground", "Lyrics never appear below your eyes, so they don't sink into the ground")
+    private val aboveGround = BooleanValue(false)
+
+    @ModuleValue("Spread", "How far left or right each line can appear (degrees)")
+    private val spread = FloatValue(0f, 60f, 30f, 0)
+
+    @ModuleValue("Split lines", "Split two lines written as one (NetEase often does this) so they appear separately")
+    private val splitLines = BooleanValue(true)
+
+    @ModuleValue("Translation", "Show the translation under each lyric line when the song has one")
+    private val translation = BooleanValue(false)
+
+    @ModuleValue("Translation animation", "The translation appears character by character like the lyrics")
+    private val translationAnimation = BooleanValue(true)
+
+    @ModuleValue("Translation wiggle", "The translation wiggles like the lyrics (uses the Wiggle speed and amount)")
+    private val translationWiggle = BooleanValue(true)
+
+    @ModuleValue("Mob dance", "Every creature in the world squashes and stretches on the beat of the song")
+    private val dance = BooleanValue(false)
+
+    @ModuleValue("Auto BPM", "Work out the song's BPM from its drum beats")
+    private val danceAuto = BooleanValue(false)
+
+    @ModuleValue("Tap BPM", "Left-click 16 times on the beat to set the BPM yourself; counting starts with your first click (recommended, most accurate)")
+    private val danceTap = BooleanValue(false)
+
+    @ModuleValue("Spin", "Creatures also spin around steadily")
+    private val danceSpin = BooleanValue(false)
+
+    @ModuleValue("Bounce amount", "How much creatures squash and stretch")
+    private val danceAmount = FloatValue(0.2f, 2f, 1.3f, 1)
+
+    @ModuleValue("Beat offset", "Move the bounce earlier or later if it doesn't land on the beat")
+    private val danceOffset = IntValue(-300, 300, 0)
+
+    @ModuleValue("Lyric colors", "Where the lyric and translation colors come from")
+    private val lyricColors = IntValue(COLORS_CUSTOM, COLORS_RAINBOW, COLORS_CUSTOM)
+
+    @ModuleValue("Rainbow speed", "How fast the rainbow flows across the lyrics")
+    private val rainbowSpeed = FloatValue(0.05f, 1f, 0.25f, 2)
+
+    @ModuleValue("Custom lyric color", "Used when Lyric colors is set to Custom color")
+    private val textColor = ColorValue(0xF7E1D7)
+
+    @ModuleValue("Custom translation color", "Used when Lyric colors is set to Custom color")
+    private val translationColor = ColorValue(0x803D66)
+
+    // ---------------------------------------------------------------- 状态
+
+    /** 正在播放的歌（来自内置播放器） */
+    private class NowPlaying(val track: NeteaseTrack, val playing: Boolean) {
+        val key: String get() = track.key
+        val title: String get() = track.name
+        val artist: String get() = track.artists.joinToString(" / ")
+    }
+
+    private val cover = CoverArt()
+    private val fetcher = Executors.newSingleThreadExecutor { r -> Thread(r, "Dango-Lyrics").apply { isDaemon = true } }
+
+    private object NotFound
+    private val cache = ConcurrentHashMap<String, Any>()     // key -> Lyrics 或 NotFound
+    private val pending = ConcurrentHashMap.newKeySet<String>()
+
+    private var current: NowPlaying? = null
+    private var currentKey: String? = null
+    private var songPos = 0.0                 // 毫秒，本地平滑时钟
+    private var lastSeenNanos = 0L
+    private var lastIndex = -1
+
+    private val random = Random()
+
+    /** 一句漂浮的歌词 */
+    private class Floating(
+        val lines: List<String>,
+        val startMs: Long,
+        val revealMs: Long,
+        var x: Double, var y: Double, var z: Double,
+        var yaw: Float, var pitch: Float,
+        /** 每个非空白字符出现的时间（相对这句开始，毫秒），按词闪出时用 */
+        val charTimes: LongArray = LongArray(0),
+    ) {
+        var fadeStartNanos = 0L
+        /** 这一句的翻译（已经按宽度换好行；没有就是空的），画在原文下面 */
+        var translation: List<String> = emptyList()
+        /** Stay on screen 往回拉时的角速度（度 / 秒），用弹簧算，起步和停下都是平滑的 */
+        var vYaw = 0.0
+        var vPitch = 0.0
+        /** 暂停后恢复播放时重新出现的这句：用一个短淡入代替逐字出现 */
+        var resumedAt = 0L
+    }
+
+    /** 恢复播放后重新出现的那句歌词，0.3 秒淡入 */
+    private fun appearOf(f: Floating): Float =
+        if (f.resumedAt == 0L) 1f else ((System.nanoTime() - f.resumedAt) / 3e8f).coerceIn(0f, 1f)
+
+    private var active: Floating? = null
+    /** 左上角小柱子当前颜色（向封面主色渐变） */
+    private var barR = 0xF2 / 255f
+    private var barG = 0xA7 / 255f
+    private var barB = 0xC3 / 255f
+    private var barColorNanos = 0L
+    /** 暂停期间（歌词先隐藏，恢复播放时再出现） */
+    private var wasPaused = false
+    private val flash = TextFlash()
+    /** 正在往发光画布上画（只画字本身，不画阴影） */
+    private var glowPass = false
+    private val fading = mutableListOf<Floating>()
+
+    override fun onDisable() {
+        cover.clear()
+        current = null
+        currentKey = null
+        active = null
+        fading.clear()
+        flash.reset()
+        lastIndex = -1
+    }
+
+    // ---------------------------------------------------------------- 当前歌曲 / 时钟
+
+    private fun nowPlaying(): NowPlaying? {
+        if (!MusicPlayer.active) return null
+        val t = MusicPlayer.current ?: return null
+        return NowPlaying(t, MusicPlayer.state == MusicPlayer.State.PLAYING)
+    }
+
+    private val notFoundAt = ConcurrentHashMap<String, Long>()
+
+    private fun lyricsFor(key: String): Lyrics? = cache[key] as? Lyrics
+
+    private fun requestLyrics(s: NowPlaying) {
+        val key = s.key
+        if (cache[key] === NotFound) {
+            val failedAt = notFoundAt[key] ?: 0L
+            if (System.nanoTime() - failedAt < 30_000_000_000L) return
+            cache.remove(key, NotFound)
+        }
+        if (cache.containsKey(key) || !pending.add(key)) return
+        val track = s.track
+        fetcher.execute {
+            try {
+                val result = com.Lilith.FMusic.dango.music.MusicSources.api(track.source).lyrics(track)
+                if (result == null) notFoundAt[key] = System.nanoTime() else notFoundAt.remove(key)
+                cache[key] = result ?: NotFound
+            } catch (_: Exception) {
+                notFoundAt[key] = System.nanoTime()
+                cache[key] = NotFound
+            } finally {
+                pending.remove(key)
+            }
+        }
+    }
+
+    /** 跟着内置播放器的进度走（它的进度是精确的） */
+    private fun updateClock() {
+        val now = System.nanoTime()
+        val s = nowPlaying()
+        if (s == null) {
+            // 超过 3 秒没在放歌就清掉
+            if (current != null && (now - lastSeenNanos) / 1e9 > 3.0) {
+                current = null
+                currentKey = null
+                active?.let { startFade(it) }
+                active = null
+                lastIndex = -1
+            }
+            return
+        }
+        lastSeenNanos = now
+        requestLyrics(s)
+        val p = MusicPlayer.positionMs.toDouble()
+        if (s.key != currentKey) {
+            currentKey = s.key
+            songPos = p
+            active?.let { startFade(it) }
+            active = null
+            lastIndex = -1
+        } else {
+            if (abs(p - songPos) > 300) lastIndex = -1   // 拖了进度条
+            songPos = p
+        }
+        current = s
+    }
+
+    // ---------------------------------------------------------------- 渲染
+
+    /** 主菜单复用简洁的 Now playing，不启动世界歌词或修改 HUD 开关。 */
+    fun renderMainMenu() {
+        if (!DangoClient.platform.inMainMenu) return
+        val s = nowPlaying() ?: return
+        s.track.coverUrl.takeIf { it.isNotEmpty() }?.let { cover.requestUrl(s.key, it) }
+        DangoClient.gfx.guarded {
+            cover.upload()
+            drawNowPlaying(s, null)
+        }
+    }
+
+    @EventHandler
+    fun render(e: WorldRenderEndEvent) {
+        // 生物跟着节奏摇：每帧把设置同步过去，各版本画生物时读
+        Dance.enabled = enabled && dance.get()
+        Dance.spin = danceSpin.get()
+        Dance.amount = danceAmount.value
+        Dance.offsetMs = danceOffset.value
+        Dance.auto = danceAuto.get()
+        Dance.tap = danceTap.get()
+        val platform = DangoClient.platform
+        Dance.tapTick(platform.inGame && platform.isMouseDown(0), platform.inGame)
+        if (!enabled) return
+        rainbowPhase = ((System.nanoTime() / 1_000_000_000.0 * rainbowSpeed.value) % 1.0).toFloat()
+        // 歌词字体：选了就换（同一个文件不会重复加载）
+        DangoClient.gfx.text.lyricFont(if (smoothFont.get()) LyricFonts.file(lyricFont.value) else null)
+        updateClock()
+        val s = current
+        // 小柱子的颜色取自封面，所以只开 Now playing 也要加载封面
+        if (s != null && (showCover.get() || nowPlaying.get() || lyricColors.value == COLORS_COVER || lyricColors.value == COLORS_GRADIENT)) {
+            s.track.coverUrl.takeIf { it.isNotEmpty() }?.let { cover.requestUrl(s.key, it) }
+        }
+        cover.upload()
+        // 拆句开关变了：歌词行的下标都变了，重新找当前这句
+        if (LyricSplit.enabled != splitLines.get()) {
+            LyricSplit.enabled = splitLines.get()
+            lastIndex = -1
+        }
+        val lyrics = currentKey?.let { lyricsFor(it) }
+        val paused = s != null && !s.playing
+        if (s != null && lyrics != null) {
+            val pos = songPos.toLong()
+            val idx = lyrics.indexAt(pos)
+            if (paused) {
+                // 暂停：当前这句淡出消失，恢复播放时再出现
+                active?.let { startFade(it) }
+                active = null
+                lastIndex = idx
+                wasPaused = true
+            } else if (idx != lastIndex || wasPaused) {
+                val resumed = wasPaused && idx == lastIndex
+                wasPaused = false
+                lastIndex = idx
+                active?.let { startFade(it) }
+                active = null
+                if (idx >= 0) {
+                    val line = lyrics.lines[idx]
+                    if (line.text.isNotBlank()) {
+                        val next = lyrics.lines.getOrNull(idx + 1)?.timeMs ?: (line.timeMs + 5000)
+                        active = spawn(line, next).also { if (resumed) it.resumedAt = System.nanoTime() }
+                    }
+                }
+            }
+        }
+
+        if (worldMode.get() && !textFlash.get()) keepOnScreen()
+
+        val gfx = DangoClient.gfx
+        val deepGlow = gfx.glow
+        gfx.guarded {
+            val songNow = songPos.toLong()
+            val beat = if (s != null) MusicPlayer.beatPulse(MusicPlayer.positionMs) else 0f
+            if (!worldMode.get()) {
+                // 3D lyrics 关掉 = 不显示歌词
+            } else if (textFlash.get()) {
+                flash.draw(if (s != null && !paused) lyrics else null, songNow, beat, flashSize.value)
+            } else {
+                // 先把歌词画到发光画布上做出光晕，再正常画一遍清晰的字
+                val glowAmount = glowStrength.value * nightGlow()
+                if (glow.get() && glowAmount > 0.01f && deepGlow.available && (active != null || fading.isNotEmpty())) {
+                    try {
+                        if (deepGlow.begin()) {
+                            glowPass = true
+                            try {
+                                drawWorld(e.partialTicks, songNow, lyrics, beat)
+                            } finally {
+                                glowPass = false
+                            }
+                            // 光晕是字本身的颜色扩散出去，不另外染色
+                            deepGlow.end(1f, 1f, 1f, glowAmount * 4f, glowRadius.value)
+                        }
+                    } catch (t: Throwable) {
+                        // 发光出任何错都不影响歌词本身：关掉发光，下面照常画字
+                        glowPass = false
+                        deepGlow.disable(t)
+                    }
+                    // 发光画完，把文字需要的渲染状态重新设好
+                    gfx.world.resync()
+                }
+                drawWorld(e.partialTicks, songNow, lyrics, beat)
+            }
+        }
+    }
+
+    /** 屏幕上的东西（原版暗角之后画，不会被压暗）：左上角 Now playing、对拍提示 */
+    @EventHandler
+    fun renderHud(e: HudRenderEvent) {
+        if (!enabled) return
+        val s = current
+        DangoClient.gfx.guarded {
+            if (nowPlaying.get() && s != null && !songCardCovers()) drawNowPlaying(s, currentKey?.let { lyricsFor(it) })
+            Dance.tapStatus()?.let { drawTapStatus(it) }
+        }
+    }
+
+    /** 对拍时准星下面显示点到第几下 / 点出来的 BPM */
+    private fun drawTapStatus(text: String) {
+        val platform = DangoClient.platform
+        val scale = platform.guiScale.coerceAtLeast(1)
+        val w = DangoClient.gfx.text.pixelWidth(text)
+        val hud = DangoClient.gfx.hud
+        hud.begin()
+        hud.text(text, platform.windowWidth / scale / 2f - w / 2f, platform.windowHeight / scale / 2f + 10f, 0xFFFFFFFF.toInt(), true)
+        hud.end()
+    }
+
+    private fun startFade(f: Floating) {
+        f.fadeStartNanos = System.nanoTime()
+        fading.add(f)
+    }
+
+    /** 拆成"词"：英文按空格；中日韩每两个字一组。返回每个词（去掉空白） */
+    private fun splitWords(text: String): List<String> {
+        val out = mutableListOf<String>()
+        val sb = StringBuilder()
+        var cjk = 0
+        fun flush() {
+            if (sb.isNotEmpty()) out += sb.toString()
+            sb.setLength(0)
+            cjk = 0
+        }
+        for (c in text) {
+            when {
+                c.isWhitespace() -> flush()
+                c.code >= 0x2E80 -> {
+                    if (sb.isNotEmpty() && cjk == 0) flush()   // 英文后面跟中文：分开
+                    sb.append(c)
+                    cjk++
+                    if (cjk >= 2) flush()
+                }
+                else -> {
+                    if (cjk > 0) flush()
+                    sb.append(c)
+                }
+            }
+        }
+        flush()
+        return out
+    }
+
+    /** 每个非空白字符的出现时间：有逐字歌词用真实时间，没有就把一句平均分给每个词 */
+    private fun charTimes(line: LyricLine, nextMs: Long): LongArray {
+        val times = ArrayList<Long>()
+        val words = line.words
+        if (words != null) {
+            for (w in words) {
+                val at = (w.startMs - line.timeMs).coerceAtLeast(0L)
+                for (c in w.text) if (!c.isWhitespace()) times += at
+            }
+        } else {
+            val toks = splitWords(line.text)
+            val dur = (nextMs - line.timeMs).coerceAtLeast(300L)
+            val span = min(dur * 0.75, toks.size * 330.0)
+            toks.forEachIndexed { i, t ->
+                val at = (span * i / max(1, toks.size)).toLong()
+                repeat(t.length) { times += at }
+            }
+        }
+        return times.toLongArray()
+    }
+
+    /**
+     * "Above ground"：歌词中心最低只到眼睛下面 [GROUND_MARGIN] 格（站在平地上时离地还有一格多），
+     * 换算成距离 [d] 处最多能往下偏多少度（原版 pitch 向下为正）
+     */
+    private fun maxPitch(d: Double): Float =
+        Math.toDegrees(asin((GROUND_MARGIN / d).coerceIn(0.0, 1.0))).toFloat()
+
+    private fun spawn(line: LyricLine, nextMs: Long): Floating {
+        val text = line.text
+        val startMs = line.timeMs
+        val ct = charTimes(line, nextMs)
+        val lines = wrap(text, 200)
+        val chars = lines.sumOf { it.length }
+        val lineDur = (nextMs - startMs).coerceAtLeast(400L)
+        val reveal = min((chars * 55L).coerceAtLeast(250L), (lineDur * 0.6).toLong())
+
+        val tr = if (translation.get()) line.translation?.let { wrap(it, TRANSLATION_WRAP) } ?: emptyList() else emptyList()
+        val player = DangoClient.platform.player
+        if (player == null) return Floating(lines, startMs, reveal, 0.0, 0.0, 0.0, 0f, 0f, ct).also { it.translation = tr }
+        val yaw = player.yaw + (random.nextFloat() * 2f - 1f) * spread.value
+        val d = distance.value.toDouble()
+        var pitch = (player.pitch - 3f - random.nextFloat() * 10f).coerceIn(-60f, 30f)
+        if (aboveGround.get()) pitch = min(pitch, maxPitch(d))
+        val yr = Math.toRadians(yaw.toDouble())
+        val pr = Math.toRadians(pitch.toDouble())
+        val dx = -sin(yr) * cos(pr)
+        val dy = -sin(pr)
+        val dz = cos(yr) * cos(pr)
+        val ex = player.eyeX
+        val ey = player.eyeY
+        val ez = player.eyeZ
+        return Floating(lines, startMs, reveal, ex + dx * d, ey + dy * d, ez + dz * d, yaw, pitch, ct).also { it.translation = tr }
+    }
+
+
+    /** 按像素宽度换行：英文在空格处断，中日韩可以在任意字之间断 */
+    private fun wrap(text: String, maxWidth: Int): List<String> {
+        val out = mutableListOf<String>()
+        val sb = StringBuilder()
+        var lastSpace = -1
+        for (c in text) {
+            sb.append(c)
+            if (c == ' ') lastSpace = sb.length - 1
+            if (strW(sb.toString()) > maxWidth && sb.length > 1) {
+                if (lastSpace > 0) {
+                    out += sb.substring(0, lastSpace).trim()
+                    val rest = sb.substring(lastSpace + 1)
+                    sb.setLength(0)
+                    sb.append(rest)
+                } else {
+                    out += sb.substring(0, sb.length - 1).trim()
+                    sb.setLength(0)
+                    sb.append(c)
+                }
+                lastSpace = -1
+            }
+        }
+        if (sb.isNotBlank()) out += sb.toString().trim()
+        return out.filter { it.isNotEmpty() }
+    }
+
+    // 默认暖白偏粉；翻译默认比原文稍灰一点（设置里可以改）
+    /** 封面的代表色（选了封面主色 / 封面渐变、并且这首歌的封面已经出来时才有） */
+    private fun coverColors(): List<Int>? {
+        if (lyricColors.value != COLORS_COVER && lyricColors.value != COLORS_GRADIENT) return null
+        if (currentKey == null || cover.shownKey != currentKey) return null
+        return cover.palette.takeIf { it.isNotEmpty() }
+    }
+
+    /** 彩虹的相位：每帧算一次，发光层和本体用同一个值，颜色才对得上 */
+    private var rainbowPhase = 0f
+
+    /** 整句一个颜色时用的颜色（封面主色或自定义颜色） */
+    private val textRgb: Int get() = coverColors()?.let { it[0] and 0xFFFFFF } ?: textColor.value
+    private val translationRgb: Int get() = coverColors()?.let { it[0] and 0xFFFFFF } ?: translationColor.value
+
+    /**
+     * 一个字的颜色：[center] 是这个字的中心离行首多远，[width] 是整行宽。
+     * 彩虹按位置铺开色相再随时间流动；封面渐变在几种封面颜色之间从左到右过渡；其他情况整句一个颜色 [base]。
+     */
+    private fun charRgb(center: Float, width: Float, base: Int): Int {
+        val u = if (width > 0f) (center / width).coerceIn(0f, 1f) else 0.5f
+        if (lyricColors.value == COLORS_RAINBOW) {
+            val hue = ((u * RAINBOW_SPAN + rainbowPhase) % 1f + 1f) % 1f
+            return java.awt.Color.HSBtoRGB(hue, 0.55f, 1f) and 0xFFFFFF
+        }
+        val colors = if (lyricColors.value == COLORS_GRADIENT) coverColors() else null
+        if (colors == null || colors.size < 2) return base
+        val at = u * (colors.size - 1)
+        val i = at.toInt().coerceAtMost(colors.size - 2)
+        return mixRgb(colors[i], colors[i + 1], at - i)
+    }
+
+    /** 两个颜色按 [t]（0..1）混合，分通道线性插值 */
+    private fun mixRgb(from: Int, to: Int, t: Float): Int {
+        var out = 0
+        for (shift in intArrayOf(16, 8, 0)) {
+            val a = (from shr shift) and 0xFF
+            val b = (to shr shift) and 0xFF
+            out = out or ((a + (b - a) * t).roundToInt().coerceIn(0, 255) shl shift)
+        }
+        return out
+    }
+
+    // ---------------------------------------------------------------- 歌词文字（平滑字体 / MC 字体 + 发光）
+
+    /** 平滑字体的字号：和 MC 字体的大写字高（7 像素）差不多 */
+    private val lyricSize = 10f
+
+    private fun strW(s: String): Float =
+        if (smoothFont.get()) DangoClient.gfx.text.smoothWidth(s, lyricSize, CjkStyle.LYRIC) else DangoClient.gfx.text.pixelWidth(s)
+
+    private fun charW(c: Char): Float =
+        if (smoothFont.get()) DangoClient.gfx.text.smoothWidth(c.toString(), lyricSize, CjkStyle.LYRIC) else DangoClient.gfx.text.pixelCharWidth(c)
+
+    /** 只在晚上发光时：天黑（含下雨天变暗）慢慢亮起来，天亮慢慢灭掉。返回 0..1 */
+    private var nightLevel = -1f
+    private var nightNanos = 0L
+
+    private fun nightGlow(): Float {
+        val target = if (!glowNightOnly.get()) 1f else {
+            val dark = DangoClient.platform.skyDarken
+            if (dark == null || dark >= NIGHT_SKY_DARKEN) 1f else 0f
+        }
+        val now = System.nanoTime()
+        if (nightLevel < 0f) nightLevel = target
+        val dt = if (nightNanos == 0L) 0f else ((now - nightNanos) / 1e9f).coerceIn(0f, 0.1f)
+        nightNanos = now
+        nightLevel += (target - nightLevel) * (1f - kotlin.math.exp(-dt / 0.8f))
+        return nightLevel
+    }
+
+    /** 一个要画的字：[rgb] 在排版时就按它在句子里的位置定好了，抖动和动画不会让同一个字变色 */
+    private class Glyph(val c: Char, val x: Float, val y: Float, val a: Float, val k: Int, val rgb: Int, val pop: Float = 1f)
+
+    /** 由 (字序号, 第几帧, 种类) 得到一个固定的 -1..1 随机数：同一帧里不管画几遍（发光层、本体）结果都一样 */
+    private fun hashRand(k: Int, frame: Long, salt: Int, seed: Int): Float {
+        var h = k * 73856093 xor (frame * 19349663L).toInt() xor (salt * 83492791) xor seed
+        h = h xor (h ushr 13)
+        h *= 0x5bd1e995
+        h = h xor (h ushr 15)
+        return (h and 0xFFFF) / 32767.5f - 1f
+    }
+
+    /**
+     * 低帧率 wiggle：每个字每 1/fps 秒换一个随机的小角度、小错位、小缩放，中间保持不动，
+     * 就是 AE 里 posterizeTime(8) + wiggle 的一顿一顿手绘感。
+     */
+    private inline fun withWiggle(g: Glyph, seed: Int, frame: Long, draw: () -> Unit) = withWiggle(g, seed, frame, wiggle.get(), draw)
+
+    private inline fun withWiggle(g: Glyph, seed: Int, frame: Long, on: Boolean, draw: () -> Unit) {
+        val amt = wiggleAmount.value
+        val wig = on && amt > 0.001f
+        if (!wig && g.pop == 1f) {
+            draw()
+            return
+        }
+        val rot = if (wig) hashRand(g.k, frame, 1, seed) * 9f * amt else 0f
+        val dx = if (wig) hashRand(g.k, frame, 2, seed) * 0.8f * amt else 0f
+        val dy = if (wig) hashRand(g.k, frame, 3, seed) * 1.6f * amt else 0f
+        val sc = (if (wig) 1f + hashRand(g.k, frame, 4, seed) * 0.12f * amt else 1f) * g.pop
+        val cx = g.x + charW(g.c) / 2f
+        val cy = g.y + 3.5f
+        val pen = DangoClient.gfx.text
+        pen.push()
+        pen.translate(cx + dx, cy + dy)
+        pen.rotate(rot)
+        pen.scale(sc, sc)
+        pen.translate(-cx, -cy)
+        draw()
+        pen.pop()
+    }
+
+    /** 画一个字：y 是字的顶部（和 MC 字体一样） */
+    private fun drawGlyph(c: Char, x: Float, y: Float, rgb: Int, a: Float, smooth: Boolean, shadow: Boolean) {
+        val pen = DangoClient.gfx.text
+        if (smooth) {
+            val r = (rgb shr 16 and 255) / 255f
+            val g = (rgb shr 8 and 255) / 255f
+            val b = (rgb and 255) / 255f
+            val baseline = y + 7.6f
+            if (shadow) {
+                pen.color(0f, 0f, 0f, 0.45f * a)
+                pen.smoothText(c.toString(), x + 0.6f, baseline + 0.6f, lyricSize, CjkStyle.LYRIC)
+            }
+            pen.color(r, g, b, a)
+            pen.smoothText(c.toString(), x, baseline, lyricSize, CjkStyle.LYRIC)
+        } else {
+            val alpha = (a * 255f).toInt()
+            if (alpha < 5) return                          // FontRenderer 会把 alpha<4 当成不透明
+            pen.pixelText(c.toString(), x, y, (alpha shl 24) or rgb, shadow)
+        }
+    }
+
+    /**
+     * 逐字出现：每个字按顺序在 revealMs 内依次淡入并从下往上浮起一点；
+     * 发光由 [DeepGlow] 另外做（先把字画到发光画布上），这里只画字本身。
+     */
+    private fun drawAnimated(lines: List<String>, elapsedMs: Long, revealMs: Long, alphaMul: Float, charTimes: LongArray? = null) {
+        val smooth = smoothFont.get()
+        val flashMode = charTimes != null && charTimes.isNotEmpty()
+        var n = 0   // 非空白字符序号
+        val total = lines.sumOf { it.length }.coerceAtLeast(1)
+        val lineH = 11f
+        var y = -(lines.size * lineH) / 2f
+        var k = 0
+        val glyphs = ArrayList<Glyph>()
+        for (line in lines) {
+            val lineW = strW(line)
+            var x = -lineW / 2f
+            for (c in line) {
+                val rgb = charRgb(x + lineW / 2f + charW(c) / 2f, lineW, textRgb)
+                if (flashMode && !c.isWhitespace()) {
+                    // 按词闪出：到了这个词的时间，整个词一下子出现，先放大再弹回原大小
+                    val at = charTimes!![min(n, charTimes.size - 1)]
+                    n++
+                    val t = (elapsedMs - at) / 160f
+                    if (t >= 0f) {
+                        val a = (t * 3f).coerceIn(0f, 1f) * alphaMul
+                        val back = (1f - t).coerceIn(0f, 1f)
+                        val pop = 1f + 0.55f * back * back
+                        if (a > 0.02f) glyphs += Glyph(c, x, y, a, k, rgb, pop)
+                    }
+                } else if (!flashMode) {
+                    val appearAt = k.toFloat() / total * revealMs
+                    var a = ((elapsedMs - appearAt) / 180f).coerceIn(0f, 1f)
+                    a = a * a * (3f - 2f * a)                 // smoothstep
+                    val alpha = a * alphaMul
+                    if (alpha > 0.02f && !c.isWhitespace()) glyphs += Glyph(c, x, y + (1f - a) * 5f, alpha, k, rgb)
+                }
+                x += charW(c)
+                k++
+            }
+            y += lineH
+        }
+        if (glyphs.isEmpty()) return
+
+        if (smooth) DangoClient.gfx.text.beginSmooth()
+
+        val seed = lines.hashCode()
+        val frame = System.currentTimeMillis() * wiggleFps.value.coerceAtLeast(1) / 1000L
+        for (g in glyphs) withWiggle(g, seed, frame) { drawGlyph(g.c, g.x, g.y, g.rgb, g.a, smooth, !glowPass) }
+
+        if (smooth) DangoClient.gfx.text.endSmooth()
+    }
+
+    /**
+     * 翻译：画在原文下面，字小一点、淡一点；原文开始出现后整行淡入（不逐字）。
+     * 和原文用同一个位置和朝向，发光层也会画到。
+     */
+    private fun drawTranslation(lines: List<String>, elapsedMs: Long, revealMs: Long, alphaMul: Float, top: Float, scale: Float) {
+        if (lines.isEmpty() || !translation.get()) return
+        val smooth = smoothFont.get()
+        val pen = DangoClient.gfx.text
+        val lineH = 11f
+        val animate = translationAnimation.get()
+        val wig = translationWiggle.get()
+        pen.push()
+        pen.translate(0f, top)
+        pen.scale(scale, scale)
+        if (smooth) pen.beginSmooth()
+        if (!animate && !wig) {
+            // 默认：整行一起淡入
+            var a = ((elapsedMs - 120L) / 260f).coerceIn(0f, 1f)
+            a = a * a * (3f - 2f * a)
+            val alpha = a * alphaMul * 0.85f
+            if (alpha > 0.02f) {
+                var y = 0f
+                for (line in lines) {
+                    if (lyricColors.value == COLORS_RAINBOW || (lyricColors.value == COLORS_GRADIENT && coverColors() != null)) {
+                        // 每个字颜色不一样时只能一个个画
+                        val lineW = strW(line)
+                        var x = -lineW / 2f
+                        for (c in line) {
+                            val w = charW(c)
+                            if (!c.isWhitespace()) drawGlyph(c, x, y, charRgb(x + lineW / 2f + w / 2f, lineW, translationRgb), alpha, smooth, !glowPass)
+                            x += w
+                        }
+                    } else {
+                        drawLine(line, -strW(line) / 2f, y, translationRgb, alpha, smooth, !glowPass)
+                    }
+                    y += lineH
+                }
+            }
+        } else {
+            // 逐字：出场动画和原文一样（按顺序淡入、从下往上浮起一点），抖动也用同一套参数
+            val total = lines.sumOf { it.length }.coerceAtLeast(1)
+            val glyphs = ArrayList<Glyph>()
+            var k = 0
+            var y = 0f
+            for (line in lines) {
+                val lineW = strW(line)
+                var x = -lineW / 2f
+                for (c in line) {
+                    val rgb = charRgb(x + lineW / 2f + charW(c) / 2f, lineW, translationRgb)
+                    val a: Float
+                    val lift: Float
+                    if (animate) {
+                        val appearAt = 120f + k.toFloat() / total * revealMs
+                        var t = ((elapsedMs - appearAt) / 180f).coerceIn(0f, 1f)
+                        t = t * t * (3f - 2f * t)
+                        a = t
+                        lift = (1f - t) * 5f
+                    } else {
+                        var t = ((elapsedMs - 120L) / 260f).coerceIn(0f, 1f)
+                        t = t * t * (3f - 2f * t)
+                        a = t
+                        lift = 0f
+                    }
+                    val alpha = a * alphaMul * 0.85f
+                    if (alpha > 0.02f && !c.isWhitespace()) glyphs += Glyph(c, x, y + lift, alpha, 1000 + k, rgb)
+                    x += charW(c)
+                    k++
+                }
+                y += lineH
+            }
+            val seed = lines.hashCode()
+            val frame = System.currentTimeMillis() * wiggleFps.value.coerceAtLeast(1) / 1000L
+            for (g in glyphs) withWiggle(g, seed, frame, wig) { drawGlyph(g.c, g.x, g.y, g.rgb, g.a, smooth, !glowPass) }
+        }
+        if (smooth) pen.endSmooth()
+        pen.pop()
+    }
+
+    /** 整行画（翻译用，不需要逐字动画） */
+    private fun drawLine(text: String, x: Float, y: Float, rgb: Int, a: Float, smooth: Boolean, shadow: Boolean) {
+        val pen = DangoClient.gfx.text
+        if (smooth) {
+            val r = (rgb shr 16 and 255) / 255f
+            val g = (rgb shr 8 and 255) / 255f
+            val b = (rgb and 255) / 255f
+            val baseline = y + 7.6f
+            if (shadow) {
+                pen.color(0f, 0f, 0f, 0.45f * a)
+                pen.smoothText(text, x + 0.6f, baseline + 0.6f, lyricSize, CjkStyle.LYRIC)
+            }
+            pen.color(r, g, b, a)
+            pen.smoothText(text, x, baseline, lyricSize, CjkStyle.LYRIC)
+        } else {
+            val alpha = (a * 255f).toInt()
+            if (alpha < 5) return
+            pen.pixelText(text, x, y, (alpha shl 24) or rgb, shadow)
+        }
+    }
+
+    // ---------------------------------------------------------------- 不跑出屏幕
+
+    private var keepNanos = 0L
+    /** 上一帧镜头的位置（Stay on screen 跟着走用），NaN = 还没有 */
+    private var lastCamX = Double.NaN
+    private var lastCamY = 0.0
+    private var lastCamZ = 0.0
+
+    /**
+     * "Above ground" 的最低高度，平滑地跟着镜头走：
+     * 用每帧插值过的镜头位置（不是一秒 20 次跳变的玩家位置），往上慢慢跟、往下快一点跟，
+     * 跳起来时字只会被柔和地托起一点，不会一顿一顿地抽。
+     */
+    private var groundFloor = Double.NaN
+
+    private fun wrapDegrees(d: Double): Double {
+        var v = d % 360.0
+        if (v >= 180.0) v -= 360.0
+        if (v < -180.0) v += 360.0
+        return v
+    }
+
+    /**
+     * "Stay on screen"：歌词（连同字的宽度）超出视野时，沿着离视线最近的方向滑回屏幕边上。
+     * 用视线方向的偏角（左右 / 上下）判断，视野大小按设置里的 FOV 和窗口宽高比算；离镜头的距离不变。
+     * 每帧在画之前做一次，发光层和字本身用的是同一个位置。
+     *
+     * 往回拉用的是"临界阻尼弹簧"：有速度、会慢慢加速和减速，不会一碰到边就突然开始动、一回来就突然停，
+     * 跳跃 / 飞行这种上下来回的时候也是顺的。"Above ground" 的最低高度也算成一个边界交给同一个弹簧。
+     */
+    private fun keepOnScreen() {
+        val now = System.nanoTime()
+        val dt = if (keepNanos == 0L) 0.016 else ((now - keepNanos) / 1e9).coerceIn(0.0, 0.1)
+        keepNanos = now
+        if (!stayOnScreen.get()) {
+            lastCamX = Double.NaN
+            return
+        }
+        val platform = DangoClient.platform
+        if (platform.player == null) return
+        val world = DangoClient.gfx.world
+        val view = world.cameraAngles()
+        if (!view.yaw.isFinite() || !view.pitch.isFinite()) return
+
+        // 移动得快（鞘翅、骑马、矿车）时歌词跟着一起走：只靠转角度的弹簧追不上，会被甩出屏幕。
+        // 走路和疾跑（每秒 8 格以内）照旧固定在世界里；每秒 8 到 14 格之间逐渐变成完全跟着走。
+        val camX = world.cameraX
+        val camY = world.cameraY
+        val camZ = world.cameraZ
+        var carryX = 0.0
+        var carryY = 0.0
+        var carryZ = 0.0
+        if (!lastCamX.isNaN() && dt > 0.0) {
+            val mx = camX - lastCamX
+            val my = camY - lastCamY
+            val mz = camZ - lastCamZ
+            val moved = sqrt(mx * mx + my * my + mz * mz)
+            // 一帧走了 50 格以上是传送 / 换维度：不跟，下面的距离限制会把歌词拉回来
+            if (moved < 50.0) {
+                val carry = ((moved / dt - 8.0) / 6.0).coerceIn(0.0, 1.0)
+                carryX = mx * carry
+                carryY = my * carry
+                carryZ = mz * carry
+            }
+        }
+        lastCamX = camX
+        lastCamY = camY
+        lastCamZ = camZ
+        val maxDist = distance.value * 2.0
+
+        if (aboveGround.get()) {
+            val target = world.cameraY - GROUND_MARGIN
+            groundFloor = if (groundFloor.isNaN()) target else {
+                val tau = if (target > groundFloor) 0.3 else 0.15
+                groundFloor + (target - groundFloor) * (1.0 - exp(-dt / tau))
+            }
+        } else {
+            groundFloor = Double.NaN
+        }
+
+        val vHalf = platform.fov / 2.0
+        val aspect = platform.windowWidth.toDouble() / platform.windowHeight.coerceAtLeast(1)
+        val hHalf = Math.toDegrees(atan(tan(Math.toRadians(vHalf)) * aspect))
+        val s = 0.03 * scale.value * (distance.value / 6.5)
+
+        fun follow(f: Floating) {
+            f.x += carryX
+            f.y += carryY
+            f.z += carryZ
+            var rx = f.x - world.cameraX
+            var ry = f.y - world.cameraY
+            var rz = f.z - world.cameraZ
+            var len = sqrt(rx * rx + ry * ry + rz * rz)
+            if (len < 1e-4) return
+            // 离得太远（被甩下、传送）：沿原方向拉回设定距离的两倍以内
+            if (len > maxDist) {
+                val k = maxDist / len
+                rx *= k; ry *= k; rz *= k
+                len = maxDist
+                f.x = world.cameraX + rx
+                f.y = world.cameraY + ry
+                f.z = world.cameraZ + rz
+            }
+
+            // 字本身占的角度：留出一半宽 / 高，再多留 2 度边距
+            // 翻译在原文下面多占一截：按整体高度算（偏保守，上下都留出来）
+            val rows = f.lines.size + f.translation.size * TRANSLATION_SCALE * 2.0
+            val halfW = Math.toDegrees(atan2(max(f.lines.maxOf { strW(it) }, f.translation.maxOfOrNull { strW(it) * TRANSLATION_SCALE } ?: 0f) * s / 2.0, len))
+            val halfH = Math.toDegrees(atan2(rows * 11.0 * s / 2.0, len))
+            val hLim = max(0.0, hHalf - halfW - 2.0)
+            val vLim = max(0.0, vHalf - halfH - 2.0)
+
+            val curYaw = Math.toDegrees(atan2(-rx, rz))
+            val curPitch = Math.toDegrees(asin((-ry / len).coerceIn(-1.0, 1.0)))
+            val dYaw = wrapDegrees(curYaw - view.yaw)
+            val dPitch = curPitch - view.pitch
+
+            // 往下最多到哪：屏幕下边，以及（Above ground）不低于地面高度，哪个更靠上用哪个
+            var lowLim = vLim
+            if (!groundFloor.isNaN()) {
+                val floorPitch = Math.toDegrees(asin(((world.cameraY - groundFloor) / len).coerceIn(-1.0, 1.0)))
+                lowLim = min(lowLim, floorPitch - view.pitch)
+            }
+            val tYaw = dYaw.coerceIn(-hLim, hLim)
+            val tPitch = if (lowLim >= -vLim) dPitch.coerceIn(-vLim, lowLim) else lowLim
+
+            // 偏出去多少（在边界以内就是 0）
+            val eYaw = dYaw - tYaw
+            val ePitch = dPitch - tPitch
+            if (eYaw == 0.0 && ePitch == 0.0 && abs(f.vYaw) < 0.05 && abs(f.vPitch) < 0.05) {
+                f.vYaw = 0.0
+                f.vPitch = 0.0
+                return
+            }
+
+            // 临界阻尼弹簧，分成小步算（帧率低时也稳定）
+            var moveYaw = 0.0
+            var movePitch = 0.0
+            var left = dt
+            while (left > 1e-6) {
+                val h = min(left, 1.0 / 240.0)
+                left -= h
+                f.vYaw += (-SPRING * SPRING * (eYaw - moveYaw) - 2.0 * SPRING * f.vYaw) * h
+                f.vPitch += (-SPRING * SPRING * (ePitch - movePitch) - 2.0 * SPRING * f.vPitch) * h
+                moveYaw += f.vYaw * h
+                movePitch += f.vPitch * h
+            }
+
+            val newYaw = curYaw + moveYaw
+            val newPitch = (curPitch + movePitch).coerceIn(-89.0, 89.0)
+            val yr = Math.toRadians(newYaw)
+            val pr = Math.toRadians(newPitch)
+            f.x = world.cameraX - sin(yr) * cos(pr) * len
+            f.y = world.cameraY - sin(pr) * len
+            f.z = world.cameraZ + cos(yr) * cos(pr) * len
+            // 不朝向镜头时，字的朝向跟着一起转，免得斜着看
+            f.yaw = (f.yaw + wrapDegrees(newYaw - curYaw)).toFloat()
+            f.pitch = (f.pitch + (newPitch - curPitch)).toFloat().coerceIn(-90f, 90f)
+        }
+
+        active?.let { follow(it) }
+        fading.forEach { follow(it) }
+    }
+
+    private fun drawWorld(partialTicks: Float, songNow: Long, lyrics: Lyrics?, beat: Float) {
+        val world = DangoClient.gfx.world
+        world.begin()
+
+        fun draw(f: Floating, alphaMul: Float, lift: Float) {
+            var rx = f.x - world.cameraX
+            var ry = f.y - world.cameraY
+            var rz = f.z - world.cameraZ
+            var len = sqrt(rx * rx + ry * ry + rz * rz)
+
+            // 离得太近（走过去 / 疾跑）就沿视线方向把歌词往后推，保持最小距离
+            val minD = distance.value * 0.6
+            if (keepAway.get() && len in 1e-4..minD) {
+                val k = minD / len
+                rx *= k; ry *= k; rz *= k
+                f.x = world.cameraX + rx
+                f.y = world.cameraY + ry
+                f.z = world.cameraZ + rz
+                len = minD
+            }
+
+            val yaw: Float
+            val pitch: Float
+            if (facePlayer.get() && len > 1e-4) {
+                // 朝向镜头：根据镜头 → 歌词的方向算出转角
+                yaw = Math.toDegrees(atan2(-rx, rz)).toFloat()
+                pitch = Math.toDegrees(atan2(-ry, sqrt(rx * rx + rz * rz))).toFloat()
+            } else {
+                yaw = f.yaw
+                pitch = f.pitch
+            }
+            val s = 0.03f * scale.value * (distance.value / 6.5f)
+            world.push(rx, ry + lift, rz, yaw, pitch, s)
+            drawAnimated(f.lines, songNow - f.startMs, f.revealMs, alphaMul, if (wordPop.get()) f.charTimes else null)
+            drawTranslation(f.translation, songNow - f.startMs, f.revealMs, alphaMul, f.lines.size * 11f / 2f + 2.5f, TRANSLATION_SCALE)
+            world.pop()
+        }
+
+        drawFading { f, a, lift -> draw(f, a, lift) }
+        active?.let { draw(it, appearOf(it), 0f) }
+    }
+
+    private fun drawFading(draw: (Floating, Float, Float) -> Unit) {
+        val now = System.nanoTime()
+        val it = fading.iterator()
+        while (it.hasNext()) {
+            val f = it.next()
+            val t = (now - f.fadeStartNanos) / 1e9f
+            val a = 1f - t / 0.4f
+            if (a <= 0f) {
+                it.remove()
+                continue
+            }
+            draw(f, a, t * 0.4f)
+        }
+    }
+
+    /**
+     * 左上角：
+     *   [封面]  ♪ 歌名
+     *           歌手
+     *           [时钟来源 进度]  歌词来源
+     */
+    /** 歌曲卡片 HUD 正在显示内置播放器的歌时，就不再画左上角的信息，免得重复 */
+    private fun songCardCovers(): Boolean = try {
+        DangoMusic.instance.moduleManager.get(SongCardModule::class.java).showing
+    } catch (_: Exception) {
+        false
+    }
+
+    private fun drawNowPlaying(s: NowPlaying, lyrics: Lyrics?) {
+        val hud = DangoClient.gfx.hud
+        hud.begin()
+        val x = 6
+        val y = 6
+        val coverSize = 32
+
+        // 封面（换歌时淡入）；还没加载到时画一个占位方块
+        var textX = x
+        if (showCover.get()) {
+            val loc = cover.location
+            val ready = loc != null && cover.shownKey == s.key
+            hud.rect(x - 1, y - 1, x + coverSize + 1, y + coverSize + 1, 0x66000000)
+            if (ready) {
+                val fade = ((System.nanoTime() - cover.shownAtNanos) / 1e9f / 0.35f).coerceIn(0f, 1f)
+                hud.texture(loc!!, x, y, coverSize, coverSize, fade)
+            } else {
+                hud.rect(x, y, x + coverSize, y + coverSize, 0x55F2A7C3)
+            }
+            textX = x + coverSize + 6
+        }
+
+        // 三根跳动的小柱子：颜色跟随封面主色，换歌时慢慢过渡
+        val target = if (cover.shownKey == s.key) cover.accent else CoverArt.DEFAULT_ACCENT
+        val nowNs = System.nanoTime()
+        val dt = if (barColorNanos == 0L) 1f else ((nowNs - barColorNanos) / 1e9f).coerceIn(0f, 0.1f)
+        barColorNanos = nowNs
+        val k = 1f - kotlin.math.exp(-dt / 0.25f)
+        barR += (((target shr 16) and 0xFF) / 255f - barR) * k
+        barG += (((target shr 8) and 0xFF) / 255f - barG) * k
+        barB += ((target and 0xFF) / 255f - barB) * k
+        val barColor = (0xFF shl 24) or ((barR * 255).toInt().coerceIn(0, 255) shl 16) or
+            ((barG * 255).toInt().coerceIn(0, 255) shl 8) or (barB * 255).toInt().coerceIn(0, 255)
+        val t = nowNs / 1e9
+        for (i in 0 until 3) {
+            val h = if (s.playing) (3 + 4 * (0.5 + 0.5 * sin(t * (6.0 + i * 1.7) + i))).toInt() else 2
+            val bx = textX + i * 3
+            hud.rect(bx, y + 8 - h, bx + 2, y + 8, barColor)
+        }
+
+        val title = s.title.let { if (it.length > 40) it.take(39) + "…" else it }
+        hud.text(title, (textX + 12).toFloat(), y.toFloat(), 0xFFFFFFFF.toInt(), true)
+        if (s.artist.isNotEmpty()) {
+            hud.text(s.artist, textX.toFloat(), (y + 11).toFloat(), 0xFFB8B8C8.toInt(), true)
+        }
+
+        hud.end()
+    }
+}
+
+/** 歌词配色：自定义颜色 / 封面主色 / 封面渐变 / 彩虹 */
+private const val COLORS_CUSTOM = 0
+private const val COLORS_COVER = 1
+private const val COLORS_GRADIENT = 2
+private const val COLORS_RAINBOW = 3
+/** 一句歌词从头到尾跨过多少色相（1 = 整个色环） */
+private const val RAINBOW_SPAN = 0.6f

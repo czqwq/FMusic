@@ -22,6 +22,12 @@ Minecraft 1.7.10 (Forge) 音乐模组
 - **B站直播弹幕点歌**: 监听直播间弹幕 "点歌XXX" 自动搜索入队 (fmusic_server/bili/config.json 配置)
 - **Forge 事件**: MusicPlayEvent / MusicAddEvent (可取消)
 - **可点击消息按钮**: 聊天中 [点我选择]/[点我查看] 等按钮可点击执行命令 (1.7.10 兼容序列化)
+- **内置客户端播放器 (移植自 DangoMusic)**: 按 `M` 打开液态玻璃播放器 (主菜单也能开), 直连网易云/QQ音乐/酷狗,
+  游戏内扫码登录, 推荐/排行榜/我的歌单/搜索, 列表 ↔ 封面墙, 逐字 3D 世界歌词 (发光/抖动/文闪),
+  Song card + 灵动岛, 环境音效与房间回声, 生物踩点, 云盘浏览, 可自定义快捷键
+  - 它和上面的服务端点歌系统是**两套完全独立**的播放系统 (各自的账号/歌单/播放链路), 同时只允许一个出声
+  - HUD 三套并存 (老 HUD / Song card / 灵动岛), **默认只开老 HUD**, 新样式在播放器设置里自己开
+  - 配置与登录凭证在 `config/fmusic/dango/`; 详见 [docs/dango-port.md](docs/dango-port.md)
 
 ## 构建
 
@@ -99,5 +105,6 @@ gradlew.bat build
 | QQ音乐 API | [AllMusic_QQMusic](https://github.com/hutuyee/AllMusic_QQMusic) (ds.haaa) | GPL-3.0 (同 AllMusic) |
 | 酷狗音乐 API | [AllMusic_Kugou](https://github.com/hutuyee/AllMusic_Kugou) (ds.haaa) | GPL-3.0 (同 AllMusic) |
 | B站直播弹幕点歌 | [BiliMusicBridge](https://github.com/hutuyee/BiliMusicBridge) | MIT |
+| 内置客户端播放器 (液态玻璃播放器/3D 歌词/Song card/灵动岛/扫码登录/环境音效等) | [DangoMusic](https://github.com/Sorihiko/DangoMusic) (Sorihiko) | GPL-3.0 (与本项目兼容) |
 
 按 AGPL-3.0 条款, 对本项目的使用、修改与分发需保持本许可证并保留上述版权声明;

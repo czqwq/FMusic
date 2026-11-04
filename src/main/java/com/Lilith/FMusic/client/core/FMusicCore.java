@@ -238,6 +238,17 @@ public class FMusicCore {
     }
 
     /**
+     * 硬停当前播放
+     * <p>
+     * 立刻关掉当前 OpenAL 流并清 HUD，不会像收到 STOP 指令那样在结尾附近把缓冲尾巴放完。
+     * 给「另一个播放器要出声，这边必须马上让路」的场景用（见 DangoAudioArbiter）。
+     * 不影响后续点歌：service 线程池不受影响（那是 {@link #stop()}，退出游戏时用）。
+     */
+    public static void hardStop() {
+        stopPlaying();
+    }
+
+    /**
      * 只清 HUD, 不打断当前播放 (用于已到文件尾的收尾 STOP/切歌, 让尾部缓冲自然播完)
      */
     private static void clearHudOnly() {
