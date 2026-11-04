@@ -91,8 +91,16 @@ class NeteaseMusicModule : Module() {
     @ModuleValue("Volume normalization", "Keep songs at a similar loudness")
     private val normalize = BooleanValue(true)
 
+    /**
+     * 默认关。
+     *
+     * 环境音效开着的时候会持续烧 CPU：游戏线程每 4 tick 发一次射线读方块算房间混响，
+     * 解码线程还要对每一个采样做低通 + 混响。单机下客户端和内置服务器共用一个 JVM，
+     * 这些开销会和游戏抢 CPU，实测表现为播放时周期性卡顿（"Can't keep up!"、区块 tick 变慢）。
+     * 功能本身完整保留，想要的人在播放器设置里自己打开。
+     */
     @ModuleValue("Environment audio", "Echo follows the room you are in (size and materials), muffled underwater")
-    private val envAudio = BooleanValue(true)
+    private val envAudio = BooleanValue(false)
 
     @ModuleValue("Rain", "A little quieter in rain and thunder")
     private val envRain = BooleanValue(true)
@@ -286,12 +294,16 @@ class NeteaseMusicModule : Module() {
         MusicPlayer.normalize = normalize.get()
 
         // 环境音效：设置和玩家周围的环境交给解码线程
-        EnvironmentAudio.enabled = envAudio.get()
+        val envOn = envAudio.get()
+        EnvironmentAudio.enabled = envOn
         EnvironmentAudio.rain = envRain.get()
         EnvironmentAudio.strength = envStrength.value
         // 房间回声：只在放歌时测（要发射线读方块）
-        RoomAcoustics.tick(DangoMusic.instance.platform, envAudio.get() && MusicPlayer.state == MusicPlayer.State.PLAYING)
-        EnvironmentAudio.update(try { DangoMusic.instance.platform.environment } catch (_: Exception) { null }, RoomAcoustics.room)
+        RoomAcoustics.tick(DangoMusic.instance.platform, envOn && MusicPlayer.state == MusicPlayer.State.PLAYING)
+        // 采样玩家周围的环境（闭塞度 / 水下 / 天空 / 下雨）要读几十上百次方块，
+        // 每次 tick 都算一遍纯属浪费——环境音效关着的时候干脆不采样，
+        // 传 null 进去让 EnvironmentAudio 把目标值归零（process() 随后会直接早退）。
+        EnvironmentAudio.update(if (envOn) try { DangoMusic.instance.platform.environment } catch (_: Exception) { null } else null, RoomAcoustics.room)
 
         // 打开键额外支持主菜单；其他播放快捷键仍只在世界内响应。
         val platform = DangoMusic.instance.platform

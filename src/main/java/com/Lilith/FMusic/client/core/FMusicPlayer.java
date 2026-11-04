@@ -79,6 +79,14 @@ public class FMusicPlayer extends InputStream {
     private volatile boolean isChat;
     private int chatCount = 0;
     /**
+     * 互斥静音: 本模组内置的客户端播放器 (移植自 DangoMusic) 要出声时, 把点歌的声音压到 0。
+     * <p>
+     * 关键点是**只改增益, 不暂停也不停止**: 点歌是和服务器同步的 (服务端按歌曲时长推进, 歌词/KTV
+     * 由服务端推送), 一旦暂停本地的流, 位置就和服务器上其他人错开了, 恢复时会和歌词对不上。
+     * 保持流按实时推进、只是听不见, 取消静音时听到的就是"此刻"的正确位置。
+     */
+    private volatile boolean muted = false;
+    /**
      * 游戏暂停(单人按Esc, pause_at_freeze=true)时音乐是否被冻结
      */
     private volatile boolean frozen;
@@ -114,6 +122,21 @@ public class FMusicPlayer extends InputStream {
 
     public void setChat() {
         isChat = true;
+    }
+
+    /**
+     * 互斥静音: 只把增益压到 0, 不改变播放状态。
+     *
+     * @param muted true = 静音(但继续流式播放, 保持与服务器同步); false = 恢复原本的增益
+     */
+    public void setMuted(boolean muted) {
+        this.muted = muted;
+        // 立刻生效, 不用等播放线程下一个缓冲周期
+        checkVolume();
+    }
+
+    public boolean isMuted() {
+        return muted;
     }
 
     public void timerTick() {
@@ -253,12 +276,19 @@ public class FMusicPlayer extends InputStream {
     }
 
     private void checkVolume() {
+        if (index < 0 || !AL10.alIsSource(index)) {
+            return;
+        }
         float temp = FMusicCore.bridge.getVolume();
         float now = AL10.alGetSourcef(index, AL10.AL_GAIN);
         if (isChat) {
             temp *= 0.5F;
         }
-        if (temp < 0.05F) {
+        // 互斥静音优先, 且必须绕过下面 5% 的音量下限, 否则"静音"还留着一丁点声音。
+        // 注意这里只改增益, 不碰播放状态 (理由见 muted 字段的注释)。
+        if (muted) {
+            temp = 0F;
+        } else if (temp < 0.05F) {
             temp = 0.05F;
         }
         if (now != temp) {
@@ -613,6 +643,9 @@ public class FMusicPlayer extends InputStream {
     }
 
     public void tick() {
+        // 每 tick 重新断言一次增益: 新歌开始 / 音量滑块变化 / 互斥静音开关都能立刻落到位,
+        // 不用等播放线程下一次 checkVolume()
+        checkVolume();
         if (wait) {
             wait = false;
             semaphoreReload.release();

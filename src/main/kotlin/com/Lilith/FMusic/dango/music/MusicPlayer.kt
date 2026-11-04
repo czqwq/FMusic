@@ -48,6 +48,9 @@ object MusicPlayer {
     @Volatile private var generation = 0
     @Volatile private var audio: ByteArray? = null
     @Volatile private var line: AudioOutput? = null
+    /** 声卡上次报的播放位置（微秒）和取样的时刻，由解码线程写、渲染线程读；见 [positionMs] */
+    @Volatile private var positionMicrosAt = 0L
+    @Volatile private var positionSampledAt = 0L
     @Volatile private var seekBaseMs = 0L
     @Volatile private var pausedAtMs = 0L
 
@@ -82,9 +85,25 @@ object MusicPlayer {
         Array(beats.size) { val b = beats.elementAt(it); floatArrayOf(b.timeMs.toFloat(), b.strength) }
     }
 
+    /**
+     * 播放位置（毫秒）。
+     *
+     * 这里是渲染 / 界面线程每帧都会读的热点（3D 歌词、Song card、灵动岛、播放器进度条）。
+     * **不能**在这里直接问声卡：`SourceDataLine.getMicrosecondPosition()` 和解码线程正在阻塞的
+     * `write()` 抢同一把锁，一旦被写操作挡住，整个渲染线程就会卡在那里（单机下还会连带拖慢
+     * 内置服务器 tick）。FMusic 原来的播放器没有这个问题，是因为它的位置来自 OpenAL（无锁查询）。
+     *
+     * 所以改成：解码线程每次 write 之后把声卡位置记进 [positionMicrosAt]（约每秒几十次），
+     * 渲染线程只读这两个 @Volatile 字段，再用经过的时间做线性插值。
+     * 播放是实时的，插值误差上限就是两次采样之间的间隔；这里再夹一个 200ms 的上限，
+     * 万一解码线程停了也不会让歌词一直往前飘。
+     */
     val positionMs: Long
         get() = when (state) {
-            State.PLAYING -> seekBaseMs + (line?.positionMicros ?: 0L) / 1000
+            State.PLAYING -> {
+                val elapsed = ((System.nanoTime() - positionSampledAt) / 1000).coerceIn(0L, 200_000L)
+                seekBaseMs + (positionMicrosAt + elapsed) / 1000
+            }
             State.PAUSED -> pausedAtMs
             else -> 0L
         }
@@ -469,8 +488,13 @@ object MusicPlayer {
                 }
                 if (out == null) {
                     val format = AudioFormat(frame.rate.toFloat(), 16, frame.channels, true, false)
-                    out = openOutput(format, frame.rate * frame.channels * 2 / 4)   // 约 0.25 秒缓冲
+                    // 约 1 秒缓冲。原来是 0.25 秒，太紧：解码线程一旦被 GC 或游戏线程挤一下
+                    // （单机下客户端和内置服务器共用一个 JVM），声卡就会 underrun，
+                    // 听感就是"播放卡一下 / 爆音"。音乐不需要低延迟，缓冲给足更稳。
+                    out = openOutput(format, frame.rate * frame.channels * 2)
                     line = out
+                    positionMicrosAt = 0L
+                    positionSampledAt = System.nanoTime()
                     if (state == State.PAUSED) {
                         out.stop()
                     } else {
@@ -528,6 +552,10 @@ object MusicPlayer {
                     data[k * 2 + 1] = ((v shr 8) and 0xFF).toByte()
                 }
                 out.write(data, 0, data.size)
+                // 顺便把声卡的实际播放位置记下来给渲染线程用（见 positionMs 的说明）：
+                // 只有解码线程碰声卡，渲染线程永远不会被阻塞的 write() 挡住。
+                positionMicrosAt = out.positionMicros
+                positionSampledAt = System.nanoTime()
             }
             if (finished && out == null && gen == generation) {
                 finished = false
@@ -565,6 +593,8 @@ object MusicPlayer {
     private fun stopLine() {
         val l = line
         line = null
+        positionMicrosAt = 0L
+        positionSampledAt = System.nanoTime()
         try {
             l?.stop()
             l?.flush()

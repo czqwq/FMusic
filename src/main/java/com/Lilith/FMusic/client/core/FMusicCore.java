@@ -238,14 +238,20 @@ public class FMusicCore {
     }
 
     /**
-     * 硬停当前播放
+     * 互斥静音：本模组内置的客户端播放器（移植自 DangoMusic）要出声时，把点歌压到静音。
      * <p>
-     * 立刻关掉当前 OpenAL 流并清 HUD，不会像收到 STOP 指令那样在结尾附近把缓冲尾巴放完。
-     * 给「另一个播放器要出声，这边必须马上让路」的场景用（见 DangoAudioArbiter）。
-     * 不影响后续点歌：service 线程池不受影响（那是 {@link #stop()}，退出游戏时用）。
+     * 只改增益，**不暂停也不停止**。点歌是和服务器同步的（服务端按歌曲时长推进，歌词/KTV 由服务端推），
+     * 一旦暂停本地的流，位置就和服务器上其他玩家错开；保持流按实时推进、只是听不见，
+     * 取消静音时听到的就是此刻的正确位置。调用方见 DangoAudioArbiter。
      */
-    public static void hardStop() {
-        stopPlaying();
+    public static void setMuted(boolean muted) {
+        if (player != null) {
+            player.setMuted(muted);
+        }
+    }
+
+    public static boolean isMuted() {
+        return player != null && player.isMuted();
     }
 
     /**

@@ -60,16 +60,28 @@ object RoomAcoustics {
     private var tick = 0
     private var smoothed: Room? = null
 
+    /** 上一次测量时玩家所在的方块坐标：站着不动就一直用上一次的结果，别每 4 tick 重发一遍射线 */
+    private var lastX = Int.MIN_VALUE
+    private var lastY = Int.MIN_VALUE
+    private var lastZ = Int.MIN_VALUE
+
     /** 游戏线程每 tick 调；不在世界里 / 没开环境音效时清掉 */
     fun tick(platform: Platform, active: Boolean) {
         if (!active) {
             room = null
             smoothed = null
             rays = FloatArray(0)
+            lastX = Int.MIN_VALUE; lastY = Int.MIN_VALUE; lastZ = Int.MIN_VALUE
             return
         }
         if (tick++ % INTERVAL != 0) return
         val pose = platform.player ?: run { room = null; smoothed = null; return }
+        // 没挪窝就不用重算：读方块算混响是这个功能里最贵的一段，而听歌时人往往是站着不动的
+        val bx = floor(pose.eyeX).toInt()
+        val by = floor(pose.eyeY).toInt()
+        val bz = floor(pose.eyeZ).toInt()
+        if (room != null && bx == lastX && by == lastY && bz == lastZ) return
+        lastX = bx; lastY = by; lastZ = bz
         val measured = try { measure(platform, pose.eyeX, pose.eyeY, pose.eyeZ, pose.yaw) } catch (_: Exception) { null } ?: return
         // 每次射线方向随机转一点，结果会抖：和上一次的平均一下
         val last = smoothed
