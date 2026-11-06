@@ -54,7 +54,9 @@ object LegacyPlatform : Platform {
 
     override val inGame: Boolean get() = mc.currentScreen == null && mc.theWorld != null
 
-    override val inMainMenu: Boolean get() = mc.currentScreen is GuiMainMenu
+    // 装了 Custom Main Menu 时主菜单是它的 GuiCustom 而不是 GuiMainMenu，由可选兼容层认出来
+    override val inMainMenu: Boolean
+        get() = mc.currentScreen is GuiMainMenu || CustomMainMenuCompat.isMainMenuScreen(mc.currentScreen)
 
     override val chatOpen: Boolean get() = mc.currentScreen is GuiChat
 

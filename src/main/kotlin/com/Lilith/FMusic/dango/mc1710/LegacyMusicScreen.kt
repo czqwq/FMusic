@@ -23,11 +23,21 @@ class LegacyMusicScreen(
         }.apply { isAccessible = true }
     }
 
+    /**
+     * 主菜单界面：原版 `GuiMainMenu`，或装了 Custom Main Menu 时它的 `GuiCustom`（可选兼容层）。
+     * 只有没有世界时才算；世界里的其它界面不接管播放器打开键，也不需要画菜单背景。
+     */
+    private fun menuParent(): GuiScreen? {
+        if (mc.theWorld != null) return null
+        val current = parent ?: return null
+        return if (current is GuiMainMenu || CustomMainMenuCompat.isMainMenuScreen(current)) current else null
+    }
+
     override fun initGui() {
         Keyboard.enableRepeatEvents(true)
-        if (parent is GuiMainMenu) {
-            parent.width = width
-            parent.height = height
+        menuParent()?.let {
+            it.width = width
+            it.height = height
         }
         screen.opened()
     }
@@ -39,19 +49,25 @@ class LegacyMusicScreen(
     override fun doesGuiPauseGame() = false
 
     override fun updateScreen() {
-        if (mc.theWorld == null && parent is GuiMainMenu) parent.updateScreen()
+        // 主菜单自己要按帧推进（原版全景 / CMM 的全景 timer、幻灯片），播放器只是叠在它上面
+        menuParent()?.updateScreen()
     }
 
     override fun drawScreen(mouseX: Int, mouseY: Int, partialTicks: Float) {
-        val menuBackdrop = mc.theWorld == null && parent is GuiMainMenu
-        if (menuBackdrop) {
+        val menu = menuParent()
+        var menuBackdrop = menu != null
+        if (menu is GuiMainMenu) {
             // 1.7.10 没有 GlStateManager，直接用 GL 开关（等价于 GlStateManager.disableAlpha/enableAlpha）
             GL11.glDisable(GL11.GL_ALPHA_TEST)
-            panoramaMethod.invoke(parent, mouseX, mouseY, partialTicks)
+            panoramaMethod.invoke(menu, mouseX, mouseY, partialTicks)
             GL11.glEnable(GL11.GL_ALPHA_TEST)
             // 与 GuiMainMenu 的两层渐变一致，避免开关时背景亮度变化。
             drawGradientRect(0, 0, width, height, -2130706433, 16777215)
             drawGradientRect(0, 0, width, height, 0, Int.MIN_VALUE)
+        } else if (menu != null) {
+            // 可选兼容：装了 Custom Main Menu 时让它的 GuiCustom 自己画一遍主菜单当背景。
+            // 没装/版本对不上时返回 false，退回下面没有背景的深色底路径（不会黑屏或自采样）。
+            menuBackdrop = CustomMainMenuCompat.renderBackdrop(menu, mouseX, mouseY, partialTicks)
         }
         screen.render(menuBackdrop)
     }
