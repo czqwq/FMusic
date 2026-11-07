@@ -45,6 +45,12 @@ public class TexRender extends TextureRender {
 
     @Override
     public void drawPic(float x, float y, float alpha) {
+        // 只借状态, 不占状态: 画完把深度写掩码和混合开关恢复成进来时的样子。
+        // (原来无条件 glDisable(GL_BLEND) 会把原版后续的全屏合成 quad 画成整屏黑,
+        // 见 core/render/HudGlState 的说明)
+        boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
+        boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, sourceTexture.getGlTextureId());
         GL11.glDepthMask(false);
         GL11.glEnable(GL11.GL_BLEND);
@@ -74,14 +80,21 @@ public class TexRender extends TextureRender {
         tessellator.addVertexWithUV(x0, y0, z, u0, v0);
         tessellator.draw();
 
-        GL11.glDisable(GL11.GL_BLEND);
-        GL11.glDepthMask(true);
+        // Tessellator 会把当前颜色留成最后一个顶点色 (alpha 未必是 1), 归位免得后面被染暗
+        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        GL11.glDepthMask(depthMask);
+        if (!blend) {
+            GL11.glDisable(GL11.GL_BLEND);
+        }
 
         GL11.glPopMatrix();
     }
 
     @Override
     public void drawPic(float x, float y, float width, float alpha) {
+        boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
+        boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, sourceTexture.getGlTextureId());
         GL11.glDepthMask(false);
         GL11.glEnable(GL11.GL_BLEND);
@@ -111,8 +124,11 @@ public class TexRender extends TextureRender {
         tessellator.addVertexWithUV(x0, y0, z, u0, v0);
         tessellator.draw();
 
-        GL11.glDisable(GL11.GL_BLEND);
-        GL11.glDepthMask(true);
+        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        GL11.glDepthMask(depthMask);
+        if (!blend) {
+            GL11.glDisable(GL11.GL_BLEND);
+        }
 
         GL11.glPopMatrix();
     }
@@ -120,6 +136,9 @@ public class TexRender extends TextureRender {
     @Override
     public void drawPic(float x, float y, float width, float height, HudPosType dir, float alpha) {
         Point2f point = FMusicHud.getPos(width, height, x, y, dir);
+
+        boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
+        boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
 
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, sourceTexture.getGlTextureId());
         GL11.glDepthMask(false);
@@ -150,8 +169,11 @@ public class TexRender extends TextureRender {
         tessellator.addVertexWithUV(x0, y0, z, u0, v0);
         tessellator.draw();
 
-        GL11.glDisable(GL11.GL_BLEND);
-        GL11.glDepthMask(true);
+        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        GL11.glDepthMask(depthMask);
+        if (!blend) {
+            GL11.glDisable(GL11.GL_BLEND);
+        }
 
         GL11.glPopMatrix();
     }

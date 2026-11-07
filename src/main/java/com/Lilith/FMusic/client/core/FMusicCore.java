@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import net.minecraft.util.StatCollector;
 
@@ -29,6 +30,7 @@ import org.apache.logging.log4j.core.config.LoggerConfig;
 
 import com.Lilith.FMusic.Config;
 import com.Lilith.FMusic.client.core.objs.ConfigObj;
+import com.Lilith.FMusic.client.core.render.HudGlState;
 import com.Lilith.FMusic.codec.CommandType;
 import com.Lilith.FMusic.codec.HudPosObj;
 import com.Lilith.FMusic.codec.MusicPack;
@@ -70,6 +72,11 @@ public class FMusicCore {
      * 客户端核心未初始化完成的提示只打一次, 避免渲染线程每帧刷屏
      */
     private static volatile boolean initWarned = false;
+
+    /**
+     * HUD 漏 GL 状态的告警也只打一次 (修好之后这条不会再出现, 出现了就把日志里的状态名贴出来)
+     */
+    private static final AtomicBoolean hudStateWarned = new AtomicBoolean(false);
 
     public static final ScheduledExecutorService service = Executors.newScheduledThreadPool(4);
 
@@ -274,13 +281,34 @@ public class FMusicCore {
 
     /**
      * 更新显示内容
+     *
+     * <p>
+     * HUD 画在 {@code RenderGameOverlayEvent.Pre(PORTAL)} —— 原版 overlay 的正中间, 后面还要画
+     * 准星 / 血量 / 快捷栏 / 聊天 / TAB, 而且它们共用同一套 GL 状态; Angelica 还会把几何攒着
+     * 稍后一起刷。所以 HUD 里的任何一次 glEnable/glDisable/glScissor/glDepthMask/绑纹理只要
+     * 漏掉还原, 坏的就不只是 HUD 那一小块, 而是整屏 (全屏合成 quad 用错状态 = 整屏黑, 日志里
+     * 什么都不会有)。这里统一加一层状态护栏, 并且真的漏了会在日志里点名一次。
      */
     public static void hudUpdate() {
         if (hud == null) {
             warnNotInitialized("hudUpdate");
             return;
         }
-        hud.update();
+
+        HudGlState state = HudGlState.push();
+        try {
+            hud.update();
+        } finally {
+            String leaked = state.diff();
+            state.restore();
+            if (!leaked.isEmpty() && hudStateWarned.compareAndSet(false, true)) {
+                LOGGER.warn(
+                    "FMusic HUD leaked GL state during draw ({}); restored automatically."
+                        + " A leak like this can blank the whole screen on state-caching renderers,"
+                        + " so please report it with this line.",
+                    leaked);
+            }
+        }
     }
 
     /**

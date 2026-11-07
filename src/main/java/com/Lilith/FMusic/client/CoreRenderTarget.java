@@ -1,8 +1,12 @@
 package com.Lilith.FMusic.client;
 
+import java.nio.IntBuffer;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.FontRenderer;
+import net.minecraft.client.gui.ScaledResolution;
 
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 
 import com.Lilith.FMusic.client.core.FMusicHud;
@@ -11,6 +15,11 @@ import com.Lilith.FMusic.client.core.render.TextFrameBuffer;
 import com.Lilith.FMusic.codec.HudPosType;
 
 public class CoreRenderTarget extends TextFrameBuffer<String> {
+
+    /**
+     * glGetInteger 的临时缓冲。只在渲染线程上 pushScissor/popScissor 之间用, 不跨线程。
+     */
+    private static final IntBuffer SCRATCH = BufferUtils.createIntBuffer(4);
 
     private final boolean isState;
 
@@ -55,12 +64,12 @@ public class CoreRenderTarget extends TextFrameBuffer<String> {
 
             if (maxWidth != -1 && entry.width > maxWidth) {
                 int scrollOffset = (int) getOffset(entry, maxWidth);
-                enableScissor(drawX, drawY, maxWidth, entry.height);
+                int[] saved = pushScissor(drawX, drawY, maxWidth, entry.height);
                 drawString(font, entry, -scrollOffset, 0, finalColor);
                 if (scrollOffset > 0) {
                     drawString(font, entry, -scrollOffset + entry.width, 0, finalColor);
                 }
-                disableScissor();
+                popScissor(saved);
             } else {
                 drawString(font, entry, 0, 0, finalColor);
             }
@@ -108,14 +117,14 @@ public class CoreRenderTarget extends TextFrameBuffer<String> {
                 float texOffset = maxOffset * state;
                 int revealWidth = (int) (maxWidth * state);
 
-                enableScissor(drawX, drawY, revealWidth, entry.height);
+                int[] saved = pushScissor(drawX, drawY, revealWidth, entry.height);
                 drawString(font, entry, -(int) texOffset, 0, finalColor);
-                disableScissor();
+                popScissor(saved);
             } else {
                 int revealWidth = (int) (entry.width * state);
-                enableScissor(drawX, drawY, revealWidth, entry.height);
+                int[] saved = pushScissor(drawX, drawY, revealWidth, entry.height);
                 drawString(font, entry, 0, 0, finalColor);
-                disableScissor();
+                popScissor(saved);
             }
 
             GL11.glPopMatrix();
@@ -139,23 +148,48 @@ public class CoreRenderTarget extends TextFrameBuffer<String> {
         }
     }
 
-    private static void enableScissor(int x, int y, int width, int height) {
+    /**
+     * 开一个裁剪框, 并把**进来时**的裁剪状态记下来 (给 {@link #popScissor(int[])} 用)。
+     *
+     * <p>
+     * 两处和原来不同:
+     * <ul>
+     * <li>缩放因子改用 {@link ScaledResolution#getScaleFactor()}: 原版算界面的缩放是
+     * "从 1 往上试, 直到 scaledWidth/scale >= 320 且 scaledHeight/scale >= 240",
+     * 和 {@code gameSettings.guiScale} 并不是一回事 (guiScale=0 自动时差得最多, 1080p 上是 4 vs 3),
+     * 用错的话滚动歌词的裁剪框会比文字小一圈, 字直接被切掉。</li>
+     * <li>关裁剪不再是无条件 {@code glDisable}, 而是恢复成进来时的样子: HUD 画在原版
+     * overlay 中间, 外面可能已经有裁剪状态 (聊天/TAB 列表/别的 mod), 直接关掉会破坏它们。</li>
+     * </ul>
+     */
+    private static int[] pushScissor(int x, int y, int width, int height) {
         Minecraft mc = Minecraft.getMinecraft();
-        int scale = mc.gameSettings.guiScale;
-        if (scale == 0) {
-            int k = Math.min(mc.displayWidth, mc.displayHeight);
-            scale = Math.max(1, k / 320);
-        }
-        int sx = x * scale;
-        int sy = mc.displayHeight - (y + height) * scale;
-        int sw = width * scale;
-        int sh = height * scale;
+        int scale = new ScaledResolution(mc, mc.displayWidth, mc.displayHeight).getScaleFactor();
+
+        SCRATCH.clear();
+        GL11.glGetInteger(GL11.GL_SCISSOR_BOX, SCRATCH);
+        int[] saved = new int[] { GL11.glIsEnabled(GL11.GL_SCISSOR_TEST) ? 1 : 0, SCRATCH.get(0), SCRATCH.get(1),
+            SCRATCH.get(2), SCRATCH.get(3) };
+
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
-        GL11.glScissor(sx, sy, sw, sh);
+        GL11.glScissor(
+            x * scale,
+            mc.displayHeight - (y + height) * scale,
+            Math.max(0, width * scale),
+            Math.max(0, height * scale));
+        return saved;
     }
 
-    private static void disableScissor() {
-        GL11.glDisable(GL11.GL_SCISSOR_TEST);
+    /**
+     * 还原 {@link #pushScissor(int, int, int, int)} 记下的裁剪状态。
+     */
+    private static void popScissor(int[] saved) {
+        GL11.glScissor(saved[1], saved[2], saved[3], saved[4]);
+        if (saved[0] != 0) {
+            GL11.glEnable(GL11.GL_SCISSOR_TEST);
+        } else {
+            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+        }
     }
 
     private static int applyAlpha(int color, float alpha) {

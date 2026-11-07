@@ -1204,5 +1204,88 @@ PNS 频带原本应该解成"能量正确的噪声", 写错后变成静音, 听�
   所有走 m4a/AAC 的歌曲都会受影响, 只是 PNS 使用比例不同; 本次仅改解码器 PNS, 不影响其他格式。
 - 项目解码器不做 AAC priming (edit list) 裁剪, 相对 ffmpeg 参考有 ~2 帧 (≈46 ms) 的固定偏移, 听感无影响。
 
+## 38. 播放音乐时整屏黑: 老 HUD 渲染线路的 GL 状态冲突 (2026-11)
+
+### 现象
+
+- 播放音乐时整个画面变黑 (世界、快捷栏、血量、聊天全没了), 日志里**一条报错都没有**。
+- `/music hud enable false` (四个模块一起关) 恢复正常; 只关三个、留任意一个开着, 照样黑。
+- 音乐停止播放 → 自动恢复。
+- 关掉 HUD 就正常, 说明和 HUD 的**绘制动作**绑定, 不是数据/线程问题。
+
+### 渲染线路 (一帧里的实际顺序)
+
+| # | 发生什么 | 代码 |
+|---|---|---|
+| 1 | 画世界 | `EntityRenderer.renderWorld` |
+| 2 | `renderGameOverlay` 开头: `glEnable(GL_BLEND)` + 暗角 (`func_73829_a`, **全屏 quad**, 靠混合做乘法变暗) | `GuiIngameForge:106-115` |
+| 3 | `RenderGameOverlayEvent.Pre(HELMET)` → dango 的 `HudRenderEvent` (Song card / 灵动岛 / 左上角 Now playing) | `ForgeBridge.onOverlay` |
+| 4 | `RenderGameOverlayEvent.Pre(PORTAL)` → **`FMusicCore.hudUpdate()` → `FMusicHud.update()`** | `FMusic.onRenderOverlay` |
+| 5 | 传送门遮罩 / 准星 / Boss 血条 / 血量 / 护甲 / 饥饿 / 氧气 / 快捷栏 / 经验 / 睡眠黑屏 / 聊天 / TAB 列表 | `GuiIngameForge:124-174` |
+
+关键点: 老 HUD **不是画在最后面的一块独立区域**, 它插在原版 overlay 的**正中间**,
+第 5 步那些元素**不会重新设一遍** BLEND / SCISSOR / 当前颜色 / 纹理绑定 / 深度掩码,
+大家共用同一套 GL 状态。所以第 4 步漏掉的状态不是影响 HUD 那一小块, 而是**整屏**:
+第 5 步里的全屏合成 quad (传送门遮罩 / 睡眠黑屏 / 别的 mod 的暗角) 一旦吃到错的状态,
+就是整屏黑 —— 而且 GL 不会报错。
+
+### 逐节点状态审计 (修复前)
+
+| 绘制点 | 改了哪些 GL 状态 | 有没有还原 | 后果 |
+|---|---|---|---|
+| `CoreRenderTarget.draw` (info / lyric) | `glPushMatrix`/`glTranslatef`/`glPopMatrix`、字体绘制留下的 `glColor` 与纹理绑定 | 矩阵成对; 颜色/纹理没还原 | 平时被原版 `PORTAL` 之后的 `glColor4f(1,1,1,1)` 兜住, 属于潜在脏状态 |
+| `CoreRenderTarget` 滚动字幕 / KTV | `glEnable(GL_SCISSOR_TEST)` + `glScissor` + **`glDisable(GL_SCISSOR_TEST)`** | 关的时候是**无条件关** | 外层本来有裁剪的话被直接破坏 |
+| 同上, 裁剪框坐标 | `scale = gameSettings.guiScale` | — | `guiScale=0`(自动) 时算错: 1080p 上真实是 4, 这里算出 3, 滚动歌词被切掉 1/4 |
+| `TexRender.drawPic` ×3 (进度条 / bg1 / bg3) | `glDepthMask(false)` → `glDepthMask(true)`、**`glEnable(GL_BLEND)` → `glDisable(GL_BLEND)`** | 混合开关被**无条件关掉** | ★ 第 5 步的全屏合成 quad 以"不混合"出图 → 整屏被它覆盖成黑 |
+| `PicRender.draw` (封面) | 同上 + `glShadeModel(GL_SMOOTH)` | 同上 | 同上 |
+| `FMusicHud.update()` 尾部 `updateTexture()` | 绑纹理 (DynamicTexture 上传) | 没还原 | 轻微 |
+| 整条线路 | **没有任何一层做状态快照 / 还原** | — | 任何一处漏掉都会外溢到整屏 |
+
+### 根因
+
+1. **分层缺失**: dango 移植过来的绘制有 `GlStateSnapshot` / `GlCaps` 护栏 (`LegacyGfx.guarded` 里
+   push/restore), 而老的 Java HUD 线路 (`FMusic.onRenderOverlay` → `FMusicCore.hudUpdate` →
+   `FMusicHud` → `CoreRenderTarget`/`TexRender`/`PicRender`) 是**裸调 GL**, 一处还原都没有。
+2. **本 fork 相对上游 AllMusic 1.7.10 多加了 `glEnable/glDisable(GL_BLEND)`**: 上游的 `TexRender` /
+   `PicRender` 只动 `glDepthMask`, 从不禁用混合 (`git diff tmp/AllMusic/client/forge_1_7_10/...`)。
+   这个"顺手加上去"的禁用, 正好是"只在播放音乐 + HUD 打开时黑"的开关。
+3. **Angelica (GTNH 的 1.7.10 渲染层) 放大了后果**: 它把 mod 的 `GL11` 调用重定向到自己的
+   `GLStateManager`, 立即模式几何是**先攒后刷**; 中途改状态会"回溯"作用到已经排队的几何上,
+   而且全程不抛异常、不打日志 —— 与"日志干净、静默失败"的现场完全吻合。
+4. **为什么"任意一个模块开着都黑"**: 四个模块各自至少碰一处共享状态 ——
+   `info`/`lyric` 走裁剪框 (滚动字幕 + KTV), `state`/`pic` 走混合与深度掩码;
+   而 HUD 又没有任何还原兜底, 所以任取其一都能把脏状态带出 HUD 这一层。
+
+### 修复
+
+| 文件 | 改动 |
+|---|---|
+| `client/core/render/HudGlState.java` (新增) | HUD 的 GL 状态快照: 7 个开关 (BLEND/ALPHA_TEST/DEPTH_TEST/CULL/FOG/LIGHTING/SCISSOR) + 深度写掩码 + blendFunc + scissor box + 0/1 号纹理单元的开关与绑定 + 当前纹理单元 + 矩阵模式; `diff()` 用来点名"谁漏了" |
+| `client/core/FMusicCore.hudUpdate()` | 整个 HUD 绘制包一层 `push() / try / finally restore()`; 漏状态时 `LOGGER.warn` 打一条 (只打一次), 不再静默 |
+| `client/TexRender.drawPic` ×3、`client/PicRender.draw` | 混合开关和深度写掩码按**进来时的值**还原, 不再无条件 `glDisable(GL_BLEND)`; Tessellator 画完把当前颜色归位成白色; 去掉 `glShadeModel`(兼容 profile 专有入口, 而且 SMOOTH 本来就是默认值) |
+| `client/CoreRenderTarget` | 裁剪框缩放改用 `new ScaledResolution(...).getScaleFactor()`; 关裁剪改成恢复**外层**的 scissor 状态, 不再无条件 `glDisable` |
+
+护栏里只用 GL 1.1/1.4 core 就有的入口 (`glEnable`/`glIsEnabled`/`glGetBoolean`/`glGetInteger`/
+`glDepthMask`/`glBlendFuncSeparate`/`glActiveTexture`/`glBindTexture`/`glScissor`/`glMatrixMode`/
+`glColor4f`), 和 dango 侧 `GlStateSnapshot` 用的是同一批已审计过的调用, 不要往里加
+`glPushAttrib`/`glShadeModel`/`glMultiTexCoord*f` 这类兼容 profile 专有函数 (见 §4.1 的 GL 调用审计)。
+
+### 验证
+
+- 本机 `gradlew` 跑不了 (GTNH convention 插件启动时要拉 GitHub 上的 manifest, 这个环境没外网),
+  所以用 `javac` + 缓存里的依赖 jar (`log4j`/`gson`/`netty`/`httpclient5`) 对改动的 5 个文件做了
+  类型检查, 全部通过。
+- 进游戏要确认的点:
+  1. 播放音乐 (歌词/封面/进度条都显示) 时画面正常, 不再整屏黑;
+  2. 日志里**不应该**出现 `FMusic HUD leaked GL state` —— 出现就说明还有漏的状态, 那一行会点名;
+  3. 退出播放、暂停 (`pause_at_freeze`)、切歌、HUD 配置界面 (`/fmusic hudconfig`) 都正常。
+
+### 注意
+
+- 老 HUD (服务端点歌, PORTAL 挂点) 和 dango HUD (HELMET 挂点) 是**两条独立线路**,
+  dango 侧本来就有 `GlStateSnapshot` 护栏, 这次只动老 HUD。
+- 以后往 HUD 里加任何绘制, 都不要再"顺手" `glDisable` 一个开关了 —— 要么在
+  `HudGlState` 的快照范围内改, 要么按进入时的值还原。
+
 
 

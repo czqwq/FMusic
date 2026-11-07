@@ -48,12 +48,16 @@ public class PicRender extends PictureFrameBuffer {
     public void draw(boolean rotate, int size, float x, float y, int ang, HudPosType dir, float alpha) {
         Point2f point = FMusicHud.getPos(size, size, x, y, dir);
 
+        // 借状态不占状态: 深度写掩码和混合开关按进来时的值还原 (原来无条件 glDisable(GL_BLEND)
+        // 会让原版后续的全屏合成 quad 画成整屏黑, 见 core/render/HudGlState 的说明)
+        boolean blend = GL11.glIsEnabled(GL11.GL_BLEND);
+        boolean depthMask = GL11.glGetBoolean(GL11.GL_DEPTH_WRITEMASK);
+
         GL11.glBindTexture(
             GL11.GL_TEXTURE_2D,
             rotate ? rotateTexture.getGlTextureId() : sourceTexture.getGlTextureId());
         GL11.glDepthMask(false);
         GL11.glEnable(GL11.GL_BLEND);
-        GL11.glShadeModel(GL11.GL_SMOOTH);
         GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
         int a = size / 2;
@@ -83,8 +87,11 @@ public class PicRender extends PictureFrameBuffer {
         tessellator.addVertexWithUV(x0, y0, z, u0, v0);
         tessellator.draw();
 
-        GL11.glDisable(GL11.GL_BLEND);
-        GL11.glDepthMask(true);
+        GL11.glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        GL11.glDepthMask(depthMask);
+        if (!blend) {
+            GL11.glDisable(GL11.GL_BLEND);
+        }
 
         GL11.glPopMatrix();
     }
