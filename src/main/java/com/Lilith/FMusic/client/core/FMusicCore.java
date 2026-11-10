@@ -21,12 +21,8 @@ import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.message.BasicHeader;
-import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.core.LoggerContext;
-import org.apache.logging.log4j.core.config.Configuration;
-import org.apache.logging.log4j.core.config.LoggerConfig;
 
 import com.Lilith.FMusic.Config;
 import com.Lilith.FMusic.client.core.objs.ConfigObj;
@@ -173,16 +169,15 @@ public class FMusicCore {
         FMusicCore.bridge = bridge;
         player = new FMusicPlayer(source);
 
-        LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
-        Configuration config = ctx.getConfiguration();
-
-        LoggerConfig loggerConfig = config.getLoggerConfig("org.apache.hc.client5");
-        loggerConfig.setLevel(Level.INFO);
-
-        LoggerConfig coreConfig = config.getLoggerConfig("org.apache.hc.core5");
-        coreConfig.setLevel(Level.INFO);
-
-        ctx.updateLoggers(config);
+        // 注意: 这里刻意不碰 log4j 的配置树 (尤其不要调用 LoggerContext.updateLoggers)。
+        // Forge 1.7.10 的 log4j2.xml 里 Root 级别是 ALL, 而其它 mod (例如 JourneyMap) 是用
+        // ((Logger) logger).setLevel(...) 这种"临时覆盖"压低自己日志级别的; 任何人调用一次
+        // updateLoggers() (或触发重新配置), 配置树里的 LoggerConfig 都会重新覆盖所有 Logger
+        // 实例, 把临时级别冲掉并回落到 Root 的 ALL (DEBUG/TRACE 全开)。
+        // 之前这里本想压制 httpclient5 的日志, 但 Forge 默认配置里没有 org.apache.hc.client5 的
+        // LoggerConfig, getLoggerConfig() 会回退返回 Root LoggerConfig, 结果实际把全局根级别改成
+        // 了 INFO, 顺带关掉所有 mod (含本 mod 的 FMusicLog) 的 debug 输出; 而 shadow 进来的
+        // httpclient5 用的是 relocate 过、没有 binding 的 slf4j-api, 本来就不写 log4j2, 无需压制。
     }
 
     public static void stop() {

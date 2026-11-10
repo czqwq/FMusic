@@ -1287,5 +1287,60 @@ PNS 频带原本应该解成"能量正确的噪声", 写错后变成静音, 听�
 - 以后往 HUD 里加任何绘制, 都不要再"顺手" `glDisable` 一个开关了 —— 要么在
   `HudGlState` 的快照范围内改, 要么按进入时的值还原。
 
+## 39. 日志互坑: updateLoggers() 把 JourneyMap 的 logLevel 冲回 ALL (2026-11)
+
+### 现象
+
+- JourneyMap 配置 `journeymap.core.config` 里明明是 `"logLevel": "OFF"`, 但 `journeymap.log` /
+  `fml-client` 日志里仍然大量 DEBUG (甚至 TRACE);
+- 装了 FMusic 时特别明显: 进入游戏后 (`FMLLoadCompleteEvent` 之后) JM 的 DEBUG 又全部打开了。
+
+### 根因 (log4j-core 2.0-beta9 的"临时覆盖"机制)
+
+1. Forge 1.7.10 的 `log4j2.xml` (见 `build/rfg/minecraft-src/resources/log4j2.xml`) 里 `<Root level="all">`,
+   且默认配置里**没有** `journeymap` / `org.apache.hc.*` 这些 LoggerConfig。
+2. JM `initialize` (FML init 阶段): `JMLogger.init()` 把文件 appender 挂到 logger 上
+   (`Journeymap-legacy/src/main/java/journeymap/client/log/JMLogger.java:97`)。
+   log4j 的 `BaseConfiguration.addLoggerAppender` 发现配置树里没有 `journeymap` 的 `LoggerConfig`,
+   就新建一个 (level 从 Root 复制 = ALL) 放进配置树, 并顺手调用一次 `LoggerContext.updateLoggers()`。
+3. JM `postInitialize`: `JMLogger.setLevelFromProperties()` (`JMLogger.java:118-124`) 用
+   `((org.apache.logging.log4j.core.Logger) logger).setLevel(Level.toLevel(logLevel, INFO))` ——
+   这只改了 Logger **实例**的 `PrivateConfig` (临时覆盖), 配置树里的 `journeymap` LoggerConfig 仍是 ALL。
+4. 旧 `FMusicCore.init()` 在 `FMLLoadCompleteEvent` 里调用 `ctx.updateLoggers(config)`:
+   log4j 用配置树重新构建所有 Logger 的 PrivateConfig → JM 的临时 OFF 被冲掉, 回落到自己
+   LoggerConfig 的 ALL (DEBUG/TRACE 全开); 其它 mod 的临时级别同样会被冲掉。
+   这段代码本意是压 httpclient5 的日志, 但 `config.getLoggerConfig("org.apache.hc.client5")`
+   在 Forge 默认配置里找不到, 会回退返回 **Root LoggerConfig**, 实际改的是全局 Root 级别 (ALL→INFO),
+   顺带把所有 mod (含本 mod 的 `FMusicLog` debug 开关) 的 debug 输出一起关掉;
+   而 shadow 进来的 httpclient5 用的是 relocate 过、没有 binding 的 slf4j-api, 本来就不写 log4j2, 无需压制。
+5. JM 只在 `postInitialize` 和 Advanced 页选项改动后排队执行的 `SoftResetTask`
+   (`OptionsManager.java:709` → `SoftResetTask.java:43`) 里重新 setLevel; 被冲掉后整局都不会恢复 ——
+   这就是"配置里 OFF、实际一直 DEBUG"的完整链路。
+
+### 修复 (FMusic 侧)
+
+- 删除 `FMusicCore.init()` 里的整段 log4j 操作 (`getLoggerConfig` / `LoggerConfig.setLevel` /
+  `LoggerContext.updateLoggers`), 换成一段注释说明为什么不能这么做, 防止以后又被加回来。
+- 不再压制 httpclient5: 见上, 它根本不走 log4j2。
+
+### 验证
+
+- `tmp/log4jtest/T3.java`: 用缓存里的 `log4j-core-2.0-beta9-fixed` + 复刻 Forge 的 log4j2.xml
+  跑通完整链路: JM postInit `setLevel(OFF)` → 任意 `updateLoggers()` → `journeymap level=ALL, debug=true`,
+  同时其它 logger 落到 Root INFO;
+- `tmp/log4jtest/T4.java`: 验证 JM 侧修复写法 (写配置树 `LoggerConfig` + `logger.setLevel` 立即生效),
+  之后任何 `updateLoggers()` 都不会再把级别冲掉;
+- 编译: `./gradlew compileJava` **BUILD SUCCESSFUL** (2m36s); `./gradlew spotlessCheck`
+  **BUILD SUCCESSFUL** (16s)。
+
+### 教训
+
+- `Logger.setLevel(...)` 永远是**临时**的; 要持久必须改配置树里的 `LoggerConfig`。
+- `LoggerContext.updateLoggers()/reconfigure()` 是**全局**操作, 会冲掉所有 mod 的临时级别;
+  mod 里不要用它改全局日志级别。降噪要么只碰自己的 logger 实例, 要么交给整合包的 `log4j2.xml`。
+- JourneyMap 侧根治: `JMLogger.setLevelFromProperties()` 应先把级别写进配置树
+  (没有精确 LoggerConfig 时用 `BaseConfiguration.addLogger` 建一个), 再对 logger 实例 `setLevel`
+  让当前实例立即生效; 不要调全局 `updateLoggers()`。
+
 
 
