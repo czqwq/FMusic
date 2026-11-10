@@ -93,6 +93,27 @@ object MusicPlayer {
         Array(beats.size) { val b = beats.elementAt(it); floatArrayOf(b.timeMs.toFloat(), b.strength) }
     }
 
+    // ---------------------------------------------------------------- 声卡时间 ↔ 歌曲时间（变速时进度靠它）
+
+    /** 写到声卡第 [outUs] 微秒的地方，对应歌里第 [songMs] 毫秒，之后每放 1ms 歌走 [speed] ms */
+    private class Anchor(val outUs: Long, val songMs: Double, val speed: Float)
+    private val anchors = ArrayDeque<Anchor>()
+
+    private fun clearAnchors() = synchronized(anchors) { anchors.clear() }
+
+    private fun anchor(outUs: Long, songMs: Double, speed: Float) = synchronized(anchors) {
+        anchors.addLast(Anchor(outUs, songMs, speed))
+        while (anchors.size > 160) anchors.removeFirst()   // 每块 20~30ms，几秒的记录足够
+    }
+
+    /** 声卡已经放到 [playedUs]：找它之前最近的一笔往后推 */
+    private fun songAt(playedUs: Long): Long? = synchronized(anchors) {
+        if (anchors.isEmpty()) return null
+        var a = anchors.first()
+        for (i in anchors.indices.reversed()) if (anchors[i].outUs <= playedUs) { a = anchors[i]; break }
+        (a.songMs + (playedUs - a.outUs) / 1000.0 * a.speed).toLong()
+    }
+
     /**
      * 播放位置（毫秒）。
      *
@@ -110,13 +131,24 @@ object MusicPlayer {
         get() = when (state) {
             State.PLAYING -> {
                 val elapsed = ((System.nanoTime() - positionSampledAt) / 1000).coerceIn(0L, 200_000L)
-                seekBaseMs + (positionMicrosAt + elapsed) / 1000
+                val us = positionMicrosAt + elapsed
+                songAt(us) ?: (seekBaseMs + us / 1000)
             }
             State.PAUSED -> pausedAtMs
             else -> 0L
         }
 
     val active: Boolean get() = current != null && (state == State.PLAYING || state == State.PAUSED || state == State.LOADING)
+
+    // ---------------------------------------------------------------- 别的播放器（系统媒体）
+
+    /** 自己没在放、别的播放器在放（设置里打开了"显示其它播放器"）：界面和 HUD 显示它，按钮也转给它 */
+    val external: Boolean get() = !active && SystemMedia.track != null
+    val shownTrack: NeteaseTrack? get() = if (external) SystemMedia.track else current
+    val shownState: State get() = if (external) (if (SystemMedia.playing) State.PLAYING else State.PAUSED) else state
+    val shownPositionMs: Long get() = if (external) SystemMedia.positionMs else positionMs
+    val shownDurationMs: Long get() = if (external) SystemMedia.durationMs else durationMs
+    val shownActive: Boolean get() = active || SystemMedia.track != null
 
     // ---------------------------------------------------------------- 队列控制
 
@@ -232,6 +264,7 @@ object MusicPlayer {
     }
 
     fun next() {
+        if (external) return SystemMedia.next()
         val q = queue
         if (q.isEmpty()) return
         // 电台按顺序往下放；放到最后一首时先要几首新的再切
@@ -244,6 +277,7 @@ object MusicPlayer {
     }
 
     fun prev() {
+        if (external) return SystemMedia.prev()
         if (positionMs > 3000) {
             seek(0)
             return
@@ -258,6 +292,7 @@ object MusicPlayer {
     }
 
     fun togglePause() {
+        if (external) return SystemMedia.togglePause()
         when (state) {
             State.PLAYING -> {
                 pausedAtMs = positionMs
@@ -279,6 +314,7 @@ object MusicPlayer {
     }
 
     fun seek(ms: Long) {
+        if (external) return SystemMedia.seek(ms)
         if (audio == null) return
         seekLocal(ms)
     }
@@ -518,6 +554,13 @@ object MusicPlayer {
             clearBeats()
             EnvironmentAudio.reset()
             var decodedMs = skipped
+            // 变速变调：写进声卡的每一块都记一笔"声卡时间 ↔ 歌曲时间"，进度按它算
+            val trackKey = current?.key
+            var stretcher: SoundStretcher? = null
+            var equalizer: Equalizer? = null
+            var outUs = 0L
+            var songOutMs = skipped.toDouble()
+            clearAnchors()
             var lowPass = 0f
             var avgEnergy = 0f
             var lastBeatMs = -1000f
@@ -589,10 +632,35 @@ object MusicPlayer {
                 // 音量均衡、环境音效（水下变闷、洞穴回声……）在鼓点检测之后加，不影响节奏判断
                 val gain = trackGain
                 if (gain != 1f) for (idx in 0 until len) pcm[idx] = (pcm[idx] * gain).toInt().coerceIn(-32768, 32767).toShort()
-                EnvironmentAudio.process(pcm, len, ch, frame.rate, frameMs)
-                val data = ByteArray(len * 2)
-                for (k in 0 until len) {
-                    val v = pcm[k].toInt()
+                // 变速变调：都是 1 就不经过它（没有延迟）；从 1 调开时新建，调回 1 时扔掉，歌曲时间直接对回解码位置
+                val tune = SoundTuning.effective(trackKey)
+                var outPcm = pcm
+                var outLen = len
+                if (tune.bypass) {
+                    if (stretcher != null) stretcher = null
+                    songOutMs = (decodedMs - frameMs).toDouble()
+                } else {
+                    val st = stretcher ?: SoundStretcher(ch, frame.rate).also { stretcher = it }
+                    st.speed = tune.speed
+                    st.pitch = tune.pitch
+                    outPcm = st.process(pcm, len)
+                    outLen = st.lastLength
+                }
+                val outFrames = outLen / ch
+                val outMs = outFrames * 1000f / frame.rate
+                val chunkSongMs = songOutMs
+                anchor(outUs, chunkSongMs, tune.speed)
+                outUs += outFrames * 1_000_000L / frame.rate
+                songOutMs += outMs * tune.speed
+                if (outLen == 0) continue
+                // 均衡器：关着就不经过（再开时滤波器从静止开始）
+                val eqGains = tune.eq
+                if (eqGains == null) equalizer = null
+                else (equalizer ?: Equalizer(ch, frame.rate).also { equalizer = it }).process(outPcm, outLen, eqGains)
+                EnvironmentAudio.process(outPcm, outLen, ch, frame.rate, outMs)
+                val data = ByteArray(outLen * 2)
+                for (k in 0 until outLen) {
+                    val v = outPcm[k].toInt()
                     data[k * 2] = (v and 0xFF).toByte()
                     data[k * 2 + 1] = ((v shr 8) and 0xFF).toByte()
                 }
@@ -604,6 +672,10 @@ object MusicPlayer {
                     val reopened = reopenOutput(gen, out, frame.rate, frame.channels) ?: throw e
                     out = reopened
                     seekBaseMs = (decodedMs - frameMs).toLong()
+                    // 新的输出从 0 开始计时
+                    clearAnchors()
+                    anchor(0L, chunkSongMs, tune.speed)
+                    outUs = outFrames * 1_000_000L / frame.rate
                     appliedVolume = -1f
                     if (reopened.lost) throw e
                     reopened.setVolume(volume)

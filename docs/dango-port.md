@@ -31,6 +31,10 @@
 | 音频输出掉线自愈 | `AudioOutput.lost`、`JavaSoundOutput.writeAll/checkStall/drain`、`MusicPlayer.reopenOutput` | 换默认设备（插蓝牙耳机）、设备被独占、`F3+T` 重载声音资源后自动在新设备上续播，不再永久卡死解码线程 |
 | 原版 BGM 让路 | `Platform.holdVanillaMusic` + `VanillaMusicHold` + `ForgeBridge.onPlaySound` | 放歌时压制原版背景音乐，只拦 `SoundCategory.MUSIC`（不误杀唱片机/音乐盒） |
 | 分层玻璃播放栏 | `Gfx.recaptureBackdrop` + `Ui.occluder` / `Ui.bottomInset` + `MusicScreen.drawBar` | 播放栏浮在内容之上、玻璃实时采到栏后内容；列表/封面墙可滚到栏后，悬停不再穿透 |
+| **均衡器（1.7.5）** | `common/core/.../music/Equalizer.kt` + `musicui/EqPanel.kt` | 10 段峰值滤波器（RBJ 公式）串起来，11 个预设，前级增益按整条频响最高处自动算，最后过一道 tanh 软限幅（26000 以上才压）；播放栏上的按钮弹出浮层面板 |
+| **变速变调（1.7.5）** | `common/core/.../music/SoundStretcher.kt`、`SoundTuning.kt` + `musicui/TunePanel.kt` | 速度 0.5x～2x（WSOLA，音高不变）、音调 ±12 半音（拉伸 + 三次插值重采样，时长不变），可勾「音调跟着速度」；都是 1 时完全 bypass（不加延迟、不烧 CPU） |
+| **按歌记住均衡 / 速度 / 音调（1.7.5）** | `SoundTuning.kt`（`sound_tuning.json`） | 一份全局设置 + 最多 2000 首的按歌记录（`Magic:track.key`）；关掉「按歌记住」这首歌就回到全局设置；拖滑条时攒 500ms 落盘 |
+| **显示其它播放器（1.7.5）** | `common/core/.../music/SystemMedia.kt` + `assets/fmusicdango/system-media.ps1` | 仅 Windows 10+：用系统自带 PowerShell 常驻读 Windows 媒体控制（SMTC），把别的 App 的歌名歌手拿去当前音源搜一次，配上了就有封面和歌词；暂停/切歌/拖进度从 stdin 发回去。默认关，在设置「其它播放器」里打开 |
 
 ### 明确不移植
 
@@ -190,6 +194,44 @@ FMusic 原有 HUD（歌词 / KTV / 封面 / 进度条）与新移植的 Song car
 > 之前用「每帧采样左键边沿」在 `DrawScreenEvent.Pre` 里补的做法已经删掉：
 > mixin 是等价替换且能取消原版处理，不需要再采样。
 
+### 3.9 上游 1.7.5 三个新功能：移植时的取舍
+
+1.7.5 新增「均衡器 / 变速变调 / 按歌记住 / 显示其它播放器」四块（另外还有一条 1.21.10 / 1.21.11
+的歌词发光修复，改的是 `modern/.../McCompat.kt` 里的 `vanillaDraw` 帧缓冲重定向：原版每画完一批就把
+帧缓冲绑回 0，换字形贴图页后只有第一批字进了发光画布，所以改成用 `keepRedirect()` 重新借道。
+这套重定向只存在于 1.21 平台层，本项目 1.7.10 侧的自建 FBO 发光没有这条路径——`grep vanillaDraw`
+零命中，所以不移植）。
+逐文件核对过：除了下面这几处必要的适配，`Equalizer.kt` / `SoundStretcher.kt` / `SystemMedia.kt` /
+`EqPanel.kt` / `TunePanel.kt` 与上游**逐字节相同**，`SoundTuning.kt` 只差 `speedLocked` 一处。
+以后同步上游时按这个清单复读即可。
+
+| 适配点 | 上游 | 本项目 | 为什么 |
+|---|---|---|---|
+| 一起听时锁 1x | `SoundTuning.speedLocked` 读 `ListenParty.role` | 恒 `false`，注释说明 | 一起听整体没移植（见「明确不移植」）。连带效果：变速面板里「一起听时固定 1x」那句文案永远不会出现 |
+| 播放进度从哪来 | `MusicPlayer.positionMs` 读 `line?.positionMicros` | 读解码线程采样的 `positionMicrosAt` + 渲染线程插值 | 本模组早先为了不让渲染线程和阻塞的 `write()` 抢锁，已经把「问声卡」从渲染线程挪走了（见 §6 第 5 条）。`anchor()` / `songAt()` 的写法与上游一字不差，只是喂给它的声卡时间来自插值 |
+| ps1 资源路径 | `/assets/dangomusic/system-media.ps1` | `/assets/fmusicdango/system-media.ps1` | 资源域映射 |
+| ps1 换行 | 仓库里是 CRLF | `.gitattributes` 有 `*.[pP][sS]1 text eol=crlf`，所以也存成 CRLF | 纯仓库约定；脚本内容经过 UTF-16LE Base64 传给 `-EncodedCommand`，换行对运行毫无影响 |
+| 显示别的播放器时的 HUD / 播放栏 | 上新了 `MusicPlayer.shownTrack / shownState / shownPositionMs / shownDurationMs / shownActive / external`，HUD 与播放栏改用它们 | 同上游 | 这套访问器是纯读取层，`state` / `current` 仍是「自己是否真的在出声」，所以 `DangoAudioArbiter`（与点歌系统互斥）和 `Dance` 用的还是老访问器，**互斥逻辑不受影响** |
+
+几个容易踩的点，写在这里省得以后重新推：
+
+- **均衡器关着的时候解码线程根本不创建 `Equalizer`**（`SoundTuning.effective()` 的 `eq` 为 `null`），
+  所以默认设置下这条链路是纯直通、零开销。`Equalizer.process()` 末尾那道 `tanh` 软限幅是无条件的，
+  但只有真的开了非平直均衡器才会走到它。
+- **变速变调同样是「参数都是 1 就整个跳过」**（`tune.bypass`），不建 `SoundStretcher`、
+  不加 WSOLA 延迟。从 1 调开 / 调回 1 时会新建 / 丢弃 stretcher，歌曲时间直接对回解码位置。
+- 变速以后**进度条 / 歌词 / 3D 歌词全靠 `anchors`**（声卡时间 ↔ 歌曲时间，按 speed 外推）：
+  写声卡的第 N 块记一笔 `(outUs, songMs, speed)`，渲染线程拿声卡当前位置查最近的一笔。
+  所以千万别把 `songOutMs` 的推进（`outMs * tune.speed`）改掉，否则变速时进度会漂。
+- **按歌记住**用 `MusicPlayer.current.key`（= `音源:歌曲id`）当键，`sound_tuning.json` 和
+  `config/fmusic/dango/` 下其它文件同级；上限 2000 首，超了从最早的开始扔。
+- **显示其它播放器**匹配不上的歌会造一个 `nativeId` 以 `smtc:` 开头的占位 `NeteaseTrack`
+  （只有歌名 / 歌手 / 时长，没有封面），歌词模块看到这个前缀就**不去查歌词**，避免拿空 ID 打接口。
+- `SystemMedia` 起的是 `powershell.exe -EncodedCommand <Base64>`（`-NoProfile -NonInteractive
+  -ExecutionPolicy Bypass`），不落临时文件、不受执行策略影响；stderr 直接丢 `NUL`（Java 8 没有
+  `Redirect.DISCARD`）。系统没有 SMTC 时脚本 `exit 2`，连续失败 3 次就不再重启，不会天天刷日志。
+  开关关掉、模块关掉、游戏退出（shutdown hook）都会 `destroy()` 掉这个进程。
+
 ## 四、Angelica / 光影兼容
 
 GTNH 环境下 `runClient` 会加载 [Angelica](https://github.com/GTNewHorizons/Angelica)（1.7.10 的渲染层：
@@ -218,6 +260,16 @@ GL 3.3 core profile + Java 端固定管线模拟 + Iris 光影 + 自带字体系
 3. 玻璃背景抓取（`GlassBackdrop`）在主菜单打开播放器时是否正常（没有世界可采样时的退化路径）。
 4. 切换维度、重新加载光影后歌词/玻璃是否恢复。
 5. 两套播放系统的互斥是否生效（服务端点歌与本地播放器交替触发）。
+6. **均衡器**：面板里 10 个滑条、预设、自动前级显示都对；开着「低音增强」这类预设听感正常且不破音；
+   面板打开时鼠标在面板上不会同时悬停到下面的列表行（`Ui.popup` 那段）。
+7. **变速变调**：0.5x / 2x 下**进度条和歌词是否跟着走**（这一条最容易翻车，靠 `anchors` 映射）；
+   变速后拖进度条、切歌、插蓝牙耳机（输出重开）之后进度是否还对；「音调跟着速度」打开时音色是否合理。
+8. **按歌记住**：A 歌调成 1.5x + 低音增强 → 打开「按歌记住」→ 切到 B 歌（应回到全局设置）→
+   切回 A 歌（应沿用 A 的设置）；重启游戏后 `config/fmusic/dango/sound_tuning.json` 读回来仍然生效。
+9. **显示其它播放器**（Windows 10+）：设置里打开后，用 Spotify / Apple Music / 网易云桌面版放歌，
+   FMusic 没在放歌时播放栏和 HUD 是否显示它、歌词偏移（默认 0，可 -3000~3000 ms）是否够用、
+   播放栏的暂停/上一首/下一首/拖进度是否真的转给了那个 App；关掉开关后 PowerShell 进程有没有退出
+   （任务管理器里看 `powershell.exe`）；FMusic 自己开始放歌时应立刻切回自己这首歌。
 
 ### 4.1 GL 调用审计（务必保持，否则会 JVM 级崩溃）
 
@@ -243,6 +295,24 @@ Angelica 的 `GLSMRedirector` 会把 mod 里的 `org.lwjgl.opengl.GLxx` 调用�
 
 另外 `LegacyGfx.guarded` 现在对「状态快照 / 绘制 / 还原」三段都兜了异常并只记一次日志：
 渲染层是纯装饰性的，任何失败都不该把游戏带崩（注意这只挡得住异常，挡不住上面那种原生 abort）。
+
+### 4.2 1.7.5 这块已经做过的验证（剩下的都要进游戏点）
+
+- `gradlew build` 全绿（含 checkstyle / reobf / shadowJar），成品 jar 里有新类，
+  `assets/fmusicdango/system-media.ps1` 也在包里。
+- 把移植过来的 DSP 直接拉出来跑（不进游戏）：`Equalizer` 的低频预设确实抬了低频、自动前级
+  = -peakDb、软限幅以下完全直通、连跑 200 块不发散；`SoundStretcher` 在 1.25x / 0.5x 下
+  输出时长误差 < 1%、只变调时时长不变、两个参数都是 1 时真 bypass；`SoundTuning` 的钳位 / 预设匹配 /
+  `speedLocked=false` 都对；`SystemMedia.supported` 在这台 Windows 10 上为 true、没打开时
+  `track` 为 null。
+- `system-media.ps1` 按 `SystemMedia` 完全相同的路径跑通了一次（从资源取出 → UTF-16LE Base64 →
+  `-EncodedCommand`），能正常吐出 `{}`（当时没有别的播放器在放）。
+- 与上游 `v1.7.5` 的逐文件比对：把本项目文件的包名归一化回 `me.sorihiko.dango` 后，
+  `Equalizer` / `SoundStretcher` / `EqPanel` / `TunePanel` / `Ui` / `SongCardModule` 与上游**完全一致**；
+  其余文件的差异只剩「一起听没移植」「FMusic 自己的默认值与缓冲」「配置路径」这些本移植层老早就有、
+  写在本文件里的改动。
+- 还没验证的：上面清单 6~9 那四条**只能在游戏里点**（面板交互、变速后的进度/歌词、按歌记住跨重启、
+  真的接一个 Spotify 试播放控制）。
 
 ## 六、性能：为什么本地播放器比服务端点歌"更吃资源"
 
