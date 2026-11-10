@@ -23,6 +23,14 @@
 | 云盘 | `CloudDrives.kt`、`KugouCloud.kt`、`QqCloud.kt` | 只读浏览，无上传/删除 |
 | 更新检查 | `common/core/.../update/UpdateChecker.kt` | 改为查 FMusic 自己的 release |
 | 快捷键绑定 | `platform/PlayerKeyBinding.kt` + `legacy/.../LegacyKeyBindings.kt` | 注册进原版按键设置，默认 `M` 打开播放器 |
+| 歌手详情页 | `musicui/ArtistPage.kt`、`common/core/.../music/SourceArtists.kt` | 头像 + 主题色提取、别名、两行简介、歌曲/专辑/热门数、热门歌曲 / 专辑 / 简介三标签（弹簧切换）、专辑按封面墙打开、播放与随机播放；三家音源都有（网易云走 `NeteaseApi`，QQ/酷狗走 `SourceArtists.kt`） |
+| 歌手名可点 + 多层返回 | `ArtistPage.drawArtistLinks()`、`Library.PageSnapshot` + `ScreenState.trail` | 歌曲行/播放栏/专辑里的歌手名可点进歌手页；进歌手页、从歌手页进专辑可逐层返回（最多 20 层） |
+| 播放器窗口拖动 / 缩放 | `MusicScreen.kt` 的 `Grab` / `winRect` / `grabAt` / `dragWindow` / `fitWin` 等 | 拖边拖角改大小（最小 880×480，不出屏）、拖顶部空白移动、双击顶部空白还原；位置大小按屏幕比例存进 `Window X/Y/width/height`，换分辨率自动换算 |
+| 进度条拖动 seek | `PlayerBar.kt` 的 `seeking` / `seekFraction` / `fractionAt` / `mouseUp` | 拖动中只移动显示与时间标签，**松手才真正 seek**，避免反复重解码 |
+| 音频输出选择 | `AudioOutput.kt`、`MusicPlayer.outputMode`、`platform.openAudioOutput` | 自动 / Java Sound / 游戏声音（OpenAL）三档；运行中切换会从当前位置在新输出上重开 |
+| 音频输出掉线自愈 | `AudioOutput.lost`、`JavaSoundOutput.writeAll/checkStall/drain`、`MusicPlayer.reopenOutput` | 换默认设备（插蓝牙耳机）、设备被独占、`F3+T` 重载声音资源后自动在新设备上续播，不再永久卡死解码线程 |
+| 原版 BGM 让路 | `Platform.holdVanillaMusic` + `VanillaMusicHold` + `ForgeBridge.onPlaySound` | 放歌时压制原版背景音乐，只拦 `SoundCategory.MUSIC`（不误杀唱片机/音乐盒） |
+| 分层玻璃播放栏 | `Gfx.recaptureBackdrop` + `Ui.occluder` / `Ui.bottomInset` + `MusicScreen.drawBar` | 播放栏浮在内容之上、玻璃实时采到栏后内容；列表/封面墙可滚到栏后，悬停不再穿透 |
 
 ### 明确不移植
 
@@ -132,10 +140,13 @@ FMusic 原有 HUD（歌词 / KTV / 封面 / 进度条）与新移植的 Song car
 
 ### 3.7 其他为跑通而做的判断
 
-- **删掉 3 个死着色器的注册**：`GlowDownsampleShader` / `GlowUpsampleShader` / `GlowCompositeShader`
-  引用 `shaders/outline/base.vert`，而这个文件在上游 legacy 和 modern 两套里都不存在（上游自己的 bug），
-  结果是每次启动刷 3 条加载失败日志。实测这三个从未被使用（真正的辉光是 `DeepGlow` 里的内联 GLSL），
-  所以不再注册；文件保留在源码里，上游补上 `base.vert` 并真的用起来时把那三行加回来即可。
+- **3 个 glow 着色器不注册**：`GlowDownsampleShader` / `GlowUpsampleShader` / `GlowCompositeShader`
+  （以及 `assets/fmusicdango/shaders/glow/*.frag`）引用了 `shaders/outline/base.vert`，而这个文件在本项目里不存在，
+  结果是每次启动刷 3 条加载失败日志。**已核实这三个类上游从无此物**：上游 legacy / common / modern 全树
+  grep `GlowDownsample|GlowUpsample|GlowComposite` 零命中，shader 资源树也只有 `quad` + `ui/{font,glass,glass_blur,image,shape}`，
+  没有 `glow/*.frag`、没有 `outline/base.vert`。也就是说这三个是**本模组单方面新增、且从未接线的遗留文件**
+  （真正的辉光是 `lyrics/DeepGlow.kt` 里的内联 GLSL + 自建 FBO），所以不注册。
+  源码与 `.frag` 暂时保留不删；将来若要启用，需先补上 `outline/base.vert` 并真正接线。
 - **互斥仲裁完全收在移植层里**：`DangoAudioArbiter.tick()` 同时轮询两边的「是否正在出声」，
   靠状态跳变识别「刚开播」，因此**不需要改 FMusic 原有的 `FMusicPlayer` / `FMusicCore` 播放路径**。
   唯一对我们老代码的改动是给 `FMusicCore` 加了一个公开的 `hardStop()`（内部就是原来的私有
@@ -144,8 +155,12 @@ FMusic 原有 HUD（歌词 / KTV / 封面 / 进度条）与新移植的 Song car
   而生产环境是 SRG 名，字符串反射拿不到），`pingMs` 恒 0，`isRainingAt` 用最接近的
   `world.canLightningStrikeAt(x,y,z)` 近似。这三处只影响显示/环境音效的细微差别，代码里都写了注释。
 - **音频后端**：桌面 Java 自带 `jsound`，走 Java Sound（`SourceDataLine`）；`openAudioOutput`
-  （游戏 OpenAL）在 1.7.10 平台层没有实现、返回 null，只在 Java Sound 打不开时才会被用到，
-  这是上游的正常分支。1.7.10 桌面端不受影响。
+  （游戏 OpenAL）在 1.7.10 平台层**已实现**：`LegacyPlatform.LegacyOpenAlOutput` 用 LWJGL2 的
+  `AL10/AL11/ALC10/AL` 做 50ms/块、最多 5 块的流式输出（对齐上游 modern 的 `GameAudioOutput`），
+  每个线程首次调 AL 前 `alcMakeContextCurrent(gameContext)`，绑的是游戏自己的同一个环境。
+  设置里的「音频输出」三档（自动 / Java Sound / 游戏声音 OpenAL）因此可用（`hasGameAudio = true`）。
+  任一步失败（`alGetError()` 非 0、建不出源、`!AL.isCreated()`、精简 LWJGL 无 `isCreated/getContext`）
+  都返回 null，`openOutput` 必定回落 Java Sound，选错也不会静音。
 
 ### 3.8 聊天「点击复制」：用 mixin 做到了和上游一致
 

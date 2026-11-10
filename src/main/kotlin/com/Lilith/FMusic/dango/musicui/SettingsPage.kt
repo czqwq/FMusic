@@ -48,6 +48,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
     /** 用 ◀ ▶ 切换的选项：设置名 → 每个值的显示名（从最小值开始） */
     private val choiceLabels = mapOf(
         "lyricColors" to listOf("Custom color", "Cover color", "Cover gradient", "Rainbow"),
+        "audioOutput" to listOf("Auto", "Java Sound", "Game audio (OpenAL)"),
     )
 
     /** 显示成百分比的选项 */
@@ -186,6 +187,10 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
         val out = LinkedHashMap<String, Pair<ModuleValue, Any>>()
         for (f in m.javaClass.declaredFields) {
             val ann = f.getAnnotation(ModuleValue::class.java) ?: continue
+            // 播放器窗口的位置和大小（windowX/windowY/windowW/windowH）是拖窗口边缘改的，设置页里不显示。
+            // 上游是在 take 之前逐个 remove 掉；这里按前缀统一跳过，省得以后再加字段时漏一个、
+            // 让它掉进"其它 / Hotkeys"组里变成 4 个没意义的滑块。
+            if (f.name.startsWith("window")) continue
             f.isAccessible = true
             val v = f.get(m) ?: continue
             out[f.name] = ann to v
@@ -262,13 +267,15 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
         player.left.remove("shuffle")   // 随机播放用播放栏上的按钮就够了，设置页不再显示（状态照样保存）
         player.left.remove("repeatOne") // 单曲循环同样通过播放栏控制
         player.left.remove("musicSource") // 音源通过侧栏切换。
+        // 平台层没有游戏 OpenAL 输出时不显示"音频输出"（上游 1.8.9 只有 Java Sound）
+        if (!DangoMusic.instance.platform.hasGameAudio) player.left.remove("audioOutput")
         val card = Src(mm.get(SongCardModule::class.java), fmts = mapOf("posX" to ::percent, "posY" to ::percent))
         val island = Src(mm.get(DynamicIslandModule::class.java), fmts = mapOf("notifyTime" to { v: Any -> "%.1f s".format((v as FloatValue).value) }))
         // 先取走，免得落进下面的 Hotkeys 组
         val updates = player.take(listOf("checkUpdates"))
         val environment = player.take(listOf("envAudio", "envRain", "envStrength", "envRays"))
         val music = listOf(
-            Group("Player", "Playback", player.m, false, player.take(listOf("volume", "normalize", "language"))),
+            Group("Player", "Playback", player.m, false, player.take(listOf("volume", "normalize", "audioOutput", "language"))),
             Group("Environment audio", "Sound around you", player.m, false, environment),
             Group("Hotkeys", "Click, then press a key · Backspace clears", player.m, false, player.take()),
             Group("Song card", "Overlay", card.m, true, card.take()),
@@ -299,7 +306,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
         area = view
         val tab = ScreenState.settingsTab.coerceIn(0, tabs.size - 1)
         val contentH = layoutHeight(tabs[tab], view)
-        maxScroll = max(0f, contentH - view.height)
+        maxScroll = max(0f, contentH + ui.bottomInset - view.height)
         target = target.coerceIn(0f, maxScroll)
         pos = pos.coerceIn(0f, maxScroll)
 

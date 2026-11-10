@@ -33,11 +33,11 @@ object LegacyGl {
         glReady = true
 
         shaderManager.register(QuadShader())
-        // 上游这里还注册了 GlowDownsample/GlowUpsample/GlowComposite 三个「描边辉光」着色器，
-        // 但它们引用 assets/dangomusic/shaders/outline/base.vert，而这个文件在上游 legacy 和
-        // modern 两套里都不存在 —— 结果只是每次启动刷 3 条加载失败日志。移植版的实际辉光是
-        // lyrics/DeepGlow.kt 里内联的 GLSL，这三条从未被使用，所以不再注册。
-        // 以后上游补上 base.vert 并真的用起来时，把这三行加回来即可。
+        // 说明：上游 legacy 的 LegacyGl 只注册 Quad/Shape/Font/Image/Glass/GlassBlur 六个着色器，
+        // 全上游仓库（legacy/common/modern）从来没有 Glow*Shader.kt 这类文件，也没有 glow/*.frag
+        // 或 outline/base.vert。本模组 shader/impls/glow/ 下那三个类是移植期遗留的未接线文件，
+        // 它们引用的 outline/base.vert 在两边仓库都不存在，注册只会每次启动刷 3 条加载失败日志，
+        // 所以不注册。源码与 assets/fmusicdango/shaders/glow/*.frag 暂时保留不删。
         shaderManager.register(ShapeShader())
         shaderManager.register(FontShader())
         shaderManager.register(ImageShader())

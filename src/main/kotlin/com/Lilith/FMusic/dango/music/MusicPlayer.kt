@@ -36,6 +36,14 @@ object MusicPlayer {
     /** 0..1 */
     @Volatile var volume = 0.2f
 
+    /** 声音从哪里放：0 自动（安卓用游戏的 OpenAL，电脑用 Java Sound），1 Java Sound，2 游戏的 OpenAL。换了就从当前位置重新开始放 */
+    @Volatile var outputMode = OUTPUT_AUTO
+        set(v) {
+            if (field == v) return
+            field = v
+            if (state == State.PLAYING) seekLocal(positionMs)
+        }
+
     private val loader = Executors.newSingleThreadExecutor { r -> Thread(r, "Dango-MusicLoader").apply { isDaemon = true } }
     private val radioWorker = Executors.newSingleThreadExecutor { r -> Thread(r, "Dango-MusicRadio").apply { isDaemon = true } }
 
@@ -381,17 +389,54 @@ object MusicPlayer {
     private val forceOpenAl = java.lang.Boolean.getBoolean("dangomusic.openal")
     private var loggedOutput = ""
 
+    /** 这次该先试游戏的 OpenAL 吗 */
+    private fun preferGameAudio(): Boolean = when (outputMode) {
+        OUTPUT_JAVA_SOUND -> false
+        OUTPUT_GAME -> true
+        // 安卓上 Java Sound 是模拟出来的，放歌会掉帧；电脑上 Java Sound 不占游戏的声音通道，更稳
+        else -> forceOpenAl || AndroidRuntime.detected || !AudioOutput.javaSoundNative
+    }
+
     /**
-     * 打开声音输出：Java 自己带声音库时用 Java Sound（电脑上都是这样）；
-     * 不带（安卓）或者强制时先用游戏的 OpenAL，打不开再退回 Java Sound；Java Sound 打不开也试一下 OpenAL。
+     * 打开声音输出：按 [outputMode] 先试游戏的 OpenAL 或 Java Sound，打不开再换另一个。
      */
     private fun openOutput(format: AudioFormat, bufferBytes: Int): AudioOutput {
-        if (forceOpenAl || !AudioOutput.javaSoundNative) platformOutput(format)?.let { return it }
+        if (preferGameAudio()) platformOutput(format)?.let { return it }
         return try {
             JavaSoundOutput(openLine(format, bufferBytes)).also { logOutput("Java Sound") }
         } catch (e: Throwable) {
             platformOutput(format) ?: throw e
         }
+    }
+
+    /**
+     * 声音系统重启后重新打开输出。游戏要一会儿才能把声音系统开回来，最多等几秒；
+     * 原来用的是游戏的 OpenAL 就继续等它，等不到再按平常的顺序打开。
+     */
+    private fun reopenOutput(gen: Int, old: AudioOutput, rate: Int, channels: Int): AudioOutput? {
+        // Java Sound 线路卡住（换了默认设备，#55）：不用等游戏的声音系统，直接按平常的顺序在新的默认设备上重开
+        val javaSound = old is JavaSoundOutput
+        DangoLogger.info(if (javaSound) "Dango Music: audio device changed, reopening output" else "Dango Music: game audio restarted, reopening output")
+        try { old.close() } catch (_: Exception) {}
+        val format = AudioFormat(rate.toFloat(), 16, channels, true, false)
+        var out: AudioOutput? = null
+        val deadline = System.currentTimeMillis() + if (javaSound) 0L else 5000L
+        while (out == null && gen == generation && System.currentTimeMillis() < deadline) {
+            out = platformOutput(format)
+            if (out == null) Thread.sleep(100)
+        }
+        if (gen != generation) {
+            try { out?.close() } catch (_: Exception) {}
+            return null
+        }
+        // 重开时用和 decodeLoop 一样的约 1 秒缓冲（上游这里是 0.25 秒，本模组为了抗 underrun 调大了，见 §6）
+        if (out == null) out = openOutput(format, rate * channels * 2)
+        line = out
+        // 新输出从 0 开始：位置采样的基准也要跟着归零（见 positionMs 的说明）
+        positionMicrosAt = 0L
+        positionSampledAt = System.nanoTime()
+        if (state == State.PAUSED) out.stop() else out.start()
+        return out
     }
 
     private fun platformOutput(format: AudioFormat): AudioOutput? = try {
@@ -551,7 +596,20 @@ object MusicPlayer {
                     data[k * 2] = (v and 0xFF).toByte()
                     data[k * 2 + 1] = ((v shr 8) and 0xFF).toByte()
                 }
-                out.write(data, 0, data.size)
+                try {
+                    out.write(data, 0, data.size)
+                } catch (e: Throwable) {
+                    if (!out.lost || gen != generation) throw e
+                    // 游戏重启了声音系统：换一个新的输出，从这一块接着放（缓冲里没放完的零点几秒丢掉）
+                    val reopened = reopenOutput(gen, out, frame.rate, frame.channels) ?: throw e
+                    out = reopened
+                    seekBaseMs = (decodedMs - frameMs).toLong()
+                    appliedVolume = -1f
+                    if (reopened.lost) throw e
+                    reopened.setVolume(volume)
+                    appliedVolume = volume
+                    reopened.write(data, 0, data.size)
+                }
                 // 顺便把声卡的实际播放位置记下来给渲染线程用（见 positionMs 的说明）：
                 // 只有解码线程碰声卡，渲染线程永远不会被阻塞的 write() 挡住。
                 positionMicrosAt = out.positionMicros
@@ -562,7 +620,8 @@ object MusicPlayer {
                 fail(gen, "No decodable audio was found.")
             }
             if (finished && gen == generation) {
-                out?.drain()
+                // 最后一点正在放的时候声音系统重启了：就当放完了
+                try { out?.drain() } catch (e: Throwable) { if (out?.lost != true) throw e }
                 synchronized(this) { if (gen == generation) failedTracks.clear() }
             }
         } catch (e: Throwable) {
@@ -602,4 +661,8 @@ object MusicPlayer {
         } catch (_: Exception) {
         }
     }
+
+    const val OUTPUT_AUTO = 0
+    const val OUTPUT_JAVA_SOUND = 1
+    const val OUTPUT_GAME = 2
 }
