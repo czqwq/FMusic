@@ -35,6 +35,11 @@
 | **变速变调（1.7.5）** | `common/core/.../music/SoundStretcher.kt`、`SoundTuning.kt` + `musicui/TunePanel.kt` | 速度 0.5x～2x（WSOLA，音高不变）、音调 ±12 半音（拉伸 + 三次插值重采样，时长不变），可勾「音调跟着速度」；都是 1 时完全 bypass（不加延迟、不烧 CPU） |
 | **按歌记住均衡 / 速度 / 音调（1.7.5）** | `SoundTuning.kt`（`sound_tuning.json`） | 一份全局设置 + 最多 2000 首的按歌记录（`Magic:track.key`）；关掉「按歌记住」这首歌就回到全局设置；拖滑条时攒 500ms 落盘 |
 | **显示其它播放器（1.7.5）** | `common/core/.../music/SystemMedia.kt` + `assets/fmusicdango/system-media.ps1` | 仅 Windows 10+：用系统自带 PowerShell 常驻读 Windows 媒体控制（SMTC），把别的 App 的歌名歌手拿去当前音源搜一次，配上了就有封面和歌词；暂停/切歌/拖进度从 stdin 发回去。默认关，在设置「其它播放器」里打开 |
+| **加到歌单（o.o）** | `musicui/AddPanel.kt` + `Library.loadAddTargets/addToPlaylist` + `MusicSourceApi.canAddToPlaylist/editablePlaylists/addToPlaylist` | 播放栏红心旁边的「＋」弹出当前音源的自建歌单列表（最多 8 行 + 滚轮），点一个就把正在放的歌加进去；三家音源都支持（网易云 weapi、QQ 的 `PlaylistDetailWrite/AddSonglist`、酷狗 `cloudlist/v6/add_song`）。放别的播放器的歌时不显示 |
+| **红心抽象 + 酷狗红心（o.o）** | `MusicSourceApi.canLike/likedState/setLiked` + `Library.likedState` + `KugouCatalog.setLiked` | 红心从「只有网易云」变成按音源实现：网易云沿用原来的 `loadLiked/isLiked/setLiked`，**酷狗**用「我喜欢」歌单（`cloudlist/v4/get_list_all_file` 读、`delete_songs` 删、`add_song` 加，10 分钟缓存 + 刚点亮的内存态）；QQ 明确不做（写 dirId 201 会被拒 80105，上游同） |
+| **播放模式按钮（o.o）** | `NeteaseMusicModule.cyclePlayMode()` + `PlayerBar.drawModeButton` | 播放栏左侧一个三态按钮：顺序（→）→ 随机（⇄）→ 单曲循环（↻+1），非顺序时变红，点了在播放栏提示当前模式；原来右侧分开的随机 / 单曲循环两个按钮撤掉，右侧让给均衡器 / 变速变调 |
+| **逐字歌词漂移修复（o.o）** | `lyrics/LyricsProvider.repairYrc` + `NeteaseLyrics` | 网易云有些歌的逐字歌词后半截整体往后跑偏（一个字能占十几秒，歌词卡在半句）。现在拿普通 LRC 对照，连续 3 句差 10 秒以上就从切换点起改用 LRC 的时间；制作人员名单行不参与判断 |
+| **「算出 NaN 就没声」防御（o.o）** | `EnvironmentAudio` / `RoomAcoustics` / `Equalizer` | 空间混响、环境音效、均衡器里只要混进一个 NaN/无穷，滤波器状态就永远是 NaN、写回声卡全是 0——表现是「播放着突然彻底没声」。现在参数和采样都做有限性检查，坏了就清状态/回退到「不加效果」，混响测量也丢弃非有限结果 |
 
 ### 明确不移植
 
@@ -232,6 +237,40 @@ FMusic 原有 HUD（歌词 / KTV / 封面 / 进度条）与新移植的 Song car
   `Redirect.DISCARD`）。系统没有 SMTC 时脚本 `exit 2`，连续失败 3 次就不再重启，不会天天刷日志。
   开关关掉、模块关掉、游戏退出（shutdown hook）都会 `destroy()` 掉这个进程。
 
+### 3.10 上游 `o.o` 提交（1.7.5 之后）：移植时的取舍
+
+上游在 1.7.5 之后又推了一个 `o.o`（commit `7d1609d`，19 个文件、+706/−64），内容是
+**「加到歌单」+「红心抽象（顺带补上酷狗红心）」+「播放模式三态按钮」** 三个功能，
+外加 **逐字歌词漂移** 和 **「算出 NaN 就没声」** 两个修复。逐文件核对过：本项目这 16 个文件
+在 o.o 之前与上游**逐字节相同**，所以 o.o 的补丁基本原样落地；落地后把包名归一化再 diff，
+除下面列的本地差异外**逐字节一致**。
+
+需要注意的几处：
+
+| 适配点 | 说明 |
+|---|---|
+| 一起听相关 | o.o 的 `PlayerBar` 补丁里夹着上游自己的一起听提示块（`blockedNotice` / `failedMembers` / `ListenParty.members`）。本项目没有一起听，这几块**没有搬**（和之前的移植保持一致）；`Library` 的 `Page.PARTY` 同理。 |
+| `RoomAcoustics` | 本项目之前加过一个本地优化：「玩家站着不动就不重发射线」。o.o 的有限性检查插在测量之后，两者不冲突；副作用是被丢弃的坏测量不会立刻重测（站在同一个方块里会继续沿用上一次的好值，`room == null` 时仍会继续重测）。 |
+| `NeteaseApi` | 只差注释里的配置路径（`config/fmusic/dango/netease_cookie.txt`），保留我们的写法。 |
+| QQ 红心 | 上游 o.o 明确不做（往 dirId 201 写会被拒 `80105`，只有真 App 的设备身份才认），所以 QQ 只有「加到歌单」，红心判据 `canLike` 走默认 `false`。 |
+| 死代码 | 上游 o.o 里 `Library.likedCheckedAt` 变成了没人用的字段、`PlayerBar` 的 `toggleButton`/`shuffleA`/`repeatA` 和 `MusicSource`/`NeteaseApi` import 也不再被引用——**为了和上游保持一致都原样留着**（只会产生 unused 警告，构建没有 `allWarningsAsErrors`）。 |
+
+写歌单这条链路的关键点（以后调 API 时看这里）：
+
+- **网易云**：`editablePlaylists()` 用 `/api/user/playlist/` 自己建的那些（`creator.userId == uid` 且
+  `specialType != 5`，那个 5 就是「我喜欢的音乐」，红心走另一条路）；加歌走 weapi
+  `playlist/manipulate/tracks`，`code 200` = 加上了、**`502` = 本来就在里面**（不是错误）。
+- **QQ 音乐**：自建歌单的 `dirId` 就是 `1..199`（`QqCatalog.Ref.write`），加歌走
+  `PlaylistDetailWrite/AddSonglist`；回包 `result.dirId != 0` 才算真的改了，`0` = 什么都没变。
+  写歌单要数字 `songId`，所以 `NeteaseTrack` 多了一个 `sourceSongId`：解析时顺手记下，
+  没有就按 mid 调一次 `get_song_detail_yqq` 再回写。
+- **酷狗**：「我喜欢」= `is_def == 2` 的那个歌单，自建可写的只有 `type == 0`。
+  加歌 `cloudlist/v6/add_song`（整个曲目对象塞进 `data` 数组），删歌要 `fileid`，
+  所以取消红心时会先读一遍歌单列表（`v4/get_list_all_file`，每页 50，10 分钟缓存），
+  刚点亮还没拿到 `fileid` 的先记在 `likedPending` 里，界面照样显示红心。
+- 红心 / 加歌单之后都会 `Library.invalidateTracks(...)`：**自己歌单的缓存作废**，
+  正在开着的那个在后台重拉，下次打开一定能看到新加的歌。
+
 ## 四、Angelica / 光影兼容
 
 GTNH 环境下 `runClient` 会加载 [Angelica](https://github.com/GTNewHorizons/Angelica)（1.7.10 的渲染层：
@@ -270,6 +309,17 @@ GL 3.3 core profile + Java 端固定管线模拟 + Iris 光影 + 自带字体系
    FMusic 没在放歌时播放栏和 HUD 是否显示它、歌词偏移（默认 0，可 -3000~3000 ms）是否够用、
    播放栏的暂停/上一首/下一首/拖进度是否真的转给了那个 App；关掉开关后 PowerShell 进程有没有退出
    （任务管理器里看 `powershell.exe`）；FMusic 自己开始放歌时应立刻切回自己这首歌。
+10. **加到歌单**（o.o）：播放栏红心旁边的「＋」能弹出当前音源的自建歌单（**要登录**）、滚轮能翻、
+    点一个之后提示「已添加到 xxx」；再点同一个歌单应提示「已经在 xxx 里了」（网易云是 `502` 那条路）；
+    加完打开那个歌单能看到新加的歌。三家音源各试一次；歌单超过 8 个时右边有细滚动条。
+11. **播放模式按钮**（o.o）：中间左侧那个三态按钮点一下切「顺序 → 随机 → 单曲循环」，
+    每次都应在播放栏弹出模式名、图标颜色跟着变；放完一首确认行为对得上（随机真的乱序、单曲循环真的重放）；
+    窗口拖窄时右边的音量条应该先缩短、再整条消失，按钮不重叠。
+12. **酷狗红心**（o.o）：酷狗放歌时红心能不能点亮/取消，切歌回来状态是否记住；
+    「我喜欢」歌单里能看到刚点亮的那首。
+13. **本来就难触发、但值得留意**：o.o 修的「算出 NaN 就没声」——如果以后再遇到「播放中突然完全没声、
+    进度还在走」，先看日志里有没有 `Environment audio: non-finite sample, reverb state cleared`；
+    有就说明防御生效了（声音应该自己恢复），没有则是别的原因。
 
 ### 4.1 GL 调用审计（务必保持，否则会 JVM 级崩溃）
 
@@ -296,7 +346,9 @@ Angelica 的 `GLSMRedirector` 会把 mod 里的 `org.lwjgl.opengl.GLxx` 调用�
 另外 `LegacyGfx.guarded` 现在对「状态快照 / 绘制 / 还原」三段都兜了异常并只记一次日志：
 渲染层是纯装饰性的，任何失败都不该把游戏带崩（注意这只挡得住异常，挡不住上面那种原生 abort）。
 
-### 4.2 1.7.5 这块已经做过的验证（剩下的都要进游戏点）
+### 4.2 已经做过的验证（剩下的都要进游戏点）
+
+**1.7.5 那一轮：**
 
 - `gradlew build` 全绿（含 checkstyle / reobf / shadowJar），成品 jar 里有新类，
   `assets/fmusicdango/system-media.ps1` 也在包里。
@@ -311,8 +363,23 @@ Angelica 的 `GLSMRedirector` 会把 mod 里的 `org.lwjgl.opengl.GLxx` 调用�
   `Equalizer` / `SoundStretcher` / `EqPanel` / `TunePanel` / `Ui` / `SongCardModule` 与上游**完全一致**；
   其余文件的差异只剩「一起听没移植」「FMusic 自己的默认值与缓冲」「配置路径」这些本移植层老早就有、
   写在本文件里的改动。
-- 还没验证的：上面清单 6~9 那四条**只能在游戏里点**（面板交互、变速后的进度/歌词、按歌记住跨重启、
-  真的接一个 Spotify 试播放控制）。
+
+**`o.o` 那一轮：**
+
+- `gradlew build` 全绿（checkstyle / reobf / shadowJar 都过了），jar 里能看到 `AddPanel` 等新类。
+- 与上游 `7d1609d` 逐文件比对（包名归一化后）：`Equalizer` / `EnvironmentAudio` / `LyricsProvider` /
+  `NeteaseLyrics` / `MusicSources` / `NeteaseTrack` / `QqCatalog` / `QqMusicSource` / `KugouCatalog` /
+  `KugouMusicSource` / `AddPanel` **逐字节一致**；`PlayerBar` 只少上游那 15 行一起听提示，
+  `Library` 只差 `Page.PARTY` 一行，`RoomAcoustics` 只多本地那段「站着不动不重算」,
+  `NeteaseApi` 只差注释里的配置路径，`MusicScreen` / `NeteaseMusicModule` 只差本移植层原有的差异。
+- `LyricsProvider.repairYrc` 用合成歌词直接跑了 5 组用例（不进游戏）：整体 +60s 跑偏 → 前 3 句留逐字、
+  之后走 LRC 且时间单调；时间本来就对 → 原样返回同一个列表；只连续跑偏 2 句 → 不动；
+  没有 LRC → 不动；夹一行 `Piano : Bob` → 名单行不参与判断但仍保留。全部通过。
+- `EnvironmentAudio` / `Equalizer` 的 NaN 防御是「本来就难触发」的兜底，只做了代码级核对：
+  参数非有限 → `restoreParams()`；采样非有限 → 该帧状态清零 + 10 秒一次的日志；
+  均衡器段状态清零后下一块继续有声音（`DspSmoke` 里的 24 项回归仍然全过）。
+- 还没验证的：上面清单 6~13 那些**只能在游戏里点**（面板交互、变速后的进度/歌词、按歌记住跨重启、
+  真的接一个 Spotify 试播放控制、三家音源各加一次歌单、酷狗红心、播放模式按钮的窄窗口表现）。
 
 ## 六、性能：为什么本地播放器比服务端点歌"更吃资源"
 
