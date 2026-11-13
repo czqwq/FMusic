@@ -25,6 +25,9 @@ import com.Lilith.FMusic.client.core.FMusicCore;
 import com.Lilith.FMusic.client.core.render.PictureFrameBuffer;
 import com.Lilith.FMusic.client.core.render.TextFrameBuffer;
 import com.Lilith.FMusic.client.core.render.TextureRender;
+import com.Lilith.FMusic.client.network.ClientPointSongHandler;
+import com.Lilith.FMusic.dango.music.PointSongBridge;
+import com.Lilith.FMusic.network.PointSongChannel;
 
 import cpw.mods.fml.client.FMLClientHandler;
 import cpw.mods.fml.common.FMLCommonHandler;
@@ -132,6 +135,8 @@ public class FMusic implements FMusicBridge {
             .register(this);
         NetworkRegistry.INSTANCE.newEventDrivenChannel("fmusic:channel")
             .register(this);
+        // 点歌通道（fmusic:req）用独立 handler：旧通道那个 onClientPacket 会把点歌包当老协议解析
+        PointSongChannel.init(new ClientPointSongHandler());
     }
 
     @SubscribeEvent
@@ -158,6 +163,9 @@ public class FMusic implements FMusicBridge {
     @SubscribeEvent
     public void onServerQuit(final FMLNetworkEvent.ClientDisconnectionFromServerEvent e) {
         FMusicCore.onServerQuit();
+        // 断线后清掉「服务端支持右键点歌」的能力位：否则先连新服再连老服时，会以为老服也支持，
+        // 请求发出去没人处理、也不会有结果包回来
+        PointSongBridge.onFeature(false);
     }
 
     public int getScreenWidth() {

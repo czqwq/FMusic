@@ -6,6 +6,7 @@ import com.Lilith.FMusic.dango.DangoClient
 import com.Lilith.FMusic.dango.module.impls.music.NeteaseMusicModule
 import com.Lilith.FMusic.dango.musicui.ArtistPage
 import com.Lilith.FMusic.dango.musicui.ArtistRef
+import com.Lilith.FMusic.dango.musicui.ContextMenu
 import com.Lilith.FMusic.dango.musicui.GridPage
 import com.Lilith.FMusic.dango.musicui.Library
 import com.Lilith.FMusic.dango.musicui.LoginDialog
@@ -53,6 +54,8 @@ class MusicScreen(
     internal val grid = GridPage(this)
     private val artistPage = ArtistPage(this)
     private val settings = SettingsPage(this, module)
+    /** 歌曲列表行上的右键菜单（目前只有"发送到点歌系统"） */
+    private val songMenu = ContextMenu(ui)
 
     /** 有输入框在打字（搜索、筛选、设置里改数值 / 颜色）：平台层据此让系统输入法可用 */
     val textInputActive: Boolean
@@ -87,6 +90,7 @@ class MusicScreen(
         val now = System.currentTimeMillis()
         closingAlpha = opacity(now)
         closingAt = now
+        songMenu.close()
         settings.commitEdit()
         settings.stopDrag()
         tracks.scrollbarUp()
@@ -113,6 +117,7 @@ class MusicScreen(
     }
 
     internal fun go(p: Page) {
+        songMenu.close()
         tracks.clearFilter()
         ScreenState.page = p
         ScreenState.backPage = null
@@ -129,6 +134,7 @@ class MusicScreen(
     }
 
     internal fun goBack() {
+        songMenu.close()
         if (ScreenState.page == Page.SETTINGS) {
             ScreenState.page = ScreenState.settingsBack
             return
@@ -296,7 +302,11 @@ class MusicScreen(
             ctx.recaptureBackdrop()
             ctx.pushScale(scale, scale, 1f)
             ctx.pushOpacity(alpha)
+            // 右键菜单开着：播放栏里鼠标在菜单下面也不算悬停（菜单自己画的时候要能悬停）
+            ui.popup = if (songMenu.isOpen) songMenu.rect else null
             drawBar()
+            ui.popup = null
+            songMenu.draw()
             ctx.popOpacity()
             ctx.popTransform()
             ctx.noScissor()
@@ -453,7 +463,7 @@ class MusicScreen(
         val barRect = LayoutBounds(barX, win.bottom - pad - 8f - barH, win.right - pad - 12f - barX, barH)
         val content = LayoutBounds(mainX, win.y + pad + 14f, mainW, win.bottom - pad - (win.y + pad + 14f))
 
-        ui.popup = bar.popupRect.takeIf { it.width > 0f }
+        ui.popup = if (songMenu.isOpen) songMenu.rect else bar.popupRect.takeIf { it.width > 0f }
         sidebar.draw(side)
         ui.occluder = barRect
         ui.bottomInset = content.bottom - barRect.y + 10f
@@ -539,12 +549,35 @@ class MusicScreen(
             return
         }
         if (module.handleHotkey(mouseKey)) return
-        // 鼠标侧键 / 右键：返回上一页
+        // 鼠标侧键 / 右键：在歌曲列表的某一行上弹出右键菜单，其它地方还是返回上一页
         if (mouseButton == 1 || mouseButton == 3) {
+            if (songMenu.isOpen) {
+                songMenu.close()
+                return
+            }
+            // 播放栏（含它周围那条边距）和它上面浮着的面板挡着列表：右击这里还是返回上一页，
+            // 别弹出它们底下那首歌的菜单
+            if ((barRect.height > 0f && my >= barRect.y - 12f) || bar.popupRect.contains(mx, my)) {
+                goBack()
+                return
+            }
+            val target = tracks.trackAt(mx, my)
+            if (target != null) {
+                val item = ContextMenu.Item(I18n.text("Send to request queue"), PointSongBridge.canSend(target)) {
+                    PointSongBridge.send(target)
+                }
+                songMenu.show(listOf(item), mx, my)
+                return
+            }
             goBack()
             return
         }
         if (mouseButton != 0) return
+        // 右键菜单开着：点菜单项就执行，点别处只关菜单（这一下不传给下面的列表）
+        if (songMenu.isOpen) {
+            songMenu.mouseDown(mx, my)
+            return
+        }
         if (bar.mouseDown(mx, my)) return
         if (tracks.scrollbarDown(mx, my)) return
         val hit = ui.hits.firstOrNull { it.first.contains(mx, my) }
@@ -601,6 +634,11 @@ class MusicScreen(
     fun keyTyped(typedChar: Char, keyCode: Int) {
         if (closingAt != 0L || closed) {
             if (keyCode == module.openKey.value) module.consumeOpenKey()
+            return
+        }
+        // 右键菜单开着：任意键先只关掉菜单（ESC 不会顺带把整个播放器关了）
+        if (songMenu.isOpen) {
+            songMenu.close()
             return
         }
         if (login.visible) {

@@ -419,6 +419,73 @@ Angelica 的 `GLSMRedirector` 会把 mod 里的 `org.lwjgl.opengl.GLxx` 调用�
   把 `-Ddangomusic.openal=true` 加到 JVM 参数里可以强制走游戏 OpenAL 输出做对照。
 - **只在切换歌曲时卡** → 是整首下载 + 解密/分析的开销，和播放无关。
 
+## 七、右键「发送到点歌系统」：两套播放系统之间唯一的桥
+
+**这不是上游移植，是本模组自己加的功能**：把移植过来的客户端播放器和 FMusic 原有的服务端点歌系统接起来。
+上游 DangoMusic 没有服务端点歌系统，所以这块和上游无关，以后同步上游时不会冲突。
+
+### 7.1 行为
+
+- 在播放器的**歌曲列表行**上右键（歌单 / 搜索结果 / 队列 / 歌手页热门歌曲，都走 `TracksPage.drawTrackList`）
+  → 弹出液态玻璃右键菜单（`musicui/ContextMenu.kt`，通用组件，以后可以往里加项），目前只有一项
+  「发送到点歌系统」。
+- 点了之后按「**音源 + 歌曲 ID**」把这一首直接加进服务端点歌队列，等价于 `/music <音源> <歌曲ID>`：
+  权限、经济、禁歌、禁人、重复、队列上限、玩家点歌上限、`MusicAddEvent` 全都照走。
+- 右键**其它地方**保持原来的「返回上一页」（播放栏区域也排除，免得弹出它底下那首歌的菜单）。
+- 结果在**播放栏临时状态条**提示（成功「已点歌：歌名 - 歌手」，失败显示具体原因，共 19 条文案）。
+
+### 7.2 音源与 ID 的对应
+
+DangoMusic 的歌曲模型和点歌系统的 `IMusicApi` 对得上，不需要按歌名重新搜：
+
+| 播放器音源 | 点歌系统 apiId | 传过去的 ID | 校验 |
+|---|---|---|---|
+| `MusicSource.NETEASE` | `netapi` | `nativeId`（数字歌曲 ID） | `checkId` = 纯数字 |
+| `MusicSource.QQ` | `qqmusic` | `nativeId`（songmid） | 10~32 位字母数字 |
+| `MusicSource.KUGOU` | `kugou` | `nativeId`（32 位 hash） | 32 位十六进制 |
+
+映射在 `music/PointSongBridge.kt` 的 `apiId()` 里；对不上的（比如「显示其它播放器」的 `smtc:` 占位歌）
+菜单项直接置灰。
+
+### 7.3 网络：独立通道 `fmusic:req`
+
+不能走老的 `fmusic:channel`：那是服务端→客户端的 `CommandType` 序号协议，混进新消息老版本会解析出乱码。
+所以新开一条双向通道，自带协议版本号（见 `java/com/Lilith/FMusic/network/PointSongChannel.java`）：
+
+| 消息 | 方向 | 载荷 |
+|---|---|---|
+| `TYPE_FEATURE` | 服务端 → 客户端 | 支不支持（进服后 1 秒发一次） |
+| `TYPE_REQUEST` | 客户端 → 服务端 | apiId + 歌曲 ID |
+| `TYPE_RESULT` | 服务端 → 客户端 | 状态码 + 歌名 + 作者 |
+
+要点（改这块之前先看这几条）：
+
+- **通道是静态单例 + `init(handler)` 幂等**：`FMusicServer.commonSetup` 在客户端和专用服务端都会跑，
+  `client/FMusic.preload` 再往同一个通道对象上补注册客户端 handler。1.7.10 的
+  `newEventDrivenChannel` 同名重复调用会抛异常，所以不能各建各的。
+- **服务端 handler 是独立对象**（`server/network/PointSongServerHandler`），客户端也是
+  （`client/network/ClientPointSongHandler`）。不能把 `@SubscribeEvent` 方法挂在旧的 `client/FMusic` 对象上：
+  FML 的每个通道是独立 EventBus，但同一个对象注册进去后，旧通道的收包方法也会收到新通道的包、按旧协议解析。
+- **老版本互相兼容**：老客户端/老服务端根本不注册 `fmusic:req`，FML 收到未知通道的包会直接交给原版
+  handler 忽略，不会踢人。新客户端连老服务端时收不到能力包 → `supported = false` → 点了只提示
+  「服务器不支持（FMusic 版本过旧）」；断线时会清掉能力位，避免先连新服再连老服时误判。
+- **线程分层**（服务端）：网络线程只解析包 + 定位玩家 → `FMusic.side.runTask` 在 tick 线程做权限/经济
+  check → `SaveTask.task` 在后台线程跑 `FMusicApi.addMusicSync`（要发 HTTP）→ 再回 tick 线程发包。
+  结果包会按名字重新取当前在线的玩家（解析要几秒，期间可能重生）。
+- **经济顺序**：先 `check`，入队成功后才 `cost`；扣款失败只记 warn、不回滚（歌已经在队列里了）。
+  和现有 `/music` 命令的扣费时机略有不同，但不会出现「扣了钱没点成歌」。
+
+### 7.4 验证
+
+- `gradlew build` 全绿（spotless / checkstyle / reobf / shadowJar）；`gradlew compileKotlin -PskipPlatform`
+  也能过（桥放在 `dango/music`，没有从核心 UI 反向引用 `mc1710` 平台层）。
+- 协议层不进游戏单独跑了 17 项（`tmp/smoke/PointSongProtocolSmoke.java`）：三种消息正常解析、
+  中文歌名/作者、坏版本、未知类型、空包/截断/负长度/超大长度、FML 出站 `payload.array()` 尾部补 0 的兼容，
+  全部通过。**这里抓到过一个真 bug**：结果包缺字段时 `read()` 会返回带 null 字段的消息，
+  Kotlin 侧非空参数会抛异常把结果包丢掉——已改成三个字段缺一即当坏包。
+- 待实机验证：右键菜单的弹出位置/悬停/关闭、列表行命中（含页面切换动画期间）、真实点歌成功/失败、
+  权限与经济扣费、专用服务器 + 两个客户端、老版本混连。
+
 ## 五、许可与致谢
 
 DangoMusic 以 **GPL-3.0** 发布，本项目以 **AGPL-3.0** 发布，两者兼容（AGPL-3.0 更严格）。

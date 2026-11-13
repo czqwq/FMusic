@@ -58,6 +58,9 @@ internal class TracksPage(private val screen: MusicScreen) {
     private var flashId = ""
     private var flashAt = 0L
 
+    // 本帧画出来的歌曲行（右键菜单用来找"这一下点的是哪首歌"）；切页动画期间旧页面的行会清掉
+    private val rowRects = ArrayList<Pair<LayoutBounds, NeteaseTrack>>()
+
     // 封面墙：目标下标和平滑后的当前位置
     private var cfTarget = 0
     private var cfPos = 0f
@@ -74,7 +77,11 @@ internal class TracksPage(private val screen: MusicScreen) {
 
     fun beginFrame() {
         if (!sbDragging) sbTotal = 0   // 没画歌单列表的页面上不响应滚动条
+        rowRects.clear()
     }
+
+    /** 这个位置上是哪首歌（右键菜单用）：只认这一帧在列表里画出来的行 */
+    fun trackAt(mx: Int, my: Int): NeteaseTrack? = rowRects.firstOrNull { it.first.contains(mx, my) }?.second
 
     /** 换了页面：列表直接从当前滚动位置开始画，不从别处滑过来 */
     fun onPageChanged() {
@@ -248,6 +255,8 @@ internal class TracksPage(private val screen: MusicScreen) {
             val keep = ui.hits.size
             ui.shifted(-dir * 36f * t.coerceIn(0f, 1f), 0f, out) { drawView(from, area, tracks, list) }
             while (ui.hits.size > keep) ui.hits.removeAt(ui.hits.size - 1)
+            // 旧页面的行不参与右键命中（下面画新内容时重新登记）
+            rowRects.clear()
         }
         ui.shifted(dir * 36f * (1f - t), 0f, t.coerceIn(0f, 1f)) { drawView(cover, area, tracks, list) }
     }
@@ -546,6 +555,8 @@ internal class TracksPage(private val screen: MusicScreen) {
                     selPress.v -= 6f
                     playFrom(all, i)
                 }
+                // 右键菜单：这一行是哪首歌
+                rowRects += row.intersect(clipArea) to t
             }
         }
         ui.endClip()

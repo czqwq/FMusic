@@ -468,3 +468,22 @@ Log in to Kugou first.	请先登录酷狗。
 This song is not from Kugou.	这首歌不是酷狗的。
 This source has no liked songs.	这个音源没有红心。
 Kugou liked songs are unavailable. Please retry.	读不到酷狗的“我喜欢”，请重试。
+Send to request queue	发送到点歌系统
+Requesting song…	正在点歌…
+Song request sent: %s	已点歌：%s
+Song request failed: %s	点歌失败：%s
+The request queue is full	点歌队列已满
+This song is already in the queue	这首歌已经在队列里了
+This song is banned on this server	这首歌在本服被禁止点播
+You have reached the request limit	你的点歌数量已达上限
+You are banned from requesting songs	你被禁止点歌
+No player can receive music right now	当前没有可接收音乐的玩家
+Invalid song ID	无效的歌曲 ID
+The server could not fetch this song	服务端拿不到这首歌
+You don't have permission to request songs	你没有点歌权限
+Not enough money to request a song	余额不足，无法点歌
+The music system is not running	点歌系统未运行
+The server does not have this music source	服务端没有这个音源
+The server cancelled this request	服务端取消了这次点歌
+The server does not support this (FMusic version is too old)	服务器不支持（FMusic 版本过旧）
+Not connected to a server	未连接到服务器
