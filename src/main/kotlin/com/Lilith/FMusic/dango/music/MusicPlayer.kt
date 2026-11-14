@@ -252,6 +252,30 @@ object MusicPlayer {
         loader.execute { load(gen, track, requestedQuality, startAt, paused) }
     }
 
+    /**
+     * 切换请求音质：立即按新档位重新加载当前歌曲（保持播放位置和暂停状态），不用等下一首。
+     * 新档位已经有缓存时重载很快；正在加载时切换会取消旧请求、按新档位重新开始。
+     * 只改本机播放器自己的取流，不影响服务端点歌和其它播放器。
+     */
+    @Synchronized fun switchQuality(value: AudioQuality) {
+        val changed = quality != value
+        quality = value
+        if (!changed || external) return
+        val track = current ?: return
+        if (state != State.PLAYING && state != State.PAUSED && state != State.LOADING) return
+        val paused = state == State.PAUSED
+        val at = if (state == State.PLAYING || paused) positionMs else 0L
+        val gen = ++generation
+        stopLine()
+        audio = null
+        current = track
+        state = State.LOADING
+        message = "加载中…"
+        currentQuality = null
+        fromCache = false
+        loader.execute { load(gen, track, value, { at }, paused) }
+    }
+
     /** 把一首歌插在当前这首后面，放完接着原来的队列 */
     @Synchronized fun playNext(track: NeteaseTrack) {
         val q = queue

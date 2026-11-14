@@ -14,6 +14,7 @@ import com.Lilith.FMusic.dango.module.values.BooleanValue
 import com.Lilith.FMusic.dango.module.values.FloatValue
 import com.Lilith.FMusic.dango.module.values.IntValue
 import com.Lilith.FMusic.dango.module.values.ModuleValue
+import com.Lilith.FMusic.dango.music.AudioQuality
 import com.Lilith.FMusic.dango.music.EnvironmentAudio
 import com.Lilith.FMusic.dango.music.RoomAcoustics
 import com.Lilith.FMusic.dango.music.MusicPlayer
@@ -46,7 +47,7 @@ class NeteaseMusicModule : Module() {
     @ModuleValue("Volume", "Playback volume")
     private val volume = FloatValue(0f, 1f, 0.2f, 2)
 
-    @ModuleValue("Audio quality", "Applies to the next song; high quality and lossless use local cache")
+    @ModuleValue("Audio quality", "Switching reloads the current song; high quality and lossless use local cache")
     // 默认高音质：和加音质设置之前的行为一致（优先 320 kbps），标准档才是显式选的 128k。
     private val audioQuality = IntValue(0, 2, 1)
 
@@ -202,6 +203,16 @@ class NeteaseMusicModule : Module() {
         volume.setValue(v)
     }
 
+    /** 当前选择的音质（设置页和播放栏的音质徽章共用） */
+    fun preferredQuality(): AudioQuality = AudioQuality.fromSetting(audioQuality.value)
+
+    /** 播放栏快速切换音质：写回设置并按新档位立刻重新加载当前歌曲 */
+    fun selectQuality(quality: AudioQuality) {
+        if (preferredQuality() == quality) return
+        audioQuality.setValue(quality.ordinal)
+        MusicPlayer.switchQuality(quality)
+    }
+
     private fun changeVolume(d: Float) {
         volume.setValue((volume.value + d).coerceIn(0f, 1f))
         MusicPlayer.volume = volume.value
@@ -353,7 +364,9 @@ class NeteaseMusicModule : Module() {
         if (++tickCount > 5) lyrics()?.let { if (!it.enabled) it.enabled = true }
         MusicPlayer.volume = volume.value
         MusicPlayer.outputMode = audioOutput.value
-        MusicPlayer.quality = com.Lilith.FMusic.dango.music.AudioQuality.fromSetting(audioQuality.value)
+        // 设置页改了音质也要立即生效（和播放栏的音质徽章走同一条路：按新档位重载当前歌曲）
+        val selectedQuality = AudioQuality.fromSetting(audioQuality.value)
+        if (MusicPlayer.quality != selectedQuality) MusicPlayer.switchQuality(selectedQuality)
         MusicPlayer.shuffle = shuffle.get()
 
         MusicPlayer.repeatOne = repeatOne.get()

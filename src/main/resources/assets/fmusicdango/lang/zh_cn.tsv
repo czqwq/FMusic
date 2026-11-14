@@ -489,12 +489,13 @@ The server does not support this (FMusic version is too old)	服务器不支持�
 Not connected to a server	未连接到服务器
 
 Audio quality	音质
-Applies to the next song; high quality and lossless use local cache	下首歌生效；高音质和无损自动缓存到本地
+Switching reloads the current song; high quality and lossless use local cache	切换后立即重新加载当前歌曲；高音质和无损自动缓存到本地
 Standard	标准
 High quality	高音质
 Lossless	无损
 Local cache	本地缓存
 Requested quality unavailable; playing a lower quality	所选音质不可用，已回退到较低音质
+Switching reloads the current song	切换后重新加载当前歌曲
 QQ Music did not return playable audio for this song. Try another version.	QQ 音乐未返回可播放的音频，请尝试其它版本。
 
 Cache directory	缓存目录
