@@ -634,7 +634,9 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
         ui.text(I18n.text(g.sub), x + ui.width(title, 13f, Theme.FONT_SEMIBOLD) + 8f, b.y + 14.5f, 10f, Theme.TEXT_TERTIARY)
         if (g.toggle) {
             val m = g.owner
-            ui.toggleSwitch(LayoutBounds(b.right - 14f - 34f, b.y + 9f, 34f, 20f), m.enabled, clip, key = m) { m.enabled = !m.enabled }
+            val toggle = LayoutBounds(b.right - 14f - 34f, b.y + 9f, 34f, 20f)
+            ui.toggleSwitch(toggle, m.enabled, clip, key = m) { m.enabled = !m.enabled }
+            ui.tip(toggle.expand(4f, 4f), I18n.text("Enable or disable this module"))
         }
         var y = b.y + headH
         val moduleOff = !g.owner.enabled
@@ -670,6 +672,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
         if (editing && cacheTextSelected) ui.card(LayoutBounds(input.x + 5f, input.y + 4f, (ui.width(path, 10f) + 4f).coerceAtMost(input.width - 10f), 18f), RED.copy(a = 0.3f), 3f)
         ui.text(ui.trim(path, input.width - 14f, 10f), input.x + 7f, input.y + 8f, 10f, Theme.TEXT_PRIMARY)
         ui.hits += input.intersect(clip) to { startEdit(r); cacheTextSelected = false }
+        if (!editing) ui.tip(input, I18n.text("Click to edit"))
         ui.text(ui.trim(I18n.text("Relative to game directory · Enter save"), b.width, 9.5f), b.x, b.y + 59f, 9.5f, Theme.TEXT_TERTIARY)
         val usage = status.bytes?.let { bytes ->
             val size = when {
@@ -682,21 +685,23 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
         } ?: I18n.text("Calculating cache size...")
         ui.text(ui.trim(usage, b.width, 11f), b.x, b.y + 79f, 11f, Theme.TEXT_SECONDARY)
         val confirming = clearCacheDirectory == status.directory && System.currentTimeMillis() < clearCacheUntil
-        fun button(x: Float, text: String, enabled: Boolean, action: () -> Unit) {
+        fun button(x: Float, text: String, enabled: Boolean, tip: String, action: () -> Unit) {
             val box = LayoutBounds(x, b.y + 99f, (b.width - 8f) / 2f, 25f)
             ui.card(box, if (enabled && ui.hover(box)) Theme.CARD_HOVER else Theme.CARD, 6f)
             val label = ui.trim(I18n.text(text), box.width - 12f, 10.5f)
             ui.text(label, box.x + (box.width - ui.width(label, 10.5f)) / 2f, box.y + 8f, 10.5f,
                 if (enabled) Theme.TEXT_PRIMARY else Theme.TEXT_TERTIARY)
+            ui.tip(box, I18n.text(tip))
             if (enabled) ui.hits += box.intersect(clip) to action
         }
-        button(b.x, "Default directory", !status.busy) {
+        button(b.x, "Default directory", !status.busy, "Use the default cache directory") {
             editRow = null
             value.value = ""
             clearCacheUntil = 0L
             MusicCache.configure("")
         }
-        button(b.x + (b.width + 8f) / 2f, if (confirming) "Confirm clear" else "Clear cache", !status.busy && status.bytes != null) {
+        button(b.x + (b.width + 8f) / 2f, if (confirming) "Confirm clear" else "Clear cache", !status.busy && status.bytes != null,
+            if (confirming) "Click again to delete cached audio" else "Clear the audio cache in this directory (click twice to confirm)") {
             val current = MusicCache.status
             if (current.directory != status.directory || current.busy) {
                 clearCacheUntil = 0L
@@ -735,7 +740,9 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
         when (r.ctl) {
             Ctl.TOGGLE -> {
                 val v = r.value as BooleanValue
-                ui.toggleSwitch(LayoutBounds(cx, cy - 10f, 34f, 20f), v.get(), clip, key = v) { v.toggle() }
+                val toggle = LayoutBounds(cx, cy - 10f, 34f, 20f)
+                ui.toggleSwitch(toggle, v.get(), clip, key = v) { v.toggle() }
+                ui.tip(toggle.expand(4f, 4f), if (r.desc.isNotEmpty()) I18n.text(r.desc) else I18n.text(r.label))
             }
             Ctl.CACHE -> Unit
             Ctl.SLIDER -> drawSlider(b, r, clip, cx, cy)
@@ -752,6 +759,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
                 val hit = box.intersect(clip)
                 pickerHits += hit
                 ui.hits += hit to { if (picker === v) closePicker() else openPicker(v) }
+                ui.tip(box, I18n.text("Click to pick a color"))
             }
             Ctl.FONT -> drawFontPicker(r.value as FontChoice, clip, cx, cy)
             Ctl.CHOICE -> {
@@ -829,6 +837,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
             if (!LyricFonts.openFolder())
                 Library.showStatus(I18n.text("Fonts folder: ") + LyricFonts.folder.absolutePath + I18n.text(" (put .ttf / .otf files here)"))
         }
+        ui.tip(folder.expand(2f, 2f), I18n.text("Open fonts folder"))
     }
 
     private fun drawSlider(b: LayoutBounds, r: Row, clip: LayoutBounds, cx: Float, cy: Float) {
@@ -868,6 +877,10 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
             dragTrack = track
             applyDrag()
         }
+        if (dragValue == null) {
+            ui.tip(track.expand(8f, 12f), I18n.text("Drag to adjust"))
+            if (editRow !== r) ui.tip(vb, I18n.text("Click to type a value"))
+        }
     }
 
     private fun drawKeyButton(v: IntValue, clip: LayoutBounds, cx: Float, cy: Float) {
@@ -886,6 +899,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
         val hb = kb.intersect(clip)
         keyButtons += hb
         ui.hits += hb to { bindingKey = if (bindingKey === v) null else v }
+        ui.tip(kb, I18n.text("Click, then press a key · Backspace clears"))
 
         val reset = LayoutBounds(kb.right + 6f, kb.y, 52f, kb.height)
         ui.card(reset, if (ui.hover(reset)) Theme.CARD_HOVER else Theme.CARD, 7f)
@@ -898,6 +912,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
         }
         keyResetButtons += resetHit
         ui.hits += resetHit
+        ui.tip(reset, I18n.text("Reset to default"))
     }
 
     /** 重置优先于鼠标录制，避免点击重置时反而绑定成鼠标左键。 */

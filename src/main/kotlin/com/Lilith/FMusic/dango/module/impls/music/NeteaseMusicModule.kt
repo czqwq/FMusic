@@ -173,6 +173,13 @@ class NeteaseMusicModule : Module() {
         value.setValue(binding.action.defaultKey)
     }
 
+    /** 快捷键的显示名（没绑定返回空字符串）：播放栏的悬浮提示用 */
+    fun hotkeyName(action: PlayerAction): String {
+        val binding = keyBindings.firstOrNull { it.action == action } ?: return ""
+        val value = allowedPlayerKey(binding.value.value)
+        return if (value == Keys.NONE) "" else Keys.name(value).orEmpty()
+    }
+
     private var wasDown = false
 
     /** 界面用打开键关闭时，消费这次按下，防止同一 tick 又从游戏里打开。 */

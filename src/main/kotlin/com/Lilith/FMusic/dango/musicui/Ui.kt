@@ -5,8 +5,10 @@ import com.Lilith.FMusic.dango.font.MixedText
 import com.Lilith.FMusic.dango.gfx.GuiCanvas
 import com.Lilith.FMusic.dango.gfx.Texture
 import com.Lilith.FMusic.dango.ui.LayoutBounds
+import com.Lilith.FMusic.dango.ui.ShadowStyle
 import com.Lilith.FMusic.dango.ui.ShapeStyle
 import com.Lilith.FMusic.dango.ui.Theme
+import com.Lilith.FMusic.dango.ui.Vec2
 import com.Lilith.FMusic.dango.utils.Color
 
 import kotlin.math.abs
@@ -106,6 +108,97 @@ internal class Ui {
     var popup: LayoutBounds? = null
 
     fun hover(b: LayoutBounds) = b.contains(mx, my) && occluder?.contains(mx, my) != true && popup?.contains(mx, my) != true
+
+    // ---------------------------------------------------------------- 悬浮提示
+
+    /** 鼠标停在按钮上多久后弹出提示（毫秒） */
+    private val tipDelayMs = 380L
+    private var tipFrame: LayoutBounds? = null
+    private var tipFrameLabel = ""
+    private var tipFrameKey = ""
+    private var tipFrameAbove = false
+    private var tipFrameAnchor: LayoutBounds? = null
+    private var tipTarget: LayoutBounds? = null
+    private var tipLabel = ""
+    private var tipKey = ""
+    private var tipAbove = false
+    private var tipAnchor: LayoutBounds? = null
+    private var tipAt = 0L
+
+    /** 每帧开始画之前调用，清掉上一帧的悬停候选 */
+    fun beginTips() {
+        tipFrame = null
+        tipFrameLabel = ""
+        tipFrameKey = ""
+        tipFrameAbove = false
+        tipFrameAnchor = null
+    }
+
+    /**
+     * 给一个可点区域登记悬浮提示：鼠标停在该区域上 [tipDelayMs] 后弹出。
+     * [key] 是绑定好的快捷键名（没有就传 null）。[above] = true 时优先画在按钮上方
+     * （底部播放栏里的按钮用这个，免得挡住进度条）。[anchor] 只用来定位提示条，
+     * 命中判断还是用 [b]（比如进度条希望提示弹在播放栏上方，而不是盖住中间按钮）。
+     * 同一帧后登记的优先。
+     */
+    @JvmOverloads
+    fun tip(b: LayoutBounds, label: String, key: String? = null, above: Boolean = false, anchor: LayoutBounds? = null) {
+        if (label.isEmpty()) return
+        if (!b.contains(mx, my) || occluder?.contains(mx, my) == true || popup?.contains(mx, my) == true) return
+        tipFrame = b
+        tipFrameLabel = label
+        tipFrameKey = key.orEmpty()
+        tipFrameAbove = above
+        tipFrameAnchor = anchor
+    }
+
+    /** 所有内容画完后调用：悬停够久就把提示画在最上面（文字走 mt 队列，调用方随后 flush） */
+    fun drawTips() {
+        val target = tipFrame
+        if (target == null || tipFrameLabel.isEmpty()) {
+            tipTarget = null
+            return
+        }
+        if (target != tipTarget || tipFrameLabel != tipLabel || tipFrameKey != tipKey ||
+            tipFrameAbove != tipAbove || tipFrameAnchor != tipAnchor) {
+            tipTarget = target
+            tipLabel = tipFrameLabel
+            tipKey = tipFrameKey
+            tipAbove = tipFrameAbove
+            tipAnchor = tipFrameAnchor
+            tipAt = System.nanoTime()
+            return
+        }
+        if ((System.nanoTime() - tipAt) / 1_000_000L < tipDelayMs) return
+        drawTip(tipAnchor ?: target, tipLabel, tipKey, tipAbove)
+    }
+
+    private fun drawTip(target: LayoutBounds, label: String, key: String, above: Boolean) {
+        val labelSize = 10.5f
+        val keySize = 10f
+        val keyText = if (key.isEmpty()) "" else " ($key)"
+        val keyW = if (keyText.isEmpty()) 0f else width(keyText, keySize)
+        // 长说明（设置项的 desc）在窄窗口里先截断，别让提示条超出屏幕
+        val maxW = (lw - 24f).coerceAtLeast(80f)
+        val shown = trim(label, (maxW - keyW - 20f).coerceAtLeast(30f), labelSize, Theme.FONT_MEDIUM)
+        val labelW = width(shown, labelSize, Theme.FONT_MEDIUM)
+        val w = labelW + keyW + 20f
+        val h = 26f
+        val gap = 8f
+        val below = target.bottom + gap
+        val aboveY = target.y - h - gap
+        val y = when {
+            above && aboveY >= 4f -> aboveY
+            below + h <= lh - 4f -> below
+            else -> max(4f, aboveY)
+        }
+        val x = (target.x + target.width / 2f - w / 2f).coerceIn(4f, max(4f, lw - w - 4f))
+        ctx.drawGlass(LayoutBounds(x, y, w, h), TIP_GLASS)
+        text(shown, x + 10f, y + h / 2f - labelSize * 0.39f - 0.5f, labelSize, Theme.TEXT_PRIMARY, Theme.FONT_MEDIUM)
+        if (keyText.isNotEmpty()) {
+            text(keyText, x + 10f + labelW, y + h / 2f - keySize * 0.39f - 0.5f, keySize, Theme.TEXT_TERTIARY)
+        }
+    }
 
     fun card(b: LayoutBounds, color: Color, radius: Float = 10f) =
         ctx.drawShape(b, ShapeStyle(color, radius))
@@ -221,3 +314,6 @@ internal class Ui {
         shifted(0f, (1f - p) * 18f, p, block)
     }
 }
+
+/** 悬浮提示的小玻璃条：复用侧栏/播放栏那套玻璃，圆角和阴影小一点 */
+private val TIP_GLASS = Theme.GLASS_SIDEBAR.copy(radius = 8f, shadow = ShadowStyle(Color(0f, 0f, 0f, 0.30f), 12f, Vec2(0f, -3f)))

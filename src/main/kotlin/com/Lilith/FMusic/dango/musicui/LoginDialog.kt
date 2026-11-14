@@ -98,6 +98,7 @@ internal class LoginDialog(private val screen: MusicScreen) {
         ctx.drawShape(closeB, ShapeStyle(if (ui.hover(closeB)) Theme.CARD_HOVER else Theme.CARD, 12f))
         ui.text("x", closeB.x + 8.5f, closeB.y + 7f, 12f, Theme.TEXT_PRIMARY, Theme.FONT_MEDIUM)
         hits += closeB to { close() }
+        ui.tip(closeB, I18n.text("Close"))
 
         val qs = 200f
         val qrBox = LayoutBounds(box.x + (w - qs) / 2f, box.y + 60f, qs, qs)
@@ -146,6 +147,7 @@ internal class LoginDialog(private val screen: MusicScreen) {
             ctx.drawShape(b, ShapeStyle(RED, 14f))
             ui.text(label, b.x + 14f, b.y + 9f, 12f, Theme.TEXT_PRIMARY, Theme.FONT_MEDIUM)
             hits += b to { if (native) NativeLogin.start(provider) else NeteaseLogin.start() }
+            ui.tip(b, I18n.text("Refresh QR"))
         }
     }
 
@@ -163,6 +165,7 @@ internal class LoginDialog(private val screen: MusicScreen) {
         ctx.drawShape(closeB, ShapeStyle(if (ui.hover(closeB)) Theme.CARD_HOVER else Theme.CARD, 12f))
         ui.text("x", closeB.x + 8.5f, closeB.y + 7f, 12f, Theme.TEXT_PRIMARY, Theme.FONT_MEDIUM)
         hits += closeB to { close() }
+        ui.tip(closeB, I18n.text("Close"))
 
         val qs = 180f
         val gap = 70f
@@ -203,6 +206,7 @@ internal class LoginDialog(private val screen: MusicScreen) {
             ctx.drawShape(b, ShapeStyle(RED, 14f))
             ui.text(label, b.x + 14f, b.y + 9f, 12f, Theme.TEXT_PRIMARY, Theme.FONT_MEDIUM)
             hits += b to { NativeLogin.start(provider) }
+            ui.tip(b, I18n.text("Refresh QR"))
         }
     }
 

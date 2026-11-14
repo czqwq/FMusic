@@ -44,6 +44,7 @@ internal class EqPanel(private val ui: Ui) {
         buttonRect = b
         val enabled = available
         if (!enabled) open = false
+        if (!open) ui.tip(b, I18n.text("Equalizer"), above = true)
         val s = SoundTuning.get(key)
         val o = onA.tick(if (enabled && s.eqActive) 1f else 0f).coerceIn(0f, 1f)
         val h = hoverA.tick(if (enabled && (ui.hover(b) || open)) 1f else 0f).coerceIn(0f, 1f)

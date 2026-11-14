@@ -38,6 +38,7 @@ internal class QualityPanel(private val ui: Ui, private val module: NeteaseMusic
 
     fun drawButton(b: LayoutBounds) {
         buttonRect = b
+        if (!open) ui.tip(b, I18n.text("Audio quality"), above = true)
         val h = hoverA.tick(if (ui.hover(b) || open) 1f else 0f).coerceIn(0f, 1f)
         val press = pressA.tick(0f)
         val color = if (open || h > 0.35f) RED else Theme.TEXT_PRIMARY

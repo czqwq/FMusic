@@ -516,3 +516,21 @@ Cache cleared	缓存已清空
 Some cache files could not be deleted	部分缓存文件删除失败
 Cache unavailable; check the directory and permissions	缓存不可用，请检查目录与权限
 Invalid cache directory	缓存目录无效
+Pause	暂停
+Queue	播放队列
+Play mode	播放模式
+Like	喜欢
+Unlike	取消喜欢
+Drag to seek	拖动调整播放进度
+Drag to adjust	拖动调整
+Click to type a value	点击直接输入数值
+Reset to default	恢复默认
+Click to pick a color	点击选择颜色
+Open fonts folder	打开字体文件夹
+Click to edit	点击编辑
+Use the default cache directory	使用默认缓存目录
+Clear the audio cache in this directory (click twice to confirm)	清空此目录的音频缓存（点击两次确认）
+Enable or disable this module	打开/关闭此模块
+Close	关闭
+Drag to move the window	拖动移动窗口
+Drag to resize the window	拖动调整窗口大小

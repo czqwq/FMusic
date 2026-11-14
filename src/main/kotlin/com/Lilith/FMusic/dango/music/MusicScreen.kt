@@ -285,6 +285,7 @@ class MusicScreen(
             ui.hits.clear()
             settings.beginFrame()
             ui.mt.clear()
+            ui.beginTips()
             tracks.beginFrame()
             CoverCache.upload()
             login.uploadQr()
@@ -313,6 +314,8 @@ class MusicScreen(
             ui.mt.flush(scale)
 
             if (login.visible) {
+                // 登录框是模态的：底下的按钮不弹悬浮提示，只留登录框自己的
+                ui.beginTips()
                 ctx.pushScale(scale, scale, 1f)
                 ctx.pushOpacity(alpha)
                 login.draw()
@@ -320,6 +323,13 @@ class MusicScreen(
                 ctx.popTransform()
                 ui.mt.flush(scale)
             }
+            // 悬浮提示画在最上面（登录框之后）
+            ctx.pushScale(scale, scale, 1f)
+            ctx.pushOpacity(alpha)
+            ui.drawTips()
+            ctx.popOpacity()
+            ctx.popTransform()
+            ui.mt.flush(scale)
         } finally {
             ctx.end()
         }
@@ -440,6 +450,24 @@ class MusicScreen(
     private fun drawWindowHints() {
         val w = winRect
         val hover = grab ?: grabAt(ui.mx, ui.my)
+        // 悬浮提示：能拖窗口大小 / 移动窗口的地方。锚点用窗口边/角的中点（固定位置，
+        // 鼠标沿边移动时提示不会因为跟随鼠标而反复消失重开。
+        if (hover != null && grab == null) {
+            val label = I18n.text(if (hover == Grab.MOVE) "Drag to move the window" else "Drag to resize the window")
+            val cx = (w.x + w.right) / 2f
+            val cy = (w.y + w.bottom) / 2f
+            val ax = when (hover) {
+                Grab.LEFT, Grab.TOP_LEFT, Grab.BOTTOM_LEFT -> w.x
+                Grab.RIGHT, Grab.TOP_RIGHT, Grab.BOTTOM_RIGHT -> w.right
+                else -> cx
+            }
+            val ay = when (hover) {
+                Grab.TOP, Grab.TOP_LEFT, Grab.TOP_RIGHT, Grab.MOVE -> w.y
+                Grab.BOTTOM, Grab.BOTTOM_LEFT, Grab.BOTTOM_RIGHT -> w.bottom
+                else -> cy
+            }
+            ui.tip(LayoutBounds(ax - 1f, ay - 1f, 2f, 2f), label)
+        }
         val k = edgeGlow.tick(if (hover != null && hover != Grab.MOVE) 1f else 0f).coerceIn(0f, 1f)
         if (k > 0.01f) ui.ctx.drawShape(w, ShapeStyle(Color.TRANSPARENT, Theme.GLASS_WINDOW.radius, 1.5f, Color(1f, 1f, 1f, 0.35f * k)))
     }

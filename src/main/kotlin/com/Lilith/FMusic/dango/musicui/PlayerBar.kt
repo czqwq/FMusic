@@ -7,6 +7,7 @@ import com.Lilith.FMusic.dango.music.CoverCache
 import com.Lilith.FMusic.dango.music.MusicPlayer
 import com.Lilith.FMusic.dango.music.MusicScreen
 import com.Lilith.FMusic.dango.music.MusicSources
+import com.Lilith.FMusic.dango.platform.PlayerAction
 import com.Lilith.FMusic.dango.ui.LayoutBounds
 import com.Lilith.FMusic.dango.ui.ShadowStyle
 import com.Lilith.FMusic.dango.ui.ShapeStyle
@@ -15,6 +16,7 @@ import com.Lilith.FMusic.dango.ui.Vec2
 import com.Lilith.FMusic.dango.utils.Color
 
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 /** 底部播放栏：左边当前歌曲，中间控制按钮 + 进度条，右边单曲循环 / 随机 + 音量 */
 internal class PlayerBar(private val screen: MusicScreen, private val module: NeteaseMusicModule) {
@@ -44,6 +46,8 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
     /** 正在拖进度条：拖的时候只移动显示的位置，松开才真正跳过去（拖动过程中不反复重新解码） */
     private var seeking = false
     private var seekFraction = 0f
+    /** 正在拖音量条：拖动时先不弹悬浮提示，免得挡住 */
+    private var volumeDragging = false
 
     /** 一个按钮的动画：悬停底圈渐显、点击先缩再弹回、开关类按钮的选中颜色渐变 */
     private class Anim {
@@ -133,6 +137,7 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
             val on = likeA.on.tick(if (Library.isLiked(t)) 1f else 0f).coerceIn(0f, 1f)
             ui.icon("♥", likeB.x + 14f, likeB.y + 14f, 15f * k, mixColor(Theme.TEXT_SECONDARY, RED, on))
             ui.hits += likeB to { likeA.press.v -= 7f; Library.toggleLike(t) }
+            ui.tip(likeB, I18n.text(if (Library.isLiked(t)) "Unlike" else "Like"), above = true)
         }
         // 加到歌单（红心右边；没有红心就在红心的位置）
         if (t != null && addShown) {
@@ -184,12 +189,22 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
             queueA.press.v -= 7f
             if (ScreenState.page == Page.QUEUE) screen.goBackOrHome() else screen.go(Page.QUEUE)
         }
+        val playing = MusicPlayer.shownState == MusicPlayer.State.PLAYING
+        ui.tip(prevB, I18n.text("Previous"), module.hotkeyName(PlayerAction.PREVIOUS), above = true)
+        ui.tip(playB, I18n.text(if (playing) "Pause" else "Play"), module.hotkeyName(PlayerAction.PAUSE), above = true)
+        ui.tip(nextB, I18n.text("Next"), module.hotkeyName(PlayerAction.NEXT), above = true)
+        ui.tip(queueB, I18n.text("Queue"), above = true)
 
         // 进度条：在栏的底部，两端上方标时间（当前时间亮一点）；鼠标移上去变粗、出现圆钮
         val dur = MusicPlayer.shownDurationMs
         val pos = MusicPlayer.shownPositionMs
         // 两头各留一段，不贴着播放栏的圆角
         progRect = LayoutBounds(bar.x + PROGRESS_INSET, bar.bottom - 11f, bar.width - PROGRESS_INSET * 2, 3f)
+        if (!seeking) {
+            // 锚点放播放栏顶边：提示弹在栏上方，不会盖住中间那排按钮
+            ui.tip(progRect.expand(0f, 10f), I18n.text("Drag to seek"), above = true,
+                anchor = LayoutBounds(bar.x + bar.width / 2f - 1f, bar.y - 2f, 2f, 2f))
+        }
         val kn = progKnob.tick(if (seeking || progRect.expand(0f, 6f).contains(ui.mx, ui.my)) 1f else 0f).coerceIn(0f, 1.2f)
         val l = fmtTime(if (seeking && dur > 0) (seekFraction * dur).toLong() else pos)
         val rgt = fmtTime(dur)
@@ -231,6 +246,10 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
             val knobX = volRect.x + volRect.width * MusicPlayer.volume
             ctx.drawShape(LayoutBounds(knobX - 5f, volRect.y - 3f, 10f, 10f), ShapeStyle(Theme.TEXT_PRIMARY, 5f))
             tuneX = volRect.x - VOL_GAP - BTN_STEP + 4f
+            if (!volumeDragging) {
+                val percent = (MusicPlayer.volume.coerceIn(0f, 1f) * 100f).roundToInt()
+                ui.tip(volRect.expand(10f, 12f), I18n.text("Volume") + " " + percent + "%", above = true)
+            }
         } else {
             volRect = LayoutBounds()
             tuneX = rightEdge + 14f - 32f
@@ -270,6 +289,12 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
             shuffle -> ui.icon("⇄", mx, cy, 14f * k, c)
             else -> ui.icon("→", mx, cy, 14f * k, c)
         }
+        val modeName = when {
+            one -> "Repeat one"
+            shuffle -> "Shuffle"
+            else -> "Play in order"
+        }
+        ui.tip(b, I18n.text("Play mode") + " · " + I18n.text(modeName), above = true)
         ui.hits += b to {
             modeA.press.v -= 7f
             Library.showTemporaryStatus(I18n.text(module.cyclePlayMode()), 1_500L)
@@ -355,6 +380,7 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
             return true
         }
         if (volRect.width > 0f && volRect.expand(6f, 8f).contains(mx, my)) {
+            volumeDragging = true
             setVolumeAt(mx)
             return true
         }
@@ -382,6 +408,7 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
     fun mouseUp() {
         tune.mouseUp()
         eq.mouseUp()
+        volumeDragging = false
         if (!seeking) return
         seeking = false
         val dur = MusicPlayer.shownDurationMs

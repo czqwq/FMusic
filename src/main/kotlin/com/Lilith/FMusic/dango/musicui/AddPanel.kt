@@ -40,6 +40,7 @@ internal class AddPanel(private val ui: Ui) {
 
     fun drawButton(b: LayoutBounds, t: NeteaseTrack) {
         buttonRect = b
+        if (!open) ui.tip(b, I18n.text("Add to playlist"), above = true)
         val h = hoverA.tick(if (ui.hover(b) || open) 1f else 0f).coerceIn(0f, 1f)
         val k = 1f + pressA.tick(0f) * 0.14f + h * 0.04f
         if (h > 0.01f) {
