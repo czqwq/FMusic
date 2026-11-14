@@ -7,15 +7,15 @@ import java.net.SocketTimeoutException
 
 /** 新版按音质级别取歌；旧码率接口只作兼容，试听不能抢在完整音频前面返回。 */
 internal class NeteasePlayback @JvmOverloads constructor(private val request: (String, JsonObject) -> JsonObject?, private val signedIn: Boolean = true) {
-    @JvmOverloads fun resolve(id: Long, aliases: List<Long> = emptyList()): NeteaseApi.SongUrl? {
+    @JvmOverloads fun resolve(id: Long, aliases: List<Long> = emptyList(), quality: AudioQuality = AudioQuality.STANDARD): NeteaseApi.SongUrl? {
         val accepted = (aliases + id).filter { it > 0 }.toSet()
         var unsupported = false
         var preview: NeteaseApi.SongUrl? = null
-        val attempts = listOf("exhigh", "standard", "legacy")
+        val attempts = quality.fallbacks.map { it.neteaseLevel } + "legacy"
         for (level in attempts) {
             val body = JsonObject().apply {
                 addProperty("ids", "[$id]")
-                if (level == "legacy") addProperty("br", 192000)
+                if (level == "legacy") addProperty("br", if (quality == AudioQuality.STANDARD) 128000 else 320000)
                 else { addProperty("level", level); addProperty("encodeType", "mp3") }
             }
             val root = try { request(if (level == "legacy") "legacy" else "v1", body) }
@@ -37,7 +37,8 @@ internal class NeteasePlayback @JvmOverloads constructor(private val request: (S
             DangoLogger.info("NetEase playback stage={} itemCode={} hasUrl={} format={} preview={}", level, row.number("code"), row.text("url").isNotEmpty(), label, row.get("freeTrialInfo")?.isJsonObject == true)
             if (row.text("url").isNotEmpty() && format.isNotEmpty() && format !in setOf("mp3", "ogg", "vorbis", "flac")) unsupported = true
             refused(row.number("code"))
-            val result = parse(row) ?: continue
+            val requested = quality.fallbacks.firstOrNull { it.neteaseLevel == level } ?: AudioQuality.STANDARD
+            val result = parse(row, requested) ?: continue
             if (!result.trialOnly) return result
             if (preview == null) preview = result
         }
@@ -52,7 +53,7 @@ internal class NeteasePlayback @JvmOverloads constructor(private val request: (S
         }
     }
 
-    internal fun parse(row: JsonObject): NeteaseApi.SongUrl? {
+    internal fun parse(row: JsonObject, requested: AudioQuality = AudioQuality.STANDARD): NeteaseApi.SongUrl? {
         val url = row.text("url")
         val uri = try { URI(url) } catch (_: Exception) { return null }
         if (uri.scheme !in listOf("http", "https") || uri.host.isNullOrEmpty() || uri.userInfo != null) return null
@@ -61,6 +62,8 @@ internal class NeteasePlayback @JvmOverloads constructor(private val request: (S
         val trial = row.get("freeTrialInfo")?.isJsonObject == true
         fun number(key: String) = row.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.toFloatOrNull()?.takeIf { it.isFinite() } ?: 0f
         DangoLogger.info("NetEase playback result={} format={}", if (trial) "preview" else "full", if (type.isEmpty()) "unknown" else type)
-        return NeteaseApi.SongUrl(url, trial, number("gain"), number("peak"))
+        val level = AudioQuality.values().firstOrNull { it.neteaseLevel == row.text("level") } ?: requested
+        val quality = AudioQuality.fromAudio(type, row.number("br"), level)
+        return NeteaseApi.SongUrl(url, trial, number("gain"), number("peak"), quality = quality)
     }
 }

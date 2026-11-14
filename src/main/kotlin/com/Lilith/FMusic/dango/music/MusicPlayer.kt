@@ -44,6 +44,12 @@ object MusicPlayer {
             if (state == State.PLAYING) seekLocal(positionMs)
         }
 
+    @Volatile var quality = AudioQuality.STANDARD
+    @Volatile var currentQuality: AudioQuality? = null
+        private set
+    @Volatile var fromCache = false
+        private set
+
     private val loader = Executors.newSingleThreadExecutor { r -> Thread(r, "Dango-MusicLoader").apply { isDaemon = true } }
     private val radioWorker = Executors.newSingleThreadExecutor { r -> Thread(r, "Dango-MusicRadio").apply { isDaemon = true } }
 
@@ -182,7 +188,10 @@ object MusicPlayer {
         current = track
         state = State.LOADING
         message = "加载中…"
-        loader.execute { load(gen, track) }
+        currentQuality = null
+        fromCache = false
+        val requestedQuality = quality
+        loader.execute { load(gen, track, requestedQuality) }
         if (radio != null && idx >= q.size - 2) extendRadio(null)
     }
 
@@ -237,7 +246,10 @@ object MusicPlayer {
         current = track
         state = State.LOADING
         message = "加载中…"
-        loader.execute { load(gen, track, startAt, paused) }
+        currentQuality = null
+        fromCache = false
+        val requestedQuality = quality
+        loader.execute { load(gen, track, requestedQuality, startAt, paused) }
     }
 
     /** 把一首歌插在当前这首后面，放完接着原来的队列 */
@@ -334,47 +346,70 @@ object MusicPlayer {
         stopLine()
         audio = null
         current = null
+        currentQuality = null
+        fromCache = false
         state = State.STOPPED
         message = ""
     }
 
     // ---------------------------------------------------------------- 加载 / 解码
 
-    private fun load(gen: Int, track: NeteaseTrack, startAt: (() -> Long)? = null, paused: Boolean = false) {
+    private fun load(gen: Int, track: NeteaseTrack, requestedQuality: AudioQuality, startAt: (() -> Long)? = null, paused: Boolean = false) {
         try {
-            val kugou = if (track.source == MusicSource.KUGOU) KugouMusicSource.loadAudio(track) { gen == generation } else null
-            val url = if (track.source == MusicSource.KUGOU) kugou?.info else MusicSources.api(track.source).songUrl(track)
+            if (gen != generation) return
+            val active = { gen == generation }
+            val cache = if (requestedQuality.cacheEnabled) MusicCache.access() else null
+            val identity = if (cache != null) cacheIdentity(track) else ""
+            val cached = if (requestedQuality.cacheEnabled) cache?.read(identity, requestedQuality, active) else null
+            if (!active()) return
+            val kugou = if (cached == null && track.source == MusicSource.KUGOU) KugouMusicSource.loadAudio(track, requestedQuality, active) else null
+            val url = cached?.info ?: if (track.source == MusicSource.KUGOU) kugou?.info else MusicSources.api(track.source).songUrl(track, requestedQuality)
             if (gen != generation) return
             if (url == null) return fail(gen, if (track.source == MusicSource.NETEASE) "拿不到播放地址"
                 else if (NativeAccounts.get(track.source) != null) "No playable MP3. Your login may have expired, or this song is restricted by membership or region."
                 else "No guest MP3 available. Login, payment or regional restrictions may apply.")
-            val bytes = kugou?.bytes ?: if (track.source == MusicSource.NETEASE) NeteaseApi.request(url.url)
-                else SourceHttp.bytes(url.url, if (track.source == MusicSource.QQ) "https://y.qq.com/" else "https://m.kugou.com/")
+            val bytes = cached?.bytes ?: kugou?.bytes ?: if (track.source == MusicSource.NETEASE)
+                NeteaseApi.request(url.url, maxBytes = AudioCache.MAX_AUDIO_BYTES, active = active)
+                else SourceHttp.bytes(url.url, if (track.source == MusicSource.QQ) "https://y.qq.com/" else "https://m.kugou.com/", AudioCache.MAX_AUDIO_BYTES, active)
             if (gen != generation) return
             if (bytes == null || bytes.isEmpty() || (!track.cloud && bytes.size < 10_000)) {
                 return fail(gen, if (track.source != MusicSource.NETEASE) "Unable to download this guest MP3. Try another song."
                     else if (NeteaseApi.loggedIn) "这首歌没有播放权限" else "需要登录才能播放（VIP 歌曲）")
             }
+            val actualQuality = when {
+                Mp3Probe.kind(bytes) == "flac" -> AudioQuality.LOSSLESS
+                url.quality == AudioQuality.LOSSLESS -> AudioQuality.STANDARD
+                else -> url.quality
+            }
+            val info = NeteaseApi.SongUrl(url.url, url.trialOnly, url.gainDb, url.peak, url.replaced, actualQuality)
+            if (cached == null && requestedQuality.cacheEnabled) cache?.write(identity, info, bytes, active)
+            if (!active()) return
             // Cloud list duration units are not reliable. Use compressed audio timing before enabling seeking.
             val measuredDuration = if (track.cloud) AudioAnalysis.duration(bytes) { gen == generation } else 0L
             val measuredGain = if (normalize) AudioAnalysis.gain(bytes) { gen == generation } else null
-            if (gen != generation) return
-            if (measuredDuration > 0) track.durationMs = measuredDuration
-            audio = bytes
-            message = when {
-                url.trialOnly -> "Preview only: membership is needed for the full song"
-                url.replaced -> "The original was unavailable, playing another version"
-                else -> ""
+            synchronized(this) {
+                if (gen != generation) return
+                currentQuality = actualQuality
+                fromCache = cached != null
+                if (measuredDuration > 0) track.durationMs = measuredDuration
+                audio = bytes
+                message = when {
+                    url.trialOnly -> "Preview only: membership is needed for the full song"
+                    url.replaced -> "The original was unavailable, playing another version"
+                    actualQuality.ordinal < requestedQuality.ordinal -> "Requested quality unavailable; playing a lower quality"
+                    else -> ""
+                }
+                trackGain = if (normalize) measuredGain ?: loudnessGain(url) else 1f
+                DangoLogger.info("Audio analysis: source={} cloud={} durationMs={} localGain={} appliedGain={}",
+                    track.source.key, track.cloud, measuredDuration, measuredGain != null, trackGain)
+                val start = (startAt?.invoke() ?: 0L).coerceIn(0L, max(0L, track.durationMs - 1000))
+                if (paused) {
+                    pausedAtMs = start
+                    state = State.PAUSED
+                }
+                startDecode(gen, bytes, start)
             }
-            trackGain = if (normalize) measuredGain ?: loudnessGain(url) else 1f
-            DangoLogger.info("Audio analysis: source={} cloud={} durationMs={} localGain={} appliedGain={}",
-                track.source.key, track.cloud, measuredDuration, measuredGain != null, trackGain)
-            val start = (startAt?.invoke() ?: 0L).coerceIn(0L, max(0L, track.durationMs - 1000))
-            if (paused) {
-                pausedAtMs = start
-                state = State.PAUSED
-            }
-            startDecode(gen, bytes, start)
+        } catch (_: java.util.concurrent.CancellationException) {
         } catch (e: Throwable) {
             // 包括 NoClassDefFoundError 之类的 Error：不接住的话线程会悄悄退出，界面一直停在"加载中"
             if (track.source == MusicSource.NETEASE) {
@@ -385,6 +420,12 @@ object MusicPlayer {
                 fail(gen, if (e is SourceAccessException) e.message.orEmpty() else "Playback request failed. Check your connection or log in again.")
             }
         }
+    }
+
+    private fun cacheIdentity(track: NeteaseTrack): String {
+        val account = if (track.source == MusicSource.NETEASE) NeteaseApi.audioCacheScope()
+            else NativeAccounts.get(track.source)?.let { "${it.userId}:${it.concept}" } ?: "guest"
+        return "${track.key}:${track.mediaId}:${track.cloud}:${track.cloudId}:$account"
     }
 
     /** 失败跳过独立计时，不占用加载线程；旧请求不能切掉用户新选的歌。 */

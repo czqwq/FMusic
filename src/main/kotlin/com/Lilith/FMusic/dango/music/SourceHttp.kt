@@ -19,9 +19,10 @@ internal object SourceHttp {
         return JsonParser().parse(json).asJsonObject
     }
 
-    fun bytes(url: String, referer: String, maxBytes: Int = 64 * 1024 * 1024): ByteArray? {
+    fun bytes(url: String, referer: String, maxBytes: Int = 64 * 1024 * 1024, active: () -> Boolean = { true }): ByteArray? {
         var current = URL(url)
         repeat(6) {
+            if (!active()) throw java.util.concurrent.CancellationException()
             require(current.protocol == "https" || current.protocol == "http")
             val conn = current.openConnection() as HttpURLConnection
             try {
@@ -35,16 +36,20 @@ internal object SourceHttp {
                 if (code in 300..399) {
                     current = URL(current, conn.getHeaderField("Location") ?: return null)
                 } else {
-                    if (code !in 200..299) return null
+                    if (code != 200) return null
+                    val expected = conn.contentLengthLong
+                    if (expected > maxBytes) return null
                     return conn.inputStream.use { input ->
                         val output = ByteArrayOutputStream()
                         val buffer = ByteArray(16384)
                         while (true) {
+                            if (!active()) throw java.util.concurrent.CancellationException()
                             val count = input.read(buffer)
                             if (count < 0) break
                             if (output.size() + count > maxBytes) return null
                             output.write(buffer, 0, count)
                         }
+                        if (expected >= 0 && output.size().toLong() != expected) return null
                         output.toByteArray()
                     }
                 }

@@ -6,9 +6,7 @@ import com.Lilith.FMusic.dango.module.impls.music.NeteaseMusicModule
 import com.Lilith.FMusic.dango.music.CoverCache
 import com.Lilith.FMusic.dango.music.MusicPlayer
 import com.Lilith.FMusic.dango.music.MusicScreen
-import com.Lilith.FMusic.dango.music.MusicSource
 import com.Lilith.FMusic.dango.music.MusicSources
-import com.Lilith.FMusic.dango.music.NeteaseApi
 import com.Lilith.FMusic.dango.ui.LayoutBounds
 import com.Lilith.FMusic.dango.ui.ShadowStyle
 import com.Lilith.FMusic.dango.ui.ShapeStyle
@@ -188,6 +186,11 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
         val rgt = fmtTime(dur)
         ui.text(l, progRect.x, progRect.y - 14f, 9.5f, Theme.TEXT_PRIMARY.copy(a = 0.9f), Theme.FONT_SEMIBOLD)
         ui.text(rgt, progRect.right - ui.width(rgt, 9.5f, Theme.FONT_SEMIBOLD), progRect.y - 14f, 9.5f, Theme.TEXT_TERTIARY, Theme.FONT_SEMIBOLD)
+        if (!MusicPlayer.external) MusicPlayer.currentQuality?.let { quality ->
+            val label = I18n.text(quality.label) + if (MusicPlayer.fromCache) " · " + I18n.text("Local cache") else ""
+            ui.text(label, progRect.x + ui.width(l, 9.5f, Theme.FONT_SEMIBOLD) + 12f, progRect.y - 14f,
+                9.5f, Theme.TEXT_TERTIARY, Theme.FONT_SEMIBOLD)
+        }
         val thick = 3f + 2f * kn.coerceAtMost(1f)
         val lane = LayoutBounds(progRect.x, progRect.y + 1.5f - thick / 2f, progRect.width, thick)
         ui.card(lane, Color(1f, 1f, 1f, 0.08f), thick / 2f)

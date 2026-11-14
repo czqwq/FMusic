@@ -487,3 +487,31 @@ The server does not have this music source	服务端没有这个音源
 The server cancelled this request	服务端取消了这次点歌
 The server does not support this (FMusic version is too old)	服务器不支持（FMusic 版本过旧）
 Not connected to a server	未连接到服务器
+
+Audio quality	音质
+Applies to the next song; high quality and lossless use local cache	下首歌生效；高音质和无损自动缓存到本地
+Standard	标准
+High quality	高音质
+Lossless	无损
+Local cache	本地缓存
+Requested quality unavailable; playing a lower quality	所选音质不可用，已回退到较低音质
+QQ Music did not return playable audio for this song. Try another version.	QQ 音乐未返回可播放的音频，请尝试其它版本。
+
+Cache directory	缓存目录
+Leave empty to use the default directory	留空使用默认缓存目录
+Audio cache	音频缓存
+Disk storage	磁盘存储
+Relative to game directory · Enter save	相对于游戏目录 · 回车保存
+Disk usage: 	磁盘占用：
+ files	 个文件
+Calculating cache size...	正在统计缓存大小…
+Default directory	恢复默认目录
+Clear cache	清空缓存
+Confirm clear	确认清空
+Click again to delete cached audio	再次点击将删除此目录中的缓存音频
+Changing directory does not move existing cache	更换目录不会迁移原有缓存
+Clearing cache...	正在清空缓存…
+Cache cleared	缓存已清空
+Some cache files could not be deleted	部分缓存文件删除失败
+Cache unavailable; check the directory and permissions	缓存不可用，请检查目录与权限
+Invalid cache directory	缓存目录无效

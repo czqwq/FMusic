@@ -52,6 +52,9 @@ object NeteaseApi {
         return c
     }
 
+    internal fun audioCacheScope(): String = java.security.MessageDigest.getInstance("SHA-256")
+        .digest(cookie().toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it.toInt() and 255) }
+
     val loggedIn: Boolean get() = cookie().contains("MUSIC_U=")
 
     /** 扫码登录成功后保存 Cookie，并清掉缓存的账号信息 */
@@ -484,15 +487,14 @@ object NeteaseApi {
      * @param peak    音源给的峰值（线性，0 = 没给），增益不能把它推过 1，不然会破音
      * @param replaced 原来那首放不了，换成了平台推荐的另一个版本
      */
-    class SongUrl(val url: String, val trialOnly: Boolean, val gainDb: Float = 0f, val peak: Float = 0f, val replaced: Boolean = false)
+    class SongUrl(val url: String, val trialOnly: Boolean, val gainDb: Float = 0f, val peak: Float = 0f, val replaced: Boolean = false, val quality: AudioQuality = AudioQuality.STANDARD)
 
     /**
      * 播放地址。登录后能拿到账号有权限的完整音频；拿不到时退回网易云外链（只对免费歌曲有效）。
-     * 优先新版 exhigh；只接受播放器支持的 MP3 / Vorbis。
      */
     fun songUrl(id: Long): SongUrl? = songUrl(NeteaseTrack(id, "", emptyList(), 0, ""))
 
-    fun songUrl(track: NeteaseTrack): SongUrl? {
+    fun songUrl(track: NeteaseTrack, quality: AudioQuality = AudioQuality.STANDARD): SongUrl? {
         if (track.cloud) {
             // 同一云盘条目可能同时给上传标识和曲库标识；不能按歌名猜测另一个版本。
             var info = track
@@ -507,7 +509,7 @@ object NeteaseApi {
             var preview: SongUrl? = null
             var unsupported: SourceAccessException? = null
             for (id in listOf(upload, info.id).distinct()) {
-                val result = try { playerUrl(id, aliases) } catch (e: SourceAccessException) {
+                val result = try { playerUrl(id, aliases, quality) } catch (e: SourceAccessException) {
                     if (e.message != "NetEase returned an audio format that this player does not support yet.") throw e
                     unsupported = e
                     null
@@ -517,19 +519,19 @@ object NeteaseApi {
             }
             if (preview != null) return preview
             unsupported?.let { throw it }
-        } else playerUrl(track.id)?.let { return it }
+        } else playerUrl(track.id, quality = quality)?.let { return it }
         // 私人上传没有公共曲库替代项；换成另一首会让用户误以为自己的上传播放成功。
         if (track.cloud) throw SourceAccessException("No playable cloud audio was returned. Check this upload in the official NetEase client.")
         alternativeVersion(track.id)?.let { alt ->
-            playerUrl(alt)?.let { found -> return SongUrl(found.url, found.trialOnly, found.gainDb, found.peak, replaced = true) }
+            playerUrl(alt, quality = quality)?.let { found -> return SongUrl(found.url, found.trialOnly, found.gainDb, found.peak, replaced = true, quality = found.quality) }
         }
         return SongUrl("https://music.163.com/song/media/outer/url?id=${track.id}.mp3", false)
     }
 
-    private fun playerUrl(id: Long, aliases: List<Long> = emptyList()): SongUrl? = NeteasePlayback({ stage, body ->
+    private fun playerUrl(id: Long, aliases: List<Long> = emptyList(), quality: AudioQuality = AudioQuality.STANDARD): SongUrl? = NeteasePlayback({ stage, body ->
         if (stage == "v1") NeteasePlayerRequest.post(body, cookieHeader())
-        else getJson("https://music.163.com/api/song/enhance/player/url?ids=" + enc("[$id]") + "&br=192000")
-    }, loggedIn).resolve(id, aliases)
+        else getJson("https://music.163.com/api/song/enhance/player/url?ids=" + enc("[$id]") + "&br=" + body.number("br"))
+    }, loggedIn).resolve(id, aliases, quality)
 
     /** 变灰的歌（privileges.st < 0）里网易云推荐的替代版本 id；没有就是 null */
     private fun alternativeVersion(id: Long): Long? = try {
@@ -623,19 +625,20 @@ object NeteaseApi {
     }
 
     /** 下载（跟随重定向，包括 http↔https）；只对 music.163.com 带 cookie */
-    fun request(url: String, accept: String = "*/*", maxBytes: Int = 64 * 1024 * 1024): ByteArray? = try {
-        requestOnce(url, accept, maxBytes)
+    fun request(url: String, accept: String = "*/*", maxBytes: Int = 64 * 1024 * 1024, active: () -> Boolean = { true }): ByteArray? = try {
+        requestOnce(url, accept, maxBytes, active)
     } catch (e: java.net.SocketException) {
         // 网易云偶尔直接把连接断掉（Connection reset）：等一下再试一次，大多就好了
         if (!(e.message ?: "").contains("reset", ignoreCase = true)) throw e
         DangoLogger.warn("NetEase connection reset, retrying once")
         Thread.sleep(400)
-        requestOnce(url, accept, maxBytes)
+        requestOnce(url, accept, maxBytes, active)
     }
 
-    private fun requestOnce(url: String, accept: String, maxBytes: Int): ByteArray? {
+    private fun requestOnce(url: String, accept: String, maxBytes: Int, active: () -> Boolean): ByteArray? {
         var current = url
         repeat(6) {
+            if (!active()) throw java.util.concurrent.CancellationException()
             val conn = URL(current).openConnection() as HttpURLConnection
             try {
                 conn.instanceFollowRedirects = false
@@ -643,6 +646,7 @@ object NeteaseApi {
                 conn.readTimeout = 15000
                 conn.setRequestProperty("User-Agent", UA)
                 conn.setRequestProperty("Accept", accept)
+                conn.setRequestProperty("Accept-Encoding", "identity")
                 if (URL(current).host.endsWith("music.163.com")) {
                     conn.setRequestProperty("Referer", "https://music.163.com/")
                     val c = cookie()
@@ -654,16 +658,20 @@ object NeteaseApi {
                     current = URL(URL(current), loc).toString()
                     return@repeat
                 }
-                if (code !in 200..299) return null
+                if (code != 200) return null
+                val expected = conn.contentLengthLong
+                if (expected > maxBytes) return null
                 conn.inputStream.use { input ->
                     val out = ByteArrayOutputStream()
                     val buf = ByteArray(64 * 1024)
                     while (true) {
+                        if (!active()) throw java.util.concurrent.CancellationException()
                         val n = input.read(buf)
                         if (n < 0) break
+                        if (out.size() + n > maxBytes) return null
                         out.write(buf, 0, n)
-                        if (out.size() > maxBytes) return null
                     }
+                    if (expected >= 0 && out.size().toLong() != expected) return null
                     return out.toByteArray()
                 }
             } finally {
