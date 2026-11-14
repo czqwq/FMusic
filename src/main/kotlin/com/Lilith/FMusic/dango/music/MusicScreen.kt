@@ -245,6 +245,7 @@ class MusicScreen(
     @JvmOverloads
     fun render(menuBackdropReady: Boolean = false) {
         if (closed) return
+        platform.setTextInput(closingAt == 0L && textInputActive)
         val alpha = opacity(System.currentTimeMillis())
         if (closingAt != 0L && alpha <= 0f) {
             closed = true

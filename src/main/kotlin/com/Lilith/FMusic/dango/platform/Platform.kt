@@ -42,6 +42,8 @@ interface Platform {
 
     var clipboard: String
 
+    fun setTextInput(active: Boolean) {}
+
     // ---------------------------------------------------------------- 游戏状态
 
     /** 在游戏画面里：世界已加载，并且没有打开任何界面 */

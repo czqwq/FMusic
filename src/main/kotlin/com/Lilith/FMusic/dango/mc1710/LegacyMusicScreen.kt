@@ -1,6 +1,7 @@
 package com.Lilith.FMusic.dango.mc1710
 
 import com.Lilith.FMusic.dango.DangoClient
+import com.Lilith.FMusic.dango.platform.Keys
 
 import net.minecraft.client.gui.GuiScreen
 import net.minecraft.client.gui.GuiMainMenu
@@ -44,6 +45,7 @@ class LegacyMusicScreen(
 
     override fun onGuiClosed() {
         Keyboard.enableRepeatEvents(false)
+        LegacyTextInput.reset()
     }
 
     override fun doesGuiPauseGame() = false
@@ -93,6 +95,7 @@ class LegacyMusicScreen(
     }
 
     override fun keyTyped(typedChar: Char, keyCode: Int) {
+        if (LegacyTextInput.active && keyCode != Keys.NONE && Keys.isAllowedChar(typedChar)) return
         screen.keyTyped(typedChar, keyCode)
     }
 

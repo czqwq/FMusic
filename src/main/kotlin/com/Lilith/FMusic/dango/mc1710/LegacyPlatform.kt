@@ -63,6 +63,8 @@ object LegacyPlatform : Platform {
         get() = GuiScreen.getClipboardString()
         set(value) = GuiScreen.setClipboardString(value)
 
+    override fun setTextInput(active: Boolean) = LegacyTextInput.setActive(active)
+
     override val inGame: Boolean get() = mc.currentScreen == null && mc.theWorld != null
 
     // 装了 Custom Main Menu 时主菜单是它的 GuiCustom 而不是 GuiMainMenu，由可选兼容层认出来
