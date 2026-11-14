@@ -7,7 +7,6 @@ import com.Lilith.FMusic.dango.events.HudRenderEvent
 import com.Lilith.FMusic.dango.events.WorldRenderEndEvent
 import com.Lilith.FMusic.dango.DangoClient
 import com.Lilith.FMusic.dango.i18n.I18n
-import com.Lilith.FMusic.dango.lyrics.Lyrics
 import com.Lilith.FMusic.dango.module.Category
 import com.Lilith.FMusic.dango.module.Module
 import com.Lilith.FMusic.dango.module.ModuleMeta
@@ -46,6 +45,12 @@ class NeteaseMusicModule : Module() {
 
     @ModuleValue("Volume", "Playback volume")
     private val volume = FloatValue(0f, 1f, 0.2f, 2)
+
+    @ModuleValue("Audio quality", "Applies to the next song; high quality and lossless use local cache")
+    private val audioQuality = IntValue(0, 2, 0)
+
+    @ModuleValue("Cache directory", "Leave empty to use the default directory")
+    private val cacheDirectory = com.Lilith.FMusic.dango.module.values.TextValue()
 
     @ModuleValue("Audio output", "Where the music plays through")
     // 0 自动（安卓用游戏的 OpenAL，电脑用 Java Sound），1 Java Sound，2 游戏的 OpenAL
@@ -332,6 +337,7 @@ class NeteaseMusicModule : Module() {
         // 即使播放器被关闭，也要初始化并保存界面语言。
         applyLanguage()
         MusicSources.selected = MusicSource.values()[musicSource.value]
+        com.Lilith.FMusic.dango.music.MusicCache.configure(cacheDirectory.value)
         DangoMusic.instance.platform.syncKeyBindings(keyBindings)
         UpdateChecker.tick(checkUpdates.get())
         // 别的播放器：开关变了才启动 / 关掉后台读取
@@ -346,6 +352,7 @@ class NeteaseMusicModule : Module() {
         if (++tickCount > 5) lyrics()?.let { if (!it.enabled) it.enabled = true }
         MusicPlayer.volume = volume.value
         MusicPlayer.outputMode = audioOutput.value
+        MusicPlayer.quality = com.Lilith.FMusic.dango.music.AudioQuality.fromSetting(audioQuality.value)
         MusicPlayer.shuffle = shuffle.get()
 
         MusicPlayer.repeatOne = repeatOne.get()

@@ -17,7 +17,7 @@ public final class FlacReader implements java.io.Closeable {
     private java.security.MessageDigest digest;
 
     public FlacReader(byte[] bytes) {
-        require(bytes.length <= 64 * 1024 * 1024, "FLAC input exceeds download limit");
+        require(bytes.length <= 128 * 1024 * 1024, "FLAC input exceeds download limit");
         input = new Bits(bytes);
         require(input.read(32) == 0x664c6143L, "Invalid FLAC signature");
         boolean last = false, first = true;

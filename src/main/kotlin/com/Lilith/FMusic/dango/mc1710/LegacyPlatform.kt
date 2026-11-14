@@ -30,6 +30,8 @@ import java.nio.file.Path
 /** 1.7.10 的游戏接口。键码本来就是 LWJGL 2 的，不用转换 */
 object LegacyPlatform : Platform {
 
+    override val gameDir: Path get() = mc.mcDataDir.toPath()
+
     // 配置、登录凭证、缓存放 config/fmusic/dango/（和老模组的 config/fmusic_client.json、fmusic_server/ 并列，不冲突）
     override val configDir: Path
         get() = mc.mcDataDir.toPath().resolve("config").resolve("fmusic").resolve("dango")

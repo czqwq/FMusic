@@ -13,6 +13,7 @@ object Keys {
     const val A = 30
     const val F = 33
     const val L = 38
+    const val C = 46
     const val V = 47
     const val M = 50
     const val SPACE = 57

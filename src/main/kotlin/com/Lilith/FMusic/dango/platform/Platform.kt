@@ -10,6 +10,8 @@ import java.nio.file.Path
  */
 interface Platform {
 
+    val gameDir: Path
+
     /** 配置、登录凭证、缓存目录（.minecraft/config/dangomusic） */
     val configDir: Path
 
