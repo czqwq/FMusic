@@ -26,12 +26,14 @@ enum class AudioQuality(val key: String, val label: String) {
     companion object {
         fun fromSetting(value: Int): AudioQuality = values().getOrElse(value) { STANDARD }
 
-        internal fun fromAudio(format: String, bitrate: Long, fallback: AudioQuality = STANDARD): AudioQuality = when {
+        /**
+         * 只按音源实际返回的格式/码率判定，码率未知时按标准档处理：
+         * 宁可少标，也不能把 128k 说成 320k（回退结果不冒充所选音质）。
+         */
+        internal fun fromAudio(format: String, bitrate: Long): AudioQuality = when {
             format.equals("flac", true) -> LOSSLESS
             bitrate >= 256000 -> HIGH
-            bitrate > 0 -> STANDARD
-            fallback == LOSSLESS -> STANDARD
-            else -> fallback
+            else -> STANDARD
         }
     }
 }

@@ -17,8 +17,9 @@ internal class QqPlayback(private val transport: (JsonObject, NativeAccount?) ->
     private class Reply(val code: Long, val data: JsonObject?)
     private val guid = (UUID.randomUUID().mostSignificantBits and Long.MAX_VALUE).toString().take(10)
 
-    fun resolve(track: NeteaseTrack, account: NativeAccount?, quality: AudioQuality = AudioQuality.STANDARD): NeteaseApi.SongUrl? {
+    fun resolve(track: NeteaseTrack, account: NativeAccount?, quality: AudioQuality = AudioQuality.STANDARD, active: () -> Boolean = { true }): NeteaseApi.SongUrl? {
         require(track.source == MusicSource.QQ && validMid(track.nativeId) && validMid(track.mediaId))
+        if (!active()) throw java.util.concurrent.CancellationException()
         var media = track.mediaId
         // Older search responses sometimes omit media MID. Resolve metadata rather than
         // silently requesting a non-existent M500<song MID> file.
@@ -30,6 +31,7 @@ internal class QqPlayback(private val transport: (JsonObject, NativeAccount?) ->
         }
         var best: NeteaseApi.SongUrl? = null
         for (desktop in listOf(true, false)) {
+            if (!active()) throw java.util.concurrent.CancellationException()
             val params = JsonObject().apply {
                 addProperty("guid", guid); addProperty("uin", account?.userId ?: "0"); addProperty("ctx", 0)
                 if (!desktop) { addProperty("loginflag", 1); addProperty("platform", "20") }
@@ -49,6 +51,7 @@ internal class QqPlayback(private val transport: (JsonObject, NativeAccount?) ->
         best?.let { return it }
         if (replies.all { it.code == -3L }) throw SourceAccessException("QQ Music playback request failed. Please retry.")
         if (account == null) return null
+        if (!active()) throw java.util.concurrent.CancellationException()
         // An empty purl alone says nothing about session expiry. Check it separately
         // before advising a player who has already completed the phone login to rescan.
         val verified = call("session", "music.UserInfo.userInfoServer", "GetLoginUserInfo", JsonObject(), account, true)

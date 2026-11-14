@@ -116,8 +116,8 @@ object QqMusicSource : MusicSourceApi {
         }
     }
 
-    override fun songUrl(track: NeteaseTrack, quality: AudioQuality): NeteaseApi.SongUrl? =
-        QqPlayback().resolve(track, NativeAccounts.get(source), quality)
+    override fun songUrl(track: NeteaseTrack, quality: AudioQuality, active: () -> Boolean): NeteaseApi.SongUrl? =
+        QqPlayback().resolve(track, NativeAccounts.get(source), quality, active)
 
     override fun lyrics(track: NeteaseTrack): Lyrics? {
         try {

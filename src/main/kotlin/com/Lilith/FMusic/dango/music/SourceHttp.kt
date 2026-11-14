@@ -39,23 +39,37 @@ internal object SourceHttp {
                     if (code != 200) return null
                     val expected = conn.contentLengthLong
                     if (expected > maxBytes) return null
-                    return conn.inputStream.use { input ->
-                        val output = ByteArrayOutputStream()
-                        val buffer = ByteArray(16384)
-                        while (true) {
-                            if (!active()) throw java.util.concurrent.CancellationException()
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            if (output.size() + count > maxBytes) return null
-                            output.write(buffer, 0, count)
-                        }
-                        if (expected >= 0 && output.size().toLong() != expected) return null
-                        output.toByteArray()
-                    }
+                    return conn.inputStream.use { input -> readBody(input, expected, maxBytes, active) }
                 }
             } finally { conn.disconnect() }
         }
         return null
+    }
+
+    /** Content-Length 已知时按精确大小分配，避免 ByteArrayOutputStream 扩容 + toByteArray 的双份内存。 */
+    private fun readBody(input: java.io.InputStream, expected: Long, maxBytes: Int, active: () -> Boolean): ByteArray? {
+        if (expected in 0L..maxBytes.toLong()) {
+            if (expected == 0L) return ByteArray(0)
+            val output = ByteArray(expected.toInt())
+            var offset = 0
+            while (offset < output.size) {
+                if (!active()) throw java.util.concurrent.CancellationException()
+                val count = input.read(output, offset, output.size - offset)
+                if (count < 0) return null
+                offset += count
+            }
+            return if (input.read() == -1) output else null
+        }
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(16384)
+        while (true) {
+            if (!active()) throw java.util.concurrent.CancellationException()
+            val count = input.read(buffer)
+            if (count < 0) break
+            if (output.size() + count > maxBytes) return null
+            output.write(buffer, 0, count)
+        }
+        return output.toByteArray()
     }
 }
 

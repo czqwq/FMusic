@@ -85,10 +85,11 @@ internal object KugouLite {
 
     // ------------------------------------------------------------ 取歌
 
-    fun songUrl(track: NeteaseTrack, account: NativeAccount, quality: AudioQuality = AudioQuality.STANDARD): NeteaseApi.SongUrl? {
+    fun songUrl(track: NeteaseTrack, account: NativeAccount, quality: AudioQuality = AudioQuality.STANDARD, active: () -> Boolean = { true }): NeteaseApi.SongUrl? {
         ensureDailyVip(account)
         var preview: NeteaseApi.SongUrl? = null
         for (level in quality.fallbacks) {
+            if (!active()) throw java.util.concurrent.CancellationException()
             val root = urlRequest(track, account, level.kugouQuality)
             checkVerification(root)
             val url = playUrl(root) ?: continue
@@ -101,7 +102,7 @@ internal object KugouLite {
             val peak = decibels("volume_peak")?.let { Math.pow(10.0, it / 20.0).toFloat() } ?: 0f
             val bitrate = root.number("bitrate").let { if (it in 1..999) it * 1000 else it }
             val result = NeteaseApi.SongUrl(url, seconds in 1 until track.durationMs / 1000 - 5, gain, peak,
-                quality = AudioQuality.fromAudio(format, bitrate, level))
+                quality = AudioQuality.fromAudio(format, bitrate))
             if (!result.trialOnly) return result
             if (preview == null) preview = result
         }

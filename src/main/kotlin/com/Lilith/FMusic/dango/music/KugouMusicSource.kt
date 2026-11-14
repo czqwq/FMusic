@@ -72,24 +72,26 @@ object KugouMusicSource : MusicSourceApi {
         }
     }
 
-    override fun songUrl(track: NeteaseTrack, quality: AudioQuality): NeteaseApi.SongUrl? {
+    override fun songUrl(track: NeteaseTrack, quality: AudioQuality, active: () -> Boolean): NeteaseApi.SongUrl? {
         require(track.source == source && track.nativeId.matches(Regex("[A-Fa-f0-9]{32}")))
+        if (!active()) throw java.util.concurrent.CancellationException()
         val account = NativeAccounts.get(source)
         if (track.cloud) return KugouCloud().candidates(track, account
             ?: throw SourceAccessException("Log in to Kugou to play your cloud uploads.")).firstOrNull()
         if (account != null) {
             // 登录了还拿不到（新接口偶尔把能放的歌标成不可用）：最后再试一次旧的手机接口
-            return accountUrl(track, account, quality) ?: guestUrl(track)?.also {
+            return accountUrl(track, account, quality, active) ?: guestUrl(track, active)?.also {
                 com.Lilith.FMusic.dango.DangoLogger.info("Kugou: logged-in URL unavailable, using the mobile fallback")
             }
         }
-        return guestUrl(track)
+        return guestUrl(track, active)
     }
 
     class LoadedAudio(val info: NeteaseApi.SongUrl, val bytes: ByteArray)
 
     /** 在加载线程逐个验证地址；只保留一份试听和最终可用的完整音频。 */
     internal fun loadAudio(track: NeteaseTrack, quality: AudioQuality, active: () -> Boolean): LoadedAudio? {
+        if (!active()) throw java.util.concurrent.CancellationException()
         val loaded = HashMap<String, ByteArray>()
         var unsupported = ""
         val seen = HashSet<String>()
@@ -119,9 +121,10 @@ object KugouMusicSource : MusicSourceApi {
             }
             throw SourceAccessException(if (unsupported.isNotEmpty()) unsupported else "No playable cloud audio was returned. Check this upload in the official Kugou client.")
         }
-        val info = if (account != null && !account.concept) KugouPlayback(accept = ::accept).resolve(track, account, quality)
-            else account?.let { accountUrl(track, it, quality) }?.takeIf(::accept)
+        val info = if (account != null && !account.concept) KugouPlayback(accept = ::accept).resolve(track, account, quality, active)
+            else account?.let { accountUrl(track, it, quality, active) }?.takeIf(::accept)
         if (info != null) return LoadedAudio(info, loaded.getValue(info.url))
+        if (!active()) throw java.util.concurrent.CancellationException()
         // 游客接口也可能给多个 CDN 地址；主地址无效时仍尝试备用地址。
         val root = guestInfo(track)
         for (candidate in KugouPlayback().candidates(root, track)) {
@@ -131,13 +134,16 @@ object KugouMusicSource : MusicSourceApi {
         return null
     }
 
-    private fun accountUrl(track: NeteaseTrack, account: NativeAccount, quality: AudioQuality): NeteaseApi.SongUrl? {
-        if (account.concept) return KugouLite.songUrl(track, account, quality)
-        return KugouPlayback().resolve(track, account, quality)
+    private fun accountUrl(track: NeteaseTrack, account: NativeAccount, quality: AudioQuality, active: () -> Boolean = { true }): NeteaseApi.SongUrl? {
+        if (account.concept) return KugouLite.songUrl(track, account, quality, active)
+        return KugouPlayback().resolve(track, account, quality, active)
     }
 
     /** 不用登录的手机接口（会员歌只给试听片段） */
-    private fun guestUrl(track: NeteaseTrack): NeteaseApi.SongUrl? = KugouPlayback().parse(guestInfo(track), track)
+    private fun guestUrl(track: NeteaseTrack, active: () -> Boolean = { true }): NeteaseApi.SongUrl? {
+        if (!active()) throw java.util.concurrent.CancellationException()
+        return KugouPlayback().parse(guestInfo(track), track)
+    }
 
     private fun guestInfo(track: NeteaseTrack): JsonObject {
         val data = SourceHttp.json("https://m.kugou.com/app/i/getSongInfo.php?cmd=playInfo&hash=${track.nativeId}", REFERER)

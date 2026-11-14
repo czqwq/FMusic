@@ -363,7 +363,7 @@ object MusicPlayer {
             val cached = if (requestedQuality.cacheEnabled) cache?.read(identity, requestedQuality, active) else null
             if (!active()) return
             val kugou = if (cached == null && track.source == MusicSource.KUGOU) KugouMusicSource.loadAudio(track, requestedQuality, active) else null
-            val url = cached?.info ?: if (track.source == MusicSource.KUGOU) kugou?.info else MusicSources.api(track.source).songUrl(track, requestedQuality)
+            val url = cached?.info ?: if (track.source == MusicSource.KUGOU) kugou?.info else MusicSources.api(track.source).songUrl(track, requestedQuality, active)
             if (gen != generation) return
             if (url == null) return fail(gen, if (track.source == MusicSource.NETEASE) "拿不到播放地址"
                 else if (NativeAccounts.get(track.source) != null) "No playable MP3. Your login may have expired, or this song is restricted by membership or region."

@@ -20,8 +20,27 @@ internal class AudioCache(
 
     @Synchronized fun read(identity: String, quality: AudioQuality, active: () -> Boolean): Entry? {
         if (!quality.cacheEnabled || !active()) return null
+        // 缓存文件按“实际音质”命名（写的时候就用实际档位），所以请求的档位没命中时，
+        // 可以复用相邻档位已有的缓存；命中的档位就是当时的真实音质，不会冒充所选档位。
+        for (tier in readTiers(quality)) {
+            if (!active()) return null
+            readTier(identity, tier, active, refreshLastUse = tier == quality)?.let { return it }
+        }
+        return null
+    }
+
+    private fun readTiers(quality: AudioQuality): List<AudioQuality> =
+        (quality.fallbacks + AudioQuality.values().filter { it.cacheEnabled && it.ordinal > quality.ordinal })
+            .filter { it.cacheEnabled }
+            .distinct()
+
+    /**
+     * @param refreshLastUse 只有命中“请求档位”时才刷新最后使用时间。复用较低档位时不刷新，
+     *                       这样它最多 7 天后会过期，重新尝试用户真正想要的档位（升级会员、补版权等）。
+     */
+    private fun readTier(identity: String, quality: AudioQuality, active: () -> Boolean, refreshLastUse: Boolean): Entry? {
         val file = path(identity, quality)
-        try {
+        return try {
             if (!Files.isRegularFile(file, NOFOLLOW_LINKS)) return null
             val size = Files.size(file)
             if (size !in 49L..(MAX_AUDIO_BYTES.toLong() + 48) || expired(file)) {
@@ -42,12 +61,15 @@ internal class AudioCache(
                 Entry(bytes, NeteaseApi.SongUrl("", false, gain, peak, quality = quality))
             }
             if (!active()) return null
-            Files.setLastModifiedTime(file, FileTime.fromMillis(System.currentTimeMillis()))
-            return entry
+            if (refreshLastUse) Files.setLastModifiedTime(file, FileTime.fromMillis(System.currentTimeMillis()))
+            entry
         } catch (e: Exception) {
-            try { Files.deleteIfExists(file) } catch (_: Exception) {}
+            // 只有“内容确实损坏”才删除；临时性的 IO 失败（磁盘忙、文件被占用）留着下次再试。
+            if (e is IllegalStateException || e is java.io.EOFException) {
+                try { Files.deleteIfExists(file) } catch (_: Exception) {}
+            }
             DangoLogger.warn("Audio cache read failed: {}", e.javaClass.simpleName)
-            return null
+            null
         }
     }
 
@@ -57,7 +79,8 @@ internal class AudioCache(
             !info.gainDb.isFinite() || !info.peak.isFinite()) return
         var temporary: Path? = null
         try {
-            if (!validAudio(bytes, active)) return
+            // 只做一次轻量解码探测；整首解码留给播放线程，别为了写缓存把首播拖慢好几秒。
+            if (!Mp3Probe.decodable(bytes)) return
             Files.createDirectories(directory)
             prune(bytes.size.toLong() + 48)
             temporary = Files.createTempFile(directory, "audio-", ".part")
@@ -119,17 +142,6 @@ internal class AudioCache(
         if (!name.matches(Regex("[a-f0-9]{64}\\.audio")) && !name.matches(Regex("audio-[0-9]+\\.part"))) return false
         return try { DataInputStream(Files.newInputStream(file)).use { it.readInt() == MAGIC } } catch (_: Exception) { false }
     }
-
-    private fun validAudio(bytes: ByteArray, active: () -> Boolean): Boolean = try {
-        AudioDecoder.open(bytes).use { decoder ->
-            var found = false
-            while (active()) {
-                val frame = decoder.read() ?: return found
-                if (frame.length > 0) found = true
-            }
-            false
-        }
-    } catch (_: Exception) { false }
 
     private fun path(identity: String, quality: AudioQuality): Path {
         val hash = digest("v1\u0000$identity\u0000${quality.key}".toByteArray(Charsets.UTF_8))

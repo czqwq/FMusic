@@ -540,12 +540,15 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
     private val rowH = 40f
     private val headH = 36f
 
+    /** 缓存目录那一行比普通设置行高（输入框 + 用量 + 两个按钮 + 两行提示） */
+    private val cacheRowH = 174f
+
     /** 每组的位置：列号、在列里的 y、高度 */
     private fun layout(groups: List<Group>, view: LayoutBounds): List<Triple<Int, Float, Float>> {
         val cols = if (view.width >= 560f) 2 else 1
         val colY = FloatArray(cols)
         return groups.map { g ->
-            val h = headH + g.rows.sumOf { if (it.ctl == Ctl.CACHE) 174.0 else rowH.toDouble() }.toFloat() + 6f
+            val h = headH + g.rows.sumOf { if (it.ctl == Ctl.CACHE) cacheRowH.toDouble() else rowH.toDouble() }.toFloat() + 6f
             var c = 0
             for (i in 1 until cols) if (colY[i] < colY[c] - 0.5f) c = i
             val p = Triple(c, colY[c], h)
@@ -643,7 +646,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
             val alpha = rowFade.getOrPut(r) { Spring(170f, 26f, target) }.tick(target).coerceIn(0.4f, 1f)
             val faded = alpha < 0.999f
             if (faded) ctx.pushOpacity(alpha)
-            val height = if (r.ctl == Ctl.CACHE) 174f else rowH
+            val height = if (r.ctl == Ctl.CACHE) cacheRowH else rowH
             drawRow(LayoutBounds(x, y, iw, height), r, clip)
             if (faded) ctx.popOpacity()
             y += height

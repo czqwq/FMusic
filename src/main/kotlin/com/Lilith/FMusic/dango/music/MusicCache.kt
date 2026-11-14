@@ -19,8 +19,10 @@ internal object MusicCache {
     private val worker = Executors.newSingleThreadExecutor { r -> Thread(r, "Dango-AudioCache").apply { isDaemon = true } }
     private val revision = AtomicLong()
     private var configured: String? = null
+    private var failedValue: String? = null
     private var location: Location? = null
     private var nextRefresh = 0L
+    private var noticeUntil = 0L
     @Volatile var status = Status()
         private set
 
@@ -40,17 +42,23 @@ internal object MusicCache {
     }
 
     @Synchronized fun configure(value: String) {
-        if (configured == value) return
+        // 同值不重复配置；但上一次解析失败时允许每 2 秒重试一次，避免一次瞬时失败禁用整个会话。
+        if (configured == value && failedValue != value) return
+        if (configured == value && System.currentTimeMillis() < nextRefresh) return
         configured = value
         revision.incrementAndGet()
         location = null
         nextRefresh = 0L
+        noticeUntil = 0L
         try {
             val directory = resolveDirectory(value)
             location = Location(directory, AudioCache(directory))
+            failedValue = null
             status = Status(directory.toString())
             refresh()
         } catch (_: Exception) {
+            failedValue = value
+            nextRefresh = System.currentTimeMillis() + 2_000L
             status = Status(value, message = "Invalid cache directory")
         }
     }
@@ -76,6 +84,7 @@ internal object MusicCache {
         val current = location ?: return
         if (status.busy) return
         val version = revision.incrementAndGet()
+        noticeUntil = System.currentTimeMillis() + 4_000L
         status = status.copy(busy = true, message = "Clearing cache...")
         worker.execute {
             val success = try { current.cache.clear() } catch (_: Exception) { false }
@@ -87,11 +96,14 @@ internal object MusicCache {
         val usage = try { current.cache.usage() } catch (_: Exception) { null }
         synchronized(this) {
             if (location !== current || revision.get() != version) return
-            status = Status(current.directory.toString(), usage?.first, usage?.second ?: 0,
-                if (usage == null) "Cache unavailable; check the directory and permissions" else message ?: status.message,
-                busy = false)
-            if (usage != null && message == null && status.message == "Cache unavailable; check the directory and permissions")
-                status = status.copy(message = "")
+            val now = System.currentTimeMillis()
+            val text = when {
+                usage == null -> "Cache unavailable; check the directory and permissions"
+                message != null -> message
+                now < noticeUntil -> status.message
+                else -> ""
+            }
+            status = Status(current.directory.toString(), usage?.first, usage?.second ?: 0, text, busy = false)
         }
     }
 }

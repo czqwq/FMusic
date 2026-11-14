@@ -13,13 +13,14 @@ internal class KugouPlayback @JvmOverloads constructor(
     private val app: (NeteaseTrack, NativeAccount, String, Boolean) -> JsonObject = ::request,
     private val accept: (NeteaseApi.SongUrl) -> Boolean = { true },
 ) {
-    fun resolve(track: NeteaseTrack, account: NativeAccount, quality: AudioQuality = AudioQuality.STANDARD): NeteaseApi.SongUrl? {
+    fun resolve(track: NeteaseTrack, account: NativeAccount, quality: AudioQuality = AudioQuality.STANDARD, active: () -> Boolean = { true }): NeteaseApi.SongUrl? {
         require(!account.concept && account.source == MusicSource.KUGOU)
+        if (!active()) throw CancellationException()
         val variants = if (track.albumId.isNotBlank() || track.albumAudioId.isNotBlank()) listOf(true, false) else listOf(false)
         var trial: NeteaseApi.SongUrl? = null
         val seen = HashSet<String>()
-        fun candidate(root: JsonObject, requested: AudioQuality = AudioQuality.STANDARD): NeteaseApi.SongUrl? {
-            for (item in candidates(root, track, requested)) {
+        fun candidate(root: JsonObject): NeteaseApi.SongUrl? {
+            for (item in candidates(root, track)) {
                 if (!seen.add(item.url) || (item.trialOnly && trial != null)) continue
                 if (accept(item)) {
                     if (!item.trialOnly) return item
@@ -29,6 +30,7 @@ internal class KugouPlayback @JvmOverloads constructor(
             return null
         }
         appLoop@ for (level in quality.fallbacks) for (metadata in variants) {
+            if (!active()) throw CancellationException()
             val root = try {
                 app(track, account, level.kugouQuality, metadata)
             } catch (e: Exception) {
@@ -38,9 +40,10 @@ internal class KugouPlayback @JvmOverloads constructor(
                 break@appLoop
             }
             checked(root, level.key)
-            candidate(root, level)?.let { return it }
+            candidate(root)?.let { return it }
         }
         for (metadata in variants) {
+            if (!active()) throw CancellationException()
             val root = try { web(track, account, metadata) } catch (_: SocketTimeoutException) { break }
             checked(root, "web")
             candidate(root)?.let { return it }
@@ -56,7 +59,7 @@ internal class KugouPlayback @JvmOverloads constructor(
 
     internal fun parse(root: JsonObject, track: NeteaseTrack): NeteaseApi.SongUrl? = candidates(root, track).firstOrNull()
 
-    internal fun candidates(root: JsonObject, track: NeteaseTrack, requested: AudioQuality = AudioQuality.STANDARD): List<NeteaseApi.SongUrl> {
+    internal fun candidates(root: JsonObject, track: NeteaseTrack): List<NeteaseApi.SongUrl> {
         val data = root.obj("data") ?: root
         if (root.number("status") != 1L && data.number("status") != 1L) return emptyList()
         val format = data.text("extName").ifEmpty { data.text("extname") }
@@ -75,7 +78,7 @@ internal class KugouPlayback @JvmOverloads constructor(
         val cover = data.text("sizable_cover").ifEmpty { data.text("img") }.replace("{size}", "300")
         if (cover.isNotEmpty()) track.coverUrl = cover
         val bitrate = data.number("bitrate").let { if (it in 1..999) it * 1000 else it }
-        val quality = AudioQuality.fromAudio(format, bitrate, requested)
+        val quality = AudioQuality.fromAudio(format, bitrate)
         return urls.map { NeteaseApi.SongUrl(it, ms > 0 && track.durationMs > 5000 && ms < track.durationMs - 5000, quality = quality) }
     }
 

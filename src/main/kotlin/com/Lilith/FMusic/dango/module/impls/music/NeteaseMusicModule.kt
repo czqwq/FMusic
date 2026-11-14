@@ -47,7 +47,8 @@ class NeteaseMusicModule : Module() {
     private val volume = FloatValue(0f, 1f, 0.2f, 2)
 
     @ModuleValue("Audio quality", "Applies to the next song; high quality and lossless use local cache")
-    private val audioQuality = IntValue(0, 2, 0)
+    // 默认高音质：和加音质设置之前的行为一致（优先 320 kbps），标准档才是显式选的 128k。
+    private val audioQuality = IntValue(0, 2, 1)
 
     @ModuleValue("Cache directory", "Leave empty to use the default directory")
     private val cacheDirectory = com.Lilith.FMusic.dango.module.values.TextValue()
