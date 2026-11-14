@@ -16,6 +16,7 @@ import com.Lilith.FMusic.dango.module.values.TextValue
 import com.Lilith.FMusic.dango.music.LyricFonts
 import com.Lilith.FMusic.dango.module.values.ModuleValue
 import com.Lilith.FMusic.dango.music.MusicScreen
+import com.Lilith.FMusic.dango.music.MusicCache
 import com.Lilith.FMusic.dango.platform.Keys
 import com.Lilith.FMusic.dango.platform.allowedPlayerKey
 import com.Lilith.FMusic.dango.ui.LayoutBounds
@@ -34,7 +35,7 @@ import kotlin.math.roundToInt
 internal class SettingsPage(private val screen: MusicScreen, private val module: NeteaseMusicModule) {
     private val ui = screen.ui
 
-    private enum class Ctl { TOGGLE, SLIDER, KEY, LANGUAGE, COLOR, FONT, CHOICE }
+    private enum class Ctl { TOGGLE, SLIDER, KEY, LANGUAGE, COLOR, FONT, CHOICE, CACHE }
 
     /** scale：显示值 = 实际值 × scale（百分比的选项是 100），手动输入时按显示值换算回去 */
     private class Row(
@@ -49,6 +50,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
     private val choiceLabels = mapOf(
         "lyricColors" to listOf("Custom color", "Cover color", "Cover gradient", "Rainbow"),
         "audioOutput" to listOf("Auto", "Java Sound", "Game audio (OpenAL)"),
+        "audioQuality" to com.Lilith.FMusic.dango.music.AudioQuality.values().map { it.label },
     )
 
     /** 显示成百分比的选项 */
@@ -70,7 +72,10 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
     // 点数值手动输入
     private var editRow: Row? = null
     private var editText = ""
+    private var cacheTextSelected = false
     private var editRect = LayoutBounds()
+    private var clearCacheUntil = 0L
+    private var clearCacheDirectory = ""
 
     // 正在录快捷键的那一项，以及本帧所有快捷键按钮的区域（点别处就取消录制）
     var bindingKey: IntValue? = null
@@ -146,6 +151,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
     // ---------------------------------------------------------------- 数值输入
 
     private fun numberText(r: Row): String = when (val v = r.value) {
+        is TextValue -> if (r.ctl == Ctl.CACHE) try { MusicCache.directoryText(v.value) } catch (_: Exception) { v.value } else v.value
         is IntValue -> (v.value * r.scale).roundToInt().toString()
         is FloatValue -> {
             val x = v.value * r.scale
@@ -159,6 +165,8 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
         commitEdit()
         editRow = r
         editText = numberText(r)
+        cacheTextSelected = false
+        if (r.ctl == Ctl.CACHE) clearCacheUntil = 0L
         screen.blurTextFields()
         bindingKey = null
     }
@@ -167,6 +175,17 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
     fun commitEdit() {
         val r = editRow ?: return
         editRow = null
+        if (r.ctl == Ctl.CACHE) {
+            val input = editText.trim().removeSurrounding("\"")
+            val value = try { if (input.isEmpty()) "" else MusicCache.directoryText(input) } catch (_: Exception) {
+                Library.showStatus(I18n.text("Invalid cache directory"))
+                return
+            }
+            (r.value as TextValue).value = value
+            clearCacheUntil = 0L
+            MusicCache.configure(value)
+            return
+        }
         val n = editText.trim().replace(',', '.').toFloatOrNull() ?: return
         when (val v = r.value) {
             is IntValue -> v.setValue((n / r.scale).roundToInt())
@@ -216,6 +235,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
             fun take(names: List<String>? = null): List<Row> = (names ?: left.keys.toList()).mapNotNull { k ->
                 val (ann, v) = left.remove(k) ?: return@mapNotNull null
                 val ctl = when {
+                    k == "cacheDirectory" -> Ctl.CACHE
                     k == "language" -> Ctl.LANGUAGE
                     k == "lyricFont" -> Ctl.FONT
                     k in choiceLabels -> Ctl.CHOICE
@@ -273,12 +293,14 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
         val island = Src(mm.get(DynamicIslandModule::class.java), fmts = mapOf("notifyTime" to { v: Any -> "%.1f s".format((v as FloatValue).value) }))
         // 先取走，免得落进下面的 Hotkeys 组
         val updates = player.take(listOf("checkUpdates"))
+        val cacheSettings = player.take(listOf("cacheDirectory"))
         val environment = player.take(listOf("envAudio", "envRain", "envStrength", "envRays"))
         // 别的播放器只在 Windows 10+ 读得到，其它系统不显示
         val otherPlayers = player.take(listOf("systemMedia", "systemMediaOffset"))
             .takeIf { com.Lilith.FMusic.dango.music.SystemMedia.supported }
         val music = listOf(
-            Group("Player", "Playback", player.m, false, player.take(listOf("volume", "normalize", "audioOutput", "language"))),
+            Group("Player", "Playback", player.m, false, player.take(listOf("volume", "normalize", "audioQuality", "audioOutput", "language"))),
+            Group("Audio cache", "Disk storage", player.m, false, cacheSettings),
             Group("Environment audio", "Sound around you", player.m, false, environment),
         ) + listOfNotNull(
             otherPlayers?.let { Group("Other players", "Windows media", player.m, false, it) },
@@ -518,12 +540,15 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
     private val rowH = 40f
     private val headH = 36f
 
+    /** 缓存目录那一行比普通设置行高（输入框 + 用量 + 两个按钮 + 两行提示） */
+    private val cacheRowH = 174f
+
     /** 每组的位置：列号、在列里的 y、高度 */
     private fun layout(groups: List<Group>, view: LayoutBounds): List<Triple<Int, Float, Float>> {
         val cols = if (view.width >= 560f) 2 else 1
         val colY = FloatArray(cols)
         return groups.map { g ->
-            val h = headH + g.rows.size * rowH + 6f
+            val h = headH + g.rows.sumOf { if (it.ctl == Ctl.CACHE) cacheRowH.toDouble() else rowH.toDouble() }.toFloat() + 6f
             var c = 0
             for (i in 1 until cols) if (colY[i] < colY[c] - 0.5f) c = i
             val p = Triple(c, colY[c], h)
@@ -621,13 +646,77 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
             val alpha = rowFade.getOrPut(r) { Spring(170f, 26f, target) }.tick(target).coerceIn(0.4f, 1f)
             val faded = alpha < 0.999f
             if (faded) ctx.pushOpacity(alpha)
-            drawRow(LayoutBounds(x, y, iw, rowH), r, clip)
+            val height = if (r.ctl == Ctl.CACHE) cacheRowH else rowH
+            drawRow(LayoutBounds(x, y, iw, height), r, clip)
             if (faded) ctx.popOpacity()
-            y += rowH
+            y += height
         }
     }
 
+    private fun drawCache(b: LayoutBounds, r: Row, clip: LayoutBounds) {
+        MusicCache.refresh()
+        val status = MusicCache.status
+        val value = r.value as TextValue
+        ui.text(I18n.text("Cache directory"), b.x, b.y + 8f, 12f, Theme.TEXT_PRIMARY, Theme.FONT_MEDIUM)
+        val input = LayoutBounds(b.x, b.y + 26f, b.width, 26f)
+        val editing = editRow === r
+        ui.card(input, if (editing || ui.hover(input)) Theme.CARD_HOVER else Theme.CARD, 6f)
+        if (editing) {
+            editRect = input
+            ui.ctx.drawShape(input, ShapeStyle(Color(0f, 0f, 0f, 0f), 6f, 1f, RED))
+        }
+        var path = if (editing) editText + if (!cacheTextSelected && caretVisible()) "|" else "" else numberText(r)
+        if (editing) while (path.isNotEmpty() && ui.width(path, 10f) > input.width - 14f) path = path.drop(1)
+        if (editing && cacheTextSelected) ui.card(LayoutBounds(input.x + 5f, input.y + 4f, (ui.width(path, 10f) + 4f).coerceAtMost(input.width - 10f), 18f), RED.copy(a = 0.3f), 3f)
+        ui.text(ui.trim(path, input.width - 14f, 10f), input.x + 7f, input.y + 8f, 10f, Theme.TEXT_PRIMARY)
+        ui.hits += input.intersect(clip) to { startEdit(r); cacheTextSelected = false }
+        ui.text(ui.trim(I18n.text("Relative to game directory · Enter save"), b.width, 9.5f), b.x, b.y + 59f, 9.5f, Theme.TEXT_TERTIARY)
+        val usage = status.bytes?.let { bytes ->
+            val size = when {
+                bytes >= 1024L * 1024 * 1024 -> "%.2f GiB".format(bytes / (1024.0 * 1024 * 1024))
+                bytes >= 1024L * 1024 -> "%.1f MiB".format(bytes / (1024.0 * 1024))
+                bytes >= 1024L -> "%.1f KiB".format(bytes / 1024.0)
+                else -> "$bytes B"
+            }
+            I18n.text("Disk usage: ") + size + " · " + status.files + I18n.text(" files")
+        } ?: I18n.text("Calculating cache size...")
+        ui.text(ui.trim(usage, b.width, 11f), b.x, b.y + 79f, 11f, Theme.TEXT_SECONDARY)
+        val confirming = clearCacheDirectory == status.directory && System.currentTimeMillis() < clearCacheUntil
+        fun button(x: Float, text: String, enabled: Boolean, action: () -> Unit) {
+            val box = LayoutBounds(x, b.y + 99f, (b.width - 8f) / 2f, 25f)
+            ui.card(box, if (enabled && ui.hover(box)) Theme.CARD_HOVER else Theme.CARD, 6f)
+            val label = ui.trim(I18n.text(text), box.width - 12f, 10.5f)
+            ui.text(label, box.x + (box.width - ui.width(label, 10.5f)) / 2f, box.y + 8f, 10.5f,
+                if (enabled) Theme.TEXT_PRIMARY else Theme.TEXT_TERTIARY)
+            if (enabled) ui.hits += box.intersect(clip) to action
+        }
+        button(b.x, "Default directory", !status.busy) {
+            editRow = null
+            value.value = ""
+            clearCacheUntil = 0L
+            MusicCache.configure("")
+        }
+        button(b.x + (b.width + 8f) / 2f, if (confirming) "Confirm clear" else "Clear cache", !status.busy && status.bytes != null) {
+            val current = MusicCache.status
+            if (current.directory != status.directory || current.busy) {
+                clearCacheUntil = 0L
+                return@button
+            }
+            if (clearCacheDirectory == current.directory && System.currentTimeMillis() < clearCacheUntil) {
+                clearCacheUntil = 0L
+                MusicCache.clear()
+            } else {
+                clearCacheDirectory = status.directory
+                clearCacheUntil = System.currentTimeMillis() + 5000L
+            }
+        }
+        val message = if (confirming) "Click again to delete cached audio" else status.message
+        if (message.isNotEmpty()) ui.text(ui.trim(I18n.text(message), b.width, 10f), b.x, b.y + 132f, 10f, Theme.TEXT_SECONDARY)
+        ui.text(ui.trim(I18n.text("Changing directory does not move existing cache"), b.width, 9.5f), b.x, b.y + 152f, 9.5f, Theme.TEXT_TERTIARY)
+    }
+
     private fun drawRow(b: LayoutBounds, r: Row, clip: LayoutBounds) {
+        if (r.ctl == Ctl.CACHE) { drawCache(b, r, clip); return }
         val ctlW = when (r.ctl) {
             Ctl.TOGGLE -> 34f
             Ctl.SLIDER -> 166f
@@ -636,6 +725,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
             Ctl.COLOR -> 92f
             Ctl.FONT -> 166f
             Ctl.CHOICE -> 144f
+            Ctl.CACHE -> 0f
         }
         val textW = b.width - ctlW - 14f
         ui.text(ui.trim(I18n.text(r.label), textW, 12f, Theme.FONT_MEDIUM), b.x, b.y + 8f, 12f, Theme.TEXT_PRIMARY, Theme.FONT_MEDIUM)
@@ -647,6 +737,7 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
                 val v = r.value as BooleanValue
                 ui.toggleSwitch(LayoutBounds(cx, cy - 10f, 34f, 20f), v.get(), clip, key = v) { v.toggle() }
             }
+            Ctl.CACHE -> Unit
             Ctl.SLIDER -> drawSlider(b, r, clip, cx, cy)
             Ctl.KEY -> drawKeyButton(r.value as IntValue, clip, cx, cy)
             Ctl.COLOR -> {
@@ -848,6 +939,27 @@ internal class SettingsPage(private val screen: MusicScreen, private val module:
             return true
         }
         // 正在输入数值：Enter 确定，Esc 取消
+        if (editRow?.ctl == Ctl.CACHE) {
+            when {
+                keyCode == Keys.RETURN || keyCode == Keys.NUMPADENTER -> commitEdit()
+                keyCode == Keys.ESCAPE -> editRow = null
+                keyCode == Keys.BACK || keyCode == Keys.DELETE -> {
+                    editText = if (cacheTextSelected) "" else if (keyCode == Keys.BACK) editText.dropLast(1) else editText
+                    cacheTextSelected = false
+                }
+                DangoClient.platform.ctrlDown && keyCode == Keys.A -> cacheTextSelected = true
+                DangoClient.platform.ctrlDown && keyCode == Keys.C -> DangoClient.platform.clipboard = editText
+                DangoClient.platform.ctrlDown && keyCode == Keys.V -> {
+                    editText = ((if (cacheTextSelected) "" else editText) + DangoClient.platform.clipboard.filter { it >= ' ' && it != '\u007f' }).take(4096)
+                    cacheTextSelected = false
+                }
+                !DangoClient.platform.ctrlDown && typedChar >= ' ' && typedChar != '\u007f' && (cacheTextSelected || editText.length < 4096) -> {
+                    editText = (if (cacheTextSelected) "" else editText) + typedChar
+                    cacheTextSelected = false
+                }
+            }
+            return true
+        }
         if (editRow != null) {
             when {
                 keyCode == Keys.RETURN || keyCode == Keys.NUMPADENTER -> commitEdit()

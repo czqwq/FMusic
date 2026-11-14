@@ -85,22 +85,28 @@ internal object KugouLite {
 
     // ------------------------------------------------------------ 取歌
 
-    /** 概念版身份取播放地址：先要 320k，没有再要 128k（我们只能放 MP3） */
-    fun songUrl(track: NeteaseTrack, account: NativeAccount): NeteaseApi.SongUrl? {
+    fun songUrl(track: NeteaseTrack, account: NativeAccount, quality: AudioQuality = AudioQuality.STANDARD, active: () -> Boolean = { true }): NeteaseApi.SongUrl? {
         ensureDailyVip(account)
-        for (quality in listOf("320", "128")) {
-            val root = urlRequest(track, account, quality)
+        var preview: NeteaseApi.SongUrl? = null
+        for (level in quality.fallbacks) {
+            if (!active()) throw java.util.concurrent.CancellationException()
+            val root = urlRequest(track, account, level.kugouQuality)
             checkVerification(root)
             val url = playUrl(root) ?: continue
-            if (root.text("extName").let { it.isNotEmpty() && !it.equals("mp3", true) }) continue
+            val format = root.text("extName").ifEmpty { root.text("extname") }.lowercase(java.util.Locale.ROOT)
+            if (format.isNotEmpty() && format !in setOf("mp3", "flac", "ogg", "vorbis")) continue
             val seconds = root.number("timeLength")
             // 响度：volume 是增益（分贝），volume_peak 是峰值（分贝，换成线性）
             fun decibels(key: String) = root.get(key)?.takeIf { it.isJsonPrimitive }?.asString?.toFloatOrNull()?.takeIf { it.isFinite() }
             val gain = decibels("volume") ?: 0f
             val peak = decibels("volume_peak")?.let { Math.pow(10.0, it / 20.0).toFloat() } ?: 0f
-            return NeteaseApi.SongUrl(url, seconds in 1 until track.durationMs / 1000 - 5, gain, peak)
+            val bitrate = root.number("bitrate").let { if (it in 1..999) it * 1000 else it }
+            val result = NeteaseApi.SongUrl(url, seconds in 1 until track.durationMs / 1000 - 5, gain, peak,
+                quality = AudioQuality.fromAudio(format, bitrate))
+            if (!result.trialOnly) return result
+            if (preview == null) preview = result
         }
-        return null
+        return preview
     }
 
     private fun urlRequest(track: NeteaseTrack, account: NativeAccount, quality: String): JsonObject {

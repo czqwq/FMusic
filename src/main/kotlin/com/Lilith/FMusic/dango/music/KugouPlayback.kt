@@ -2,18 +2,20 @@ package com.Lilith.FMusic.dango.music
 
 import com.google.gson.JsonObject
 import com.Lilith.FMusic.dango.DangoLogger
+import java.io.IOException
 import java.math.BigInteger
 import java.security.MessageDigest
 import java.net.SocketTimeoutException
+import java.util.concurrent.CancellationException
 
-/** 普通版先沿用网页登录；目录信息不匹配时退回 hash，再尝试普通版 MP3 接口。 */
 internal class KugouPlayback @JvmOverloads constructor(
     private val web: (NeteaseTrack, NativeAccount, Boolean) -> JsonObject = { t, a, metadata -> KugouWeb.songInfo(t, a, metadata) },
     private val app: (NeteaseTrack, NativeAccount, String, Boolean) -> JsonObject = ::request,
     private val accept: (NeteaseApi.SongUrl) -> Boolean = { true },
 ) {
-    fun resolve(track: NeteaseTrack, account: NativeAccount): NeteaseApi.SongUrl? {
+    fun resolve(track: NeteaseTrack, account: NativeAccount, quality: AudioQuality = AudioQuality.STANDARD, active: () -> Boolean = { true }): NeteaseApi.SongUrl? {
         require(!account.concept && account.source == MusicSource.KUGOU)
+        if (!active()) throw CancellationException()
         val variants = if (track.albumId.isNotBlank() || track.albumAudioId.isNotBlank()) listOf(true, false) else listOf(false)
         var trial: NeteaseApi.SongUrl? = null
         val seen = HashSet<String>()
@@ -27,15 +29,23 @@ internal class KugouPlayback @JvmOverloads constructor(
             }
             return null
         }
-        for (metadata in variants) {
-            val root = try { web(track, account, metadata) } catch (_: SocketTimeoutException) { break }
-            checked(root, "web")
+        appLoop@ for (level in quality.fallbacks) for (metadata in variants) {
+            if (!active()) throw CancellationException()
+            val root = try {
+                app(track, account, level.kugouQuality, metadata)
+            } catch (e: Exception) {
+                if (e is CancellationException || e is SourceAccessException) throw e
+                if (e !is IOException && e !is IllegalStateException) throw e
+                DangoLogger.warn("Kugou playback stage={} outcome=request-error type={}", level.key, e.javaClass.simpleName)
+                break@appLoop
+            }
+            checked(root, level.key)
             candidate(root)?.let { return it }
         }
-        // 网页会话不一定被 App 接口接受；拒绝时保留网页的可用结果，不把整个账号误判成失效。
-        appLoop@ for (quality in listOf("320", "128")) for (metadata in variants) {
-            val root = try { app(track, account, quality, metadata) } catch (_: SocketTimeoutException) { break@appLoop }
-            checked(root, "mp3-$quality")
+        for (metadata in variants) {
+            if (!active()) throw CancellationException()
+            val root = try { web(track, account, metadata) } catch (_: SocketTimeoutException) { break }
+            checked(root, "web")
             candidate(root)?.let { return it }
         }
         return trial
@@ -67,7 +77,9 @@ internal class KugouPlayback @JvmOverloads constructor(
         val ms = data.number("timelength").takeIf { it > 0 } ?: data.number("timeLength") * 1000
         val cover = data.text("sizable_cover").ifEmpty { data.text("img") }.replace("{size}", "300")
         if (cover.isNotEmpty()) track.coverUrl = cover
-        return urls.map { NeteaseApi.SongUrl(it, ms > 0 && track.durationMs > 5000 && ms < track.durationMs - 5000) }
+        val bitrate = data.number("bitrate").let { if (it in 1..999) it * 1000 else it }
+        val quality = AudioQuality.fromAudio(format, bitrate)
+        return urls.map { NeteaseApi.SongUrl(it, ms > 0 && track.durationMs > 5000 && ms < track.durationMs - 5000, quality = quality) }
     }
 
     companion object {

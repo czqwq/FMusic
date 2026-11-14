@@ -7,7 +7,6 @@ import com.Lilith.FMusic.dango.events.HudRenderEvent
 import com.Lilith.FMusic.dango.events.WorldRenderEndEvent
 import com.Lilith.FMusic.dango.DangoClient
 import com.Lilith.FMusic.dango.i18n.I18n
-import com.Lilith.FMusic.dango.lyrics.Lyrics
 import com.Lilith.FMusic.dango.module.Category
 import com.Lilith.FMusic.dango.module.Module
 import com.Lilith.FMusic.dango.module.ModuleMeta
@@ -15,6 +14,7 @@ import com.Lilith.FMusic.dango.module.values.BooleanValue
 import com.Lilith.FMusic.dango.module.values.FloatValue
 import com.Lilith.FMusic.dango.module.values.IntValue
 import com.Lilith.FMusic.dango.module.values.ModuleValue
+import com.Lilith.FMusic.dango.music.AudioQuality
 import com.Lilith.FMusic.dango.music.EnvironmentAudio
 import com.Lilith.FMusic.dango.music.RoomAcoustics
 import com.Lilith.FMusic.dango.music.MusicPlayer
@@ -46,6 +46,13 @@ class NeteaseMusicModule : Module() {
 
     @ModuleValue("Volume", "Playback volume")
     private val volume = FloatValue(0f, 1f, 0.2f, 2)
+
+    @ModuleValue("Audio quality", "Switching reloads the current song; high quality and lossless use local cache")
+    // 默认高音质：和加音质设置之前的行为一致（优先 320 kbps），标准档才是显式选的 128k。
+    private val audioQuality = IntValue(0, 2, 1)
+
+    @ModuleValue("Cache directory", "Leave empty to use the default directory")
+    private val cacheDirectory = com.Lilith.FMusic.dango.module.values.TextValue()
 
     @ModuleValue("Audio output", "Where the music plays through")
     // 0 自动（安卓用游戏的 OpenAL，电脑用 Java Sound），1 Java Sound，2 游戏的 OpenAL
@@ -196,6 +203,16 @@ class NeteaseMusicModule : Module() {
         volume.setValue(v)
     }
 
+    /** 当前选择的音质（设置页和播放栏的音质徽章共用） */
+    fun preferredQuality(): AudioQuality = AudioQuality.fromSetting(audioQuality.value)
+
+    /** 播放栏快速切换音质：写回设置并按新档位立刻重新加载当前歌曲 */
+    fun selectQuality(quality: AudioQuality) {
+        if (preferredQuality() == quality) return
+        audioQuality.setValue(quality.ordinal)
+        MusicPlayer.switchQuality(quality)
+    }
+
     private fun changeVolume(d: Float) {
         volume.setValue((volume.value + d).coerceIn(0f, 1f))
         MusicPlayer.volume = volume.value
@@ -332,6 +349,7 @@ class NeteaseMusicModule : Module() {
         // 即使播放器被关闭，也要初始化并保存界面语言。
         applyLanguage()
         MusicSources.selected = MusicSource.values()[musicSource.value]
+        com.Lilith.FMusic.dango.music.MusicCache.configure(cacheDirectory.value)
         DangoMusic.instance.platform.syncKeyBindings(keyBindings)
         UpdateChecker.tick(checkUpdates.get())
         // 别的播放器：开关变了才启动 / 关掉后台读取
@@ -346,6 +364,9 @@ class NeteaseMusicModule : Module() {
         if (++tickCount > 5) lyrics()?.let { if (!it.enabled) it.enabled = true }
         MusicPlayer.volume = volume.value
         MusicPlayer.outputMode = audioOutput.value
+        // 设置页改了音质也要立即生效（和播放栏的音质徽章走同一条路：按新档位重载当前歌曲）
+        val selectedQuality = AudioQuality.fromSetting(audioQuality.value)
+        if (MusicPlayer.quality != selectedQuality) MusicPlayer.switchQuality(selectedQuality)
         MusicPlayer.shuffle = shuffle.get()
 
         MusicPlayer.repeatOne = repeatOne.get()

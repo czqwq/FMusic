@@ -6,9 +6,7 @@ import com.Lilith.FMusic.dango.module.impls.music.NeteaseMusicModule
 import com.Lilith.FMusic.dango.music.CoverCache
 import com.Lilith.FMusic.dango.music.MusicPlayer
 import com.Lilith.FMusic.dango.music.MusicScreen
-import com.Lilith.FMusic.dango.music.MusicSource
 import com.Lilith.FMusic.dango.music.MusicSources
-import com.Lilith.FMusic.dango.music.NeteaseApi
 import com.Lilith.FMusic.dango.ui.LayoutBounds
 import com.Lilith.FMusic.dango.ui.ShadowStyle
 import com.Lilith.FMusic.dango.ui.ShapeStyle
@@ -22,12 +20,21 @@ import kotlin.math.max
 internal class PlayerBar(private val screen: MusicScreen, private val module: NeteaseMusicModule) {
     private val ui = screen.ui
     /** 变速变调、均衡器的按钮和面板（同时只开一个） */
-    val tune = TunePanel(ui).also { t -> t.onOpen = { eq.open = false; add.open = false } }
-    val eq: EqPanel = EqPanel(ui).also { e -> e.onOpen = { tune.open = false; add.open = false } }
+    val tune: TunePanel = TunePanel(ui)
+    val eq: EqPanel = EqPanel(ui)
     /** 红心旁边的"+"：加到自建歌单 */
-    val add: AddPanel = AddPanel(ui).also { a -> a.onOpen = { tune.open = false; eq.open = false } }
+    val add: AddPanel = AddPanel(ui)
+    /** 音质切换徽章 + 面板（均衡器左边的空位） */
+    val quality = QualityPanel(ui, module)
+
+    init {
+        tune.onOpen = { eq.open = false; add.open = false; quality.open = false }
+        eq.onOpen = { tune.open = false; add.open = false; quality.open = false }
+        add.onOpen = { tune.open = false; eq.open = false; quality.open = false }
+        quality.onOpen = { tune.open = false; eq.open = false; add.open = false }
+    }
     /** 开着的那个面板（没开是空的）：画下面的内容时鼠标在这里不算悬停 */
-    val popupRect: LayoutBounds get() = listOf(eq.panelRect, tune.panelRect, add.panelRect).firstOrNull { it.width > 0f } ?: LayoutBounds()
+    val popupRect: LayoutBounds get() = listOf(eq.panelRect, tune.panelRect, add.panelRect, quality.panelRect).firstOrNull { it.width > 0f } ?: LayoutBounds()
 
     private var lastSubtitle = ""
     private var subtitleAt = 0L
@@ -188,6 +195,11 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
         val rgt = fmtTime(dur)
         ui.text(l, progRect.x, progRect.y - 14f, 9.5f, Theme.TEXT_PRIMARY.copy(a = 0.9f), Theme.FONT_SEMIBOLD)
         ui.text(rgt, progRect.right - ui.width(rgt, 9.5f, Theme.FONT_SEMIBOLD), progRect.y - 14f, 9.5f, Theme.TEXT_TERTIARY, Theme.FONT_SEMIBOLD)
+        if (!MusicPlayer.external) MusicPlayer.currentQuality?.let { quality ->
+            val label = I18n.text(quality.label) + if (MusicPlayer.fromCache) " · " + I18n.text("Local cache") else ""
+            ui.text(label, progRect.x + ui.width(l, 9.5f, Theme.FONT_SEMIBOLD) + 12f, progRect.y - 14f,
+                9.5f, Theme.TEXT_TERTIARY, Theme.FONT_SEMIBOLD)
+        }
         val thick = 3f + 2f * kn.coerceAtMost(1f)
         val lane = LayoutBounds(progRect.x, progRect.y + 1.5f - thick / 2f, progRect.width, thick)
         ui.card(lane, Color(1f, 1f, 1f, 0.08f), thick / 2f)
@@ -226,9 +238,19 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
         // 变速变调紧挨着音量，均衡器再往左一个
         tune.drawButton(LayoutBounds(tuneX, vy - 14f, 32f, 28f), vy)
         // 均衡器：再往左一个
-        eq.drawButton(LayoutBounds(tuneX - BTN_STEP, vy - 14f, 32f, 28f), vy)
+        val eqB = LayoutBounds(tuneX - BTN_STEP, vy - 14f, 32f, 28f)
+        eq.drawButton(eqB, vy)
+        // 音质徽章：放在均衡器左边（用户需求截图的位置）；窗口太窄放不下时不画
+        val qualityW = quality.badgeWidth()
+        val qualityX = eqB.x - 8f - qualityW
+        if (!MusicPlayer.external && qualityX >= queueB.right + 6f) {
+            quality.drawButton(LayoutBounds(qualityX, vy - 13f, qualityW, 26f))
+        } else {
+            quality.open = false
+        }
         tune.drawPanel(bar)
         eq.drawPanel(bar)
+        quality.drawPanel(bar)
         add.drawPanel(bar)
     }
 
@@ -323,6 +345,7 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
     fun mouseDown(mx: Int, my: Int): Boolean {
         if (tune.mouseDown(mx, my)) return true
         if (eq.mouseDown(mx, my)) return true
+        if (quality.mouseDown(mx, my)) return true
         if (add.mouseDown(mx, my)) return true
         if (progRect.expand(0f, 6f).contains(mx, my)) {
             if (MusicPlayer.shownDurationMs > 0) {
