@@ -1342,5 +1342,75 @@ PNS 频带原本应该解成"能量正确的噪声", 写错后变成静音, 听�
   (没有精确 LoggerConfig 时用 `BaseConfiguration.addLogger` 建一个), 再对 logger 实例 `setLevel`
   让当前实例立即生效; 不要调全局 `updateLoggers()`。
 
+## 40. 输入法 (IME) 在 DangoMusic 输入框里打不了中文 (2026-11)
+
+### 现象
+
+- 打开内置播放器 (`M`) 后, 左栏搜索框 / 歌单筛选框 / 设置里的音频缓存路径框用中文输入法打字时
+  **汉字进不来**: 好一点的情况是拼音字母留在框里、选完字提交的汉字没了 (更差的情况是整串都不进来);
+  英文键盘打字一切正常。
+- 原版聊天框 (原版 `GuiTextField`) 反而能打中文 —— 说明问题只在**自绘**输入框上。
+
+### 根因 (两条输入路径, 各自丢一次)
+
+1. **lwjgl3ify (GTNH 运行时的输入层: LWJGL2 的 API + SDL3 后端)**
+   - SDL 只在 `SDL_StartTextInput` 打开时才会派发 `SDL_EVENT_TEXT_INPUT` (输入法提交的文本);
+     lwjgl3ify 的 `TextFieldHandler.beginTextInput()` 只在**原版 `GuiTextField` 获得焦点**时
+     (`me.eigenraven.lwjgl3ify.mixins.early.game.MixinGuiTextField#setFocused`) 被调用。
+     DangoMusic 的输入框是自绘的、不是 `GuiTextField`, 所以 SDL 文本输入从来没被打开过;
+   - 字母键仍会以 `SDL_EVENT_KEY_DOWN` 走进来 (lwjgl3ify 的 `handleKeyEvent` 会把
+     `SDL_GetKeyFromScancode` 的字符塞进 key event), 于是"拼音字母进得来、提交的汉字进不来";
+   - lwjgl3ify 为这种情况留了公开 API `me.eigenraven.lwjgl3ify.api.InputEvents`
+     (`beginTextInput` / `endTextInput` / `KeyboardListener#onTextEvent`), 但没人替我们调 ——
+     原版 `GuiTextField` 走的是 mixin, 我们自绘的框不在那条路上。
+2. **纯 LWJGL 2 (没装 lwjgl3ify)**
+   - LWJGL 2 的 `WindowsKeyboard#handleChar`: 有配对的按键事件就把字符挂到它身上 (普通打字),
+     没有就 `putEvent(keyCode = 0, state = 0, ch)` 造一条**纯字符事件** (输入法提交就是这种);
+   - 1.7.10 的 `GuiScreen#handleKeyboardInput` 只在 `Keyboard.getEventKeyState()` 为真时才调 `keyTyped`,
+     于是这类事件被整条丢掉 —— 这正是 InputFix 修的根因。
+
+### 修复
+
+- 新增 `dango/mc1710/LegacyTextInput.kt` (平台层), 两条路都覆盖:
+  - **lwjgl3ify 在场**: 反射调 `InputEvents.beginTextInput()/endTextInput()` 开关 SDL 文本输入,
+    并用 `java.lang.reflect.Proxy` 注册一个 `KeyboardListener` 收 `onTextEvent` (一次提交的多个汉字
+    作为一整段文本送进来);
+  - 严格绑定: `textEventsActive` 只有 `begin()` 成功**且**订阅成功才为真 —— 半套生效 (开了 SDL
+    文本输入却收不到文本事件) 会让每个字符都丢掉, 比不修更糟;
+  - **lwjgl3ify 不在**: `imeCharOrNul()` 用 InputFix 的判据 (`keyState = false` + `keyCode = 0` +
+    真字符) 把组字结果取出来; 装了 `InputFix` (`Loader.isModLoaded("InputFix")` 或类在场) 时让位,
+    免得同一个字进两遍;
+  - lwjgl3ify 的 API 全部反射访问 (它不是本模组的编译期依赖, 同一份 jar 也要能跑在纯 LWJGL 2 上),
+    拿不到就只退化到"纯 LWJGL 2 那套", 不会因为缺类崩。
+- 平台层 `LegacyMusicScreen` 接线:
+  - `initGui` 订阅 + `reset()`, `onGuiClosed` 退订 + `reset()` —— SDL 文本输入是**窗口级**的,
+    界面关掉还留着会让原版聊天和其它 mod 的输入框输入重复;
+  - `drawScreen` 每帧 `LegacyTextInput.setFocused(screen.textInputActive)` —— 这次把上游预留、
+    移植时只剩声明的 `MusicScreen.textInputActive` (搜索 / 筛选 / 设置编辑) 真正接上了;
+  - `keyTyped` 在 `textEventsActive` 时**丢掉按键事件里的可打印字符**: SDL 对每个可打印键既发
+    key event 又发 text event, 只认 TextEvent 才不会输两遍 (ModularUI2 的输入框也是这么做的);
+    回车 / Esc / 退格 / Ctrl 组合这些控制键不受影响, 照旧按 keyCode 走;
+  - `handleKeyboardInput` 补发纯 LWJGL 2 的组字字符, 只送进文本框, 不触发快捷键。
+- 提交的文本按字符逐个走 `MusicScreen.keyTyped(c, Keys.NONE)`, 和本地按键同一个入口,
+  所以焦点 / 光标 / 退格 / `Tab` 这些逻辑不用维护两套。
+
+### 验证
+
+- `./gradlew compileKotlin` / `compileJava` / `spotlessCheck` / `build` 全部 **BUILD SUCCESSFUL**。
+- 反射用到的 API 面逐个核对过**运行时版本** `lwjgl3ify-3.0.33-dev.jar` 的 class 常量池:
+  `InputEvents.beginTextInput / endTextInput / addKeyboardListener / removeKeyboardListener`、
+  `InputEvents$KeyboardListener.onTextEvent`、`InputEvents$TextEvent.text` 全部存在 (3.0.34 源码也逐行读过)。
+- `tmp/imetest/ImeProbe.java`: 拿真实 jar 跑了一遍 `LegacyTextInput` 里那套反射 —— 句柄全部解析成功,
+  `Proxy` 真的收到了 `onTextEvent` 并从 `TextEvent.text` 读出了 `"中国abc"`;
+  没有 MC 时 `beginTextInput` 按预期链接失败 (正好验证我们那条 catch: 绝不"半开")。
+- 实机 (进游戏点搜索框用输入法打中文 / 再切英文确认不重复) 仍待验证。
+
+### 教训
+
+- 1.7.10 的 `GuiScreen#handleKeyboardInput` **只处理 `keyState = true` 的事件**: 任何"输入法 / Alt 码"
+  这类纯字符事件都会被丢掉, 自绘输入框必须自己补; 这也是为什么 `InputFix` 要整段替换这个方法。
+- SDL (lwjgl3ify) 下 "key event 里带的字符" 与 "text event" 是两份, 只用其中一份, 否则重复输入。
+- 窗口级的输入开关 (SDL 文本输入) 必须跟着界面生命周期严格复位, 否则会波及原版聊天和其它 mod。
+
 
 

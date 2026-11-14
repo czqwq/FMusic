@@ -271,6 +271,28 @@ FMusic 原有 HUD（歌词 / KTV / 封面 / 进度条）与新移植的 Song car
 - 红心 / 加歌单之后都会 `Library.invalidateTracks(...)`：**自己歌单的缓存作废**，
   正在开着的那个在后台重拉，下次打开一定能看到新加的歌。
 
+### 3.11 输入法（IME）：搜索框等输入框能打中文了
+
+上游 1.8.9 那边也是"打不了中文就复制粘贴"，所以 `Sidebar` / `TracksPage` 里留着一条粘贴兜底
+（`Ctrl+V`）。1.7.10 这边补齐了平台的文字输入，中文 / 日文 / 韩文可以直接用输入法输入：
+
+- **`MusicScreen.textInputActive` 这次真的接上了**（上游的 modern 平台层就是每帧 `setImeFocus(screen.textInputActive)`
+  去打开系统输入法；1.8.9 平台层没做，所以移植时这个属性只剩声明、没人用）。平台层每帧把它同步给
+  `mc1710/LegacyTextInput.kt`。上游 modern 的做法是"让一个看不见的原版 `EditBox` 拿到焦点"，
+  1.7.10 这边等价的做法是调 lwjgl3ify 给自绘输入框准备的 `InputEvents.beginTextInput()/endTextInput()`。
+- **lwjgl3ify（GTNH 现在跑的输入层）**：SDL 只在 `SDL_StartTextInput` 打开时才把输入法的组字结果
+  交给游戏，而 lwjgl3ify 只在原版 `GuiTextField` 获得焦点时才代它打开 —— 我们是自绘输入框，
+  所以组字结果一条都进不来（表现就是：输入法打出来的字母进了搜索框，选完字的汉字没了）。
+  这里按 lwjgl3ify 的公开 API `InputEvents.beginTextInput()/endTextInput()` 自己开关，
+  用 `InputEvents.KeyboardListener#onTextEvent` 收文本；SDL 文本输入开着时可打印字符
+  **只认 TextEvent**，按键事件里带的那个字符丢掉（和 ModularUI2 输入框一致，否则英文输两遍）。
+- **纯 LWJGL 2（没装 lwjgl3ify）**：组字结果是一条 `keyCode = 0` + `keyState = false` 的纯字符事件，
+  1.7.10 的 `GuiScreen#handleKeyboardInput` 只看 `keyState`，于是整条丢掉 —— 这是 InputFix 修的根因，
+  这里用同一套判据补回来；装了 InputFix 时自动让位，避免一个字进两遍。
+- lwjgl3ify 的 API 全部反射访问（不是编译期依赖，同一份 jar 也要能跑在纯 LWJGL 2 上），
+  拿不到就只退化到"纯 LWJGL 2 那套"，不会因为缺类崩。详细根因和验证见
+  [knowledge.md §40](knowledge.md#40-输入法-ime-在-dangomusic-输入框里打不了中文-2026-11)。
+
 ## 四、Angelica / 光影兼容
 
 GTNH 环境下 `runClient` 会加载 [Angelica](https://github.com/GTNewHorizons/Angelica)（1.7.10 的渲染层：

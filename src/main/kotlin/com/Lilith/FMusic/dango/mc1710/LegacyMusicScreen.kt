@@ -1,6 +1,7 @@
 package com.Lilith.FMusic.dango.mc1710
 
 import com.Lilith.FMusic.dango.DangoClient
+import com.Lilith.FMusic.dango.platform.Keys
 
 import net.minecraft.client.gui.GuiScreen
 import net.minecraft.client.gui.GuiMainMenu
@@ -35,6 +36,13 @@ class LegacyMusicScreen(
 
     override fun initGui() {
         Keyboard.enableRepeatEvents(true)
+        // 切界面时 lwjgl3ify 会把 SDL 文本输入的计数清零（GuiOpenEvent → resetTextInput），我们跟着复位
+        LegacyTextInput.reset()
+        // 输入法（lwjgl3ify 走 SDL 文本输入）：组字结果只会以 TextEvent 送进来，
+        // 一个字一个字地喂给界面，和本地按键走同一个入口，所以焦点、光标这些逻辑不用分两套。
+        LegacyTextInput.subscribe { text ->
+            if (mc.currentScreen === this) text.forEach { screen.keyTyped(it, Keys.NONE) }
+        }
         menuParent()?.let {
             it.width = width
             it.height = height
@@ -44,6 +52,8 @@ class LegacyMusicScreen(
 
     override fun onGuiClosed() {
         Keyboard.enableRepeatEvents(false)
+        LegacyTextInput.reset()
+        LegacyTextInput.unsubscribe()
     }
 
     override fun doesGuiPauseGame() = false
@@ -54,6 +64,10 @@ class LegacyMusicScreen(
     }
 
     override fun drawScreen(mouseX: Int, mouseY: Int, partialTicks: Float) {
+        // 每帧同步"有没有输入框在打字"：lwjgl3ify 下据此开关 SDL 文本输入，
+        // 输入法的组字结果（中文 / 日文 / 韩文）才会进得来；界面里没有输入框在用时立刻关掉，
+        // 免得影响别的界面（SDL 文本输入是窗口级的，开着会让别处的字符重复）。
+        LegacyTextInput.setFocused(screen.textInputActive)
         val menu = menuParent()
         var menuBackdrop = menu != null
         if (menu is GuiMainMenu) {
@@ -93,11 +107,24 @@ class LegacyMusicScreen(
     }
 
     override fun keyTyped(typedChar: Char, keyCode: Int) {
+        // SDL 文本输入开着的时候，可打印字符会同时从"按键事件"和"TextEvent"两条路进来：
+        // 只认 TextEvent（ModularUI2 的输入框也是这么处理的），否则英文会输入两遍。
+        // 回车 / Esc / 退格 / Ctrl 组合这类控制键不受影响，照旧按 keyCode 走。
+        if (LegacyTextInput.textEventsActive && Keys.isAllowedChar(typedChar)) return
         screen.keyTyped(typedChar, keyCode)
     }
 
     override fun handleKeyboardInput() {
-        if (!Keyboard.getEventKeyState()) screen.keyReleased(Keyboard.getEventKey())
+        if (!Keyboard.getEventKeyState()) {
+            screen.keyReleased(Keyboard.getEventKey())
+            // 纯 LWJGL 2（没装 lwjgl3ify）时，输入法组字结果只有这一条出口：
+            // keyCode = 0 + keyState = false 的纯字符事件 —— 原版见到 keyState 是 false 就整条丢掉了。
+            // lwjgl3ify 下这条永远是 0（组字结果已经在 TextEvent 里处理过），不会重复。
+            if (LegacyTextInput.focused) {
+                val ime = LegacyTextInput.imeCharOrNul()
+                if (ime != '\u0000') screen.keyTyped(ime, Keys.NONE)
+            }
+        }
         super.handleKeyboardInput()
     }
 }
