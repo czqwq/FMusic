@@ -15,6 +15,7 @@ import com.Lilith.FMusic.dango.ui.Theme
 import com.Lilith.FMusic.dango.ui.Vec2
 import com.Lilith.FMusic.dango.utils.Color
 
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -174,14 +175,16 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
             ctx.popOpacity()
         }
         // ⏮ = 竖条 + ◀，⏭ = ▶ + 竖条（围绕按钮中心缩放）
-        val pc = prevB.x + 14f
+        // 按钮宽 32，中心在 16。⏮ 是竖条（左）+ ◀（右），组合的中心比 pc 偏右 1.25，所以 pc 往左挪回来
+        val pc = prevB.x + prevB.width / 2f - 1.25f * kPrev
         ui.card(LayoutBounds(pc - 6f * kPrev, cy - 5.5f * kPrev, 2.2f * kPrev, 11f * kPrev), Theme.TEXT_PRIMARY, 1f)
         ui.icon("◀", pc + 2.5f * kPrev, cy, 12f * kPrev, Theme.TEXT_PRIMARY)
-        val nc = nextB.x + 14f
+        // ⏭ 是 ▶（左）+ 竖条（右），组合的中心比 nc 偏左 1.25
+        val nc = nextB.x + nextB.width / 2f + 1.25f * kNext
         ui.icon("▶", nc - 2.5f * kNext, cy, 12f * kNext, Theme.TEXT_PRIMARY)
         ui.card(LayoutBounds(nc + 3.8f * kNext, cy - 5.5f * kNext, 2.2f * kNext, 11f * kNext), Theme.TEXT_PRIMARY, 1f)
         val q = queueA.on.tick(if (ScreenState.page == Page.QUEUE) 1f else 0f)
-        ui.icon("≡", queueB.x + 14f, cy, 14f * kQueue, mixColor(Theme.TEXT_PRIMARY, RED, q))
+        ui.icon("≡", queueB.x + queueB.width / 2f, cy, 14f * kQueue, mixColor(Theme.TEXT_PRIMARY, RED, q))
         ui.hits += prevB to { prevA.press.v -= 7f; MusicPlayer.prev() }
         ui.hits += playB to { playA.press.v -= 7f; MusicPlayer.togglePause() }
         ui.hits += nextB to { nextA.press.v -= 7f; MusicPlayer.next() }
@@ -273,7 +276,10 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
         add.drawPanel(bar)
     }
 
-    /** 播放模式按钮：顺序（→）/ 随机（⇄）/ 单曲循环（↻ 加一个小 1）；不是顺序时图标是红色 */
+    /**
+     * 播放模式按钮，图标用线条画：顺序 = 两条平行的右箭头，单曲循环 = 圆圈箭头里一个 1，随机 = 两条交叉的箭头。
+     * 不是顺序时图标是红色
+     */
     private fun drawModeButton(b: LayoutBounds, cy: Float) {
         val k = button(b, modeA)
         val shuffle = MusicPlayer.shuffle
@@ -281,13 +287,51 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
         val o = modeA.on.tick(if (shuffle || one) 1f else 0f).coerceIn(0f, 1f)
         val c = mixColor(Theme.TEXT_PRIMARY, RED, o)
         val mx = b.x + b.width / 2f
+        // 和上一首 / 下一首的竖条一样粗：着色器的抗锯齿往里淡出 1 像素，太细会整条发虚
+        val t = 2.2f * k
         when {
             one -> {
-                ui.icon("↻", mx, cy, 15f * k, c)
-                ui.text("1", mx - ui.width("1", 7f, Theme.FONT_SEMIBOLD) / 2f, cy - 7f * 0.39f - 0.5f, 7f, c, Theme.FONT_SEMIBOLD)
+                // 带缺口的圆弧：从右侧稍下方开始顺时针绕到顶部偏右，缺口留在右上方，箭头在终点顺着圆弧方向
+                val r = 7.5f * k
+                val from = 10.0
+                val to = 280.0
+                val steps = 9
+                for (i in 0 until steps) {
+                    val a1 = Math.toRadians(from + (to - from) * i / steps)
+                    val a2 = Math.toRadians(from + (to - from) * (i + 1) / steps)
+                    segment(mx + (Math.cos(a1) * r).toFloat(), cy + (Math.sin(a1) * r).toFloat(),
+                        mx + (Math.cos(a2) * r).toFloat(), cy + (Math.sin(a2) * r).toFloat(), t, c)
+                }
+                val end = Math.toRadians(to)
+                // 顺时针方向的切线：(-sin, cos)
+                val dir = Math.toDegrees(Math.atan2(Math.cos(end), -Math.sin(end))).toFloat()
+                arrowHead(mx + (Math.cos(end) * r).toFloat(), cy + (Math.sin(end) * r).toFloat(), dir, 3.8f * k, t, c)
+                val size = 9f * k
+                ui.text("1", mx - ui.width("1", size, Theme.FONT_SEMIBOLD) / 2f, cy - size * 0.39f - 0.3f, size, c, Theme.FONT_SEMIBOLD)
             }
-            shuffle -> ui.icon("⇄", mx, cy, 14f * k, c)
-            else -> ui.icon("→", mx, cy, 14f * k, c)
+            shuffle -> {
+                // 两条 S 形交叉的线：左右两端水平，中间斜着交叉，右端的箭头朝右
+                val left = mx - 8f * k
+                val bend1 = mx - 3.5f * k
+                val bend2 = mx + 3f * k
+                val right = mx + 7.5f * k
+                val dy = 4.5f * k
+                for (sign in floatArrayOf(-1f, 1f)) {
+                    val y1 = cy + sign * dy
+                    val y2 = cy - sign * dy
+                    segment(left, y1, bend1, y1, t, c)
+                    segment(bend1, y1, bend2, y2, t, c)
+                    segment(bend2, y2, right, y2, t, c)
+                    arrowHead(right, y2, 0f, 3.8f * k, t, c)
+                }
+            }
+            else -> {
+                // 两条平行的右箭头
+                for (dy in floatArrayOf(-3.5f * k, 3.5f * k)) {
+                    segment(mx - 8f * k, cy + dy, mx + 7.5f * k, cy + dy, t, c)
+                    arrowHead(mx + 7.5f * k, cy + dy, 0f, 3.8f * k, t, c)
+                }
+            }
         }
         val modeName = when {
             one -> "Repeat one"
@@ -298,6 +342,36 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
         ui.hits += b to {
             modeA.press.v -= 7f
             Library.showTemporaryStatus(I18n.text(module.cyclePlayMode()), 1_500L)
+        }
+    }
+
+    /**
+     * 画一条从 (x1, y1) 到 (x2, y2)、粗 [thick] 的线：两头各多出半个线宽做成胶囊，
+     * 再短的线段也画得出来（圆角不会超过宽度的一半），相邻线段在接缝处自然重叠成圆角
+     */
+    private fun segment(x1: Float, y1: Float, x2: Float, y2: Float, thick: Float, color: Color) {
+        // 水平 / 竖直的线对齐到屏幕像素：界面缩放不是整数时，几条平行线会落在像素格的不同位置，
+        // 有的实、有的被抗锯齿摊开，看着粗细不一样
+        if (abs(y1 - y2) < 0.01f || abs(x1 - x2) < 0.01f) {
+            ui.crispLine(x1, y1, x2, y2, thick, color)
+            return
+        }
+        val len = Math.hypot((x2 - x1).toDouble(), (y2 - y1).toDouble()).toFloat()
+        val ang = Math.toDegrees(Math.atan2((y2 - y1).toDouble(), (x2 - x1).toDouble())).toFloat()
+        val ctx = ui.ctx
+        ctx.pushTranslate((x1 + x2) / 2f, (y1 + y2) / 2f, 0f)
+        ctx.pushRotate(ang, 0f, 0f, 1f)
+        val full = len + thick
+        ui.card(LayoutBounds(-full / 2f, -thick / 2f, full, thick), color, thick / 2f)
+        ctx.popTransform()
+        ctx.popTransform()
+    }
+
+    /** 箭头尖在 (x, y)，朝 [degrees] 方向（0 = 向右），两边各一道 [size] 长的斜线 */
+    private fun arrowHead(x: Float, y: Float, degrees: Float, size: Float, thick: Float, color: Color) {
+        for (side in floatArrayOf(-1f, 1f)) {
+            val a = Math.toRadians((degrees + 180f + side * 42f).toDouble())
+            segment(x, y, x + (Math.cos(a) * size).toFloat(), y + (Math.sin(a) * size).toFloat(), thick, color)
         }
     }
 

@@ -37,9 +37,12 @@
 | **显示其它播放器（1.7.5）** | `common/core/.../music/SystemMedia.kt` + `assets/fmusicdango/system-media.ps1` | 仅 Windows 10+：用系统自带 PowerShell 常驻读 Windows 媒体控制（SMTC），把别的 App 的歌名歌手拿去当前音源搜一次，配上了就有封面和歌词；暂停/切歌/拖进度从 stdin 发回去。默认关，在设置「其它播放器」里打开 |
 | **加到歌单（o.o）** | `musicui/AddPanel.kt` + `Library.loadAddTargets/addToPlaylist` + `MusicSourceApi.canAddToPlaylist/editablePlaylists/addToPlaylist` | 播放栏红心旁边的「＋」弹出当前音源的自建歌单列表（最多 8 行 + 滚轮），点一个就把正在放的歌加进去；三家音源都支持（网易云 weapi、QQ 的 `PlaylistDetailWrite/AddSonglist`、酷狗 `cloudlist/v6/add_song`）。放别的播放器的歌时不显示 |
 | **红心抽象 + 酷狗红心（o.o）** | `MusicSourceApi.canLike/likedState/setLiked` + `Library.likedState` + `KugouCatalog.setLiked` | 红心从「只有网易云」变成按音源实现：网易云沿用原来的 `loadLiked/isLiked/setLiked`，**酷狗**用「我喜欢」歌单（`cloudlist/v4/get_list_all_file` 读、`delete_songs` 删、`add_song` 加，10 分钟缓存 + 刚点亮的内存态）；QQ 明确不做（写 dirId 201 会被拒 80105，上游同） |
-| **播放模式按钮（o.o）** | `NeteaseMusicModule.cyclePlayMode()` + `PlayerBar.drawModeButton` | 播放栏左侧一个三态按钮：顺序（→）→ 随机（⇄）→ 单曲循环（↻+1），非顺序时变红，点了在播放栏提示当前模式；原来右侧分开的随机 / 单曲循环两个按钮撤掉，右侧让给均衡器 / 变速变调 |
+| **播放模式按钮（o.o / 1.7.6）** | `NeteaseMusicModule.cyclePlayMode()` + `PlayerBar.drawModeButton` | 播放栏左侧一个三态按钮：顺序（→）→ 单曲循环（↻+1）→ 随机（⇄），非顺序时变红，点了在播放栏提示当前模式；原来右侧分开的随机 / 单曲循环两个按钮撤掉，右侧让给均衡器 / 变速变调。1.7.6 把循环顺序改成和网易云 App 一致（原来是 顺序→随机→单曲循环） |
 | **逐字歌词漂移修复（o.o）** | `lyrics/LyricsProvider.repairYrc` + `NeteaseLyrics` | 网易云有些歌的逐字歌词后半截整体往后跑偏（一个字能占十几秒，歌词卡在半句）。现在拿普通 LRC 对照，连续 3 句差 10 秒以上就从切换点起改用 LRC 的时间；制作人员名单行不参与判断 |
 | **「算出 NaN 就没声」防御（o.o）** | `EnvironmentAudio` / `RoomAcoustics` / `Equalizer` | 空间混响、环境音效、均衡器里只要混进一个 NaN/无穷，滤波器状态就永远是 NaN、写回声卡全是 0——表现是「播放着突然彻底没声」。现在参数和采样都做有限性检查，坏了就清状态/回退到「不加效果」，混响测量也丢弃非有限结果 |
+| **环境音效湿声修复（1.7.6）** | `EnvironmentAudio` / `RoomAcoustics` | 回声湿声不再用固定系数直接叠加，改成湿声单独跟峰值走（起音 1ms / 释放 250ms），峰值超过满幅约 30% 就压下来，原声再按 wet 让出一点余量；房间早期反射延迟改用「第一下碰壁距离的中位数」（原来用平均自由程，从门窗穿出去、碰到远处地形的几根射线会把平均拉得很大，石头房里延迟一直顶到 80ms）。修的是「低音重、响度大的歌在室内发闷、发颤，甚至中途没声」（上游 #65） |
+| **播放栏图标重画（1.7.6）** | `musicui/Ui.kt` 的 `snap` / `snapLength` / `crispLine` + `PlayerBar` / `EqPanel` / `TunePanel` / `AddPanel` | 细线粗细取整到屏幕像素、中心对齐像素：界面缩放不是整数（全屏）时平行细线不再有的实有的虚；播放模式按钮改成线条画的图标（顺序 = 两条右箭头、单曲循环 = 带缺口的圆箭头 + 1、随机 = 两条交叉箭头），上一首 / 下一首 / 队列图标改按按钮中心对中 |
+| **播放模式循环顺序（1.7.6）** | `NeteaseMusicModule.cyclePlayMode()` | 顺序 → 单曲循环 → 随机 → 顺序，和网易云 App 的循环顺序一致（原来是 顺序 → 随机 → 单曲循环） |
 
 ### 明确不移植
 
@@ -293,6 +296,26 @@ FMusic 原有 HUD（歌词 / KTV / 封面 / 进度条）与新移植的 Song car
   拿不到就只退化到"纯 LWJGL 2 那套"，不会因为缺类崩。详细根因和验证见
   [knowledge.md §40](knowledge.md#40-输入法-ime-在-dangomusic-输入框里打不了中文-2026-11)。
 
+### 3.12 上游 1.7.6：移植时的取舍
+
+上游 1.7.5 到 1.7.6（tag `v1.7.6`，HEAD `149933a`）之间一共三个提交：`o.o`（`7d1609d`，见 §3.10，
+已全部落地）、`1.7.6`（`d7d8908`）、`fix env audio wet level`（`149933a`）。
+`1.7.6` 的更新日志和三个提交逐项对过，处理如下：
+
+| 1.7.6 内容 | 处理 | 原因 |
+|---|---|---|
+| 音质选择：设置里选默认音质（标准 / 极高 / 无损）+ 播放栏给当前这首临时换 + 三家音源按档位取流并逐档回退；`AudioQuality.kt` / `PlaybackQuality`、`MusicPlayer.playingQuality`、`MusicPlayer.reloadWithQuality`、新版 `QualityPanel.kt`、`KugouLite` / `KugouPlayback` / `NeteasePlayback` / `QqPlayback` 的取流改动 | **不移植**（本项目先前的音质 PR 已有等价且更完整的实现） | 本项目在 1.7.6 之前就独立实现了音质切换（`AudioQuality` + `AudioCache` / `MusicCache` + 播放栏 `QualityPanel` + `MusicPlayer.currentQuality` / `switchQuality`）：比上游多了本地缓存（按音源 / 账号 / 歌 / 实际音质隔离，复用低档缓存不冒充所选档位）、实际音质显示与回退提示、加载中切换、设置页与播放栏共用一条路径。上游的 `PlaybackQuality` 全局对象和 `reloadWithQuality` 只是同一件事的另一种写法，搬过来只会重复。逐文件也核对过：上游 1.7.6 对 QQ（`F000/M800/M500` 列表）和酷狗的按档位取流我们都有，且我们的 `QqPlayback` / `KugouPlayback` / `KugouLite` 还多了结果解析、质量判定和取消支持。唯一写法差异是网易云无损档上游把 `encodeType` 显式写成 `flac`——本项目的 `ec1e539` 提交说明里记录了「用会员 cookie 端到端验证 lossless → flac」，说明现有 `encodeType=mp3` 写法在 `level=lossless` 下拿到的就是 FLAC，故不改 |
+| 播放栏图标重画（`Ui.snap` / `snapLength` / `crispLine`，`PlayerBar` / `EqPanel` / `TunePanel` / `AddPanel` 图标线条化、按屏幕像素对齐） | **移植** | 纯观感改进：全屏（界面缩放不是整数）时细线才一样粗、不虚。我们多出来的悬浮提示层、音质徽章与本改动无关，原样保留 |
+| 播放模式循环顺序改成 顺序 → 单曲循环 → 随机（和网易云 App 一致） | **移植** | 一行改动，播放栏按钮与网易云的循环顺序对齐 |
+| 环境音效湿声修复（`EnvironmentAudio` 湿声峰值包络压缩 + 原声让位、`RoomAcoustics` 早期反射延迟改用第一次碰壁距离的中位数） | **移植** | 真实 bug：低音重、响度大的歌在石头房里发闷发颤、甚至中途没声（上游 #65） |
+| 「打开自己的歌单自动刷新」「QQ 音乐总放 128k」「网易云歌词卡半句」 | 无需额外移植 | 前两条分别属于 `o.o`（§3.10）和本项目的音质实现；歌词漂移已在 `o.o` 里修掉 |
+
+移植后的核对方式：把上游 `v1.7.6` 源码做包名归一化（`me.sorihiko.dango` → `com.Lilith.FMusic.dango`）
+再逐文件 diff——`EnvironmentAudio.kt` 与上游**逐字节一致**；`RoomAcoustics.kt` 只多我们本地「站着不动不重测」
+的优化；`Ui.kt` / `EqPanel.kt` / `TunePanel.kt` / `AddPanel.kt` 的对应片段与上游一致，`PlayerBar.kt`
+只差我们自己的悬浮提示层和音质徽章排版（上游没有这两块）。`d7d8908` 里的 `NeteaseMusicModule` 音质设置项、
+`SettingsPage` 音质选项、`zh_cn.tsv` 音质文案同样因为「已有实现」不重复添加。
+
 ## 四、Angelica / 光影兼容
 
 GTNH 环境下 `runClient` 会加载 [Angelica](https://github.com/GTNewHorizons/Angelica)（1.7.10 的渲染层：
@@ -334,14 +357,21 @@ GL 3.3 core profile + Java 端固定管线模拟 + Iris 光影 + 自带字体系
 10. **加到歌单**（o.o）：播放栏红心旁边的「＋」能弹出当前音源的自建歌单（**要登录**）、滚轮能翻、
     点一个之后提示「已添加到 xxx」；再点同一个歌单应提示「已经在 xxx 里了」（网易云是 `502` 那条路）；
     加完打开那个歌单能看到新加的歌。三家音源各试一次；歌单超过 8 个时右边有细滚动条。
-11. **播放模式按钮**（o.o）：中间左侧那个三态按钮点一下切「顺序 → 随机 → 单曲循环」，
+11. **播放模式按钮**（o.o / 1.7.6）：中间左侧那个三态按钮点一下切「顺序 → 单曲循环 → 随机」
+    （1.7.6 起和网易云 App 一致，原来是 顺序 → 随机 → 单曲循环），
     每次都应在播放栏弹出模式名、图标颜色跟着变；放完一首确认行为对得上（随机真的乱序、单曲循环真的重放）；
-    窗口拖窄时右边的音量条应该先缩短、再整条消失，按钮不重叠。
+    窗口拖窄时右边的音量条应该先缩短、再整条消失，按钮不重叠。图标现在是线条画的，
+    顺便确认三种模式图标（两条箭头 / 圆箭头 + 1 / 交叉箭头）在游戏里画得都对。
 12. **酷狗红心**（o.o）：酷狗放歌时红心能不能点亮/取消，切歌回来状态是否记住；
     「我喜欢」歌单里能看到刚点亮的那首。
 13. **本来就难触发、但值得留意**：o.o 修的「算出 NaN 就没声」——如果以后再遇到「播放中突然完全没声、
     进度还在走」，先看日志里有没有 `Environment audio: non-finite sample, reverb state cleared`；
     有就说明防御生效了（声音应该自己恢复），没有则是别的原因。
+14. **环境音效湿声修复**（1.7.6，上游 #65）：开着环境音效在石头/砖头这类硬墙小房间里放低音重、
+    响度大的歌（电子 / 摇滚 / 鼓多的），确认不再发闷、发颤、中途没声；换到门窗多的房间，
+    早期回声延迟应该跟着变短（不会所有房间都顶在 80ms 上限）。
+15. **播放栏图标像素对齐**（1.7.6）：GUI 缩放不是整数比例 / 全屏时，播放模式、均衡器、变速变调、
+    加歌单几个按钮的细线应该一样粗、不发虚，上一首 / 下一首 / 队列图标视觉居中（不再偏向一边）。
 
 ### 4.1 GL 调用审计（务必保持，否则会 JVM 级崩溃）
 

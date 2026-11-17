@@ -235,12 +235,12 @@ class NeteaseMusicModule : Module() {
         MusicPlayer.repeatOne = repeatOne.get()
     }
 
-    /** 播放栏左边的播放模式按钮：顺序 → 随机 → 单曲循环 → 顺序。返回切到的模式名（界面提示用） */
+    /** 播放栏左边的播放模式按钮：顺序 → 单曲循环 → 随机 → 顺序（和网易云一样）。返回切到的模式名（界面提示用） */
     fun cyclePlayMode(): String {
         val next = when {
-            repeatOne.get() -> "Play in order"
-            shuffle.get() -> "Repeat one"
-            else -> "Shuffle"
+            shuffle.get() -> "Play in order"
+            repeatOne.get() -> "Shuffle"
+            else -> "Repeat one"
         }
         shuffle.set(next == "Shuffle")
         repeatOne.set(next == "Repeat one")
