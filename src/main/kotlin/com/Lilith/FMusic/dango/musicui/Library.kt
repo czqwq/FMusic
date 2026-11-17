@@ -15,7 +15,7 @@ import com.Lilith.FMusic.dango.music.SourceArtist
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
-internal enum class Page { HOME, CHARTS, PLAYLIST, SEARCH, QUEUE, SETTINGS, ARTIST }
+internal enum class Page { HOME, CHARTS, PLAYLIST, SEARCH, QUEUE, SETTINGS, ARTIST, COMMENTS }
 
 /** 点进歌手页、从歌手页点进专辑之前的界面，返回时一层层退回去 */
 internal class PageSnapshot(

@@ -21,6 +21,29 @@ class NeteasePlaylist(
     val owned: Boolean,
 )
 
+/** 一条网易云歌曲评论（只带界面上要显示的字段） */
+data class SongComment(
+    val id: Long,
+    val userId: Long,
+    val nickname: String,
+    val avatarUrl: String,
+    val content: String,
+    val time: Long,
+    val likedCount: Long,
+    val liked: Boolean,
+    /** 回复某人时，被回复人的昵称和原评论内容；顶层评论为空字符串 */
+    val replyToNickname: String = "",
+    val replyToContent: String = "",
+)
+
+/** 一页评论：[nextOffset] 小于 0 表示没有更多了 */
+class CommentPage(
+    val comments: List<SongComment>,
+    val total: Long,
+    val more: Boolean,
+    val nextOffset: Int,
+)
+
 /**
  * 网易云音乐接口（内置播放器用）。
  *
@@ -498,10 +521,11 @@ object NeteaseApi {
 
     /**
      * 播放地址。登录后能拿到账号有权限的完整音频；拿不到时退回网易云外链（只对免费歌曲有效）。
+     * [quality] 是网易云自己的六档音质，拿不到时逐档往下退。
      */
     fun songUrl(id: Long): SongUrl? = songUrl(NeteaseTrack(id, "", emptyList(), 0, ""))
 
-    fun songUrl(track: NeteaseTrack, quality: AudioQuality = AudioQuality.STANDARD, active: () -> Boolean = { true }): SongUrl? {
+    fun songUrl(track: NeteaseTrack, quality: NeteaseQuality = NeteaseQuality.LOSSLESS, active: () -> Boolean = { true }): SongUrl? {
         if (!active()) throw java.util.concurrent.CancellationException()
         if (track.cloud) {
             // 同一云盘条目可能同时给上传标识和曲库标识；不能按歌名猜测另一个版本。
@@ -539,7 +563,7 @@ object NeteaseApi {
         return SongUrl("https://music.163.com/song/media/outer/url?id=${track.id}.mp3", false)
     }
 
-    private fun playerUrl(id: Long, aliases: List<Long> = emptyList(), quality: AudioQuality = AudioQuality.STANDARD, active: () -> Boolean = { true }): SongUrl? = NeteasePlayback({ stage, body ->
+    private fun playerUrl(id: Long, aliases: List<Long> = emptyList(), quality: NeteaseQuality = NeteaseQuality.LOSSLESS, active: () -> Boolean = { true }): SongUrl? = NeteasePlayback({ stage, body ->
         if (stage == "v1") NeteasePlayerRequest.post(body, cookieHeader())
         else getJson("https://music.163.com/api/song/enhance/player/url?ids=" + enc("[$id]") + "&br=" + body.number("br"))
     }, loggedIn).resolve(id, aliases, quality, active)
@@ -705,5 +729,131 @@ object NeteaseApi {
             out.write(buf, 0, n)
         }
         return out.toByteArray()
+    }
+
+    // ---------------------------------------------------------------- 歌曲评论
+
+    /** 每页评论条数 */
+    const val COMMENT_PAGE_SIZE = 20
+    /** 网易云评论长度上限（字） */
+    const val COMMENT_MAX_LENGTH = 140
+
+    private fun commentThread(trackId: Long) = "R_SO_4_$trackId"
+
+    /**
+     * 读一页歌曲评论（不用登录）。[offset] 从 0 开始；返回值里的 [CommentPage.nextOffset]
+     * 小于 0 表示没有下一页了。
+     */
+    fun songComments(trackId: Long, offset: Int): CommentPage {
+        if (trackId <= 0) throw SourceAccessException("Invalid song ID")
+        val safeOffset = offset.coerceAtLeast(0)
+        val o = getJson("https://music.163.com/api/v1/resource/comments/R_SO_4_$trackId?limit=$COMMENT_PAGE_SIZE&offset=$safeOffset")
+            ?: throw SourceAccessException("Could not load comments")
+        if (o.number("code") != 200L) throw SourceAccessException("Could not load comments")
+        val comments = (o.get("comments") as? com.google.gson.JsonArray)?.mapNotNull { element ->
+            if (element.isJsonObject) parseComment(element.asJsonObject) else null
+        }.orEmpty()
+        val total = o.number("total").coerceAtLeast(0L)
+        val more = o.get("more")?.takeIf { it.isJsonPrimitive }?.asBoolean == true
+        return CommentPage(comments, total, more, if (more) safeOffset + comments.size else -1)
+    }
+
+    private fun parseComment(raw: JsonObject): SongComment? {
+        val id = raw.number("commentId").takeIf { it > 0 } ?: return null
+        val user = raw.get("user") as? JsonObject
+        val replied = (raw.get("beReplied") as? com.google.gson.JsonArray)?.firstOrNull { it.isJsonObject }?.asJsonObject
+        val repliedUser = replied?.get("user") as? JsonObject
+        val userId = user?.get("userId")?.takeIf { it.isJsonPrimitive }?.let { runCatching { it.asLong }.getOrNull() } ?: 0L
+        return SongComment(
+            id = id,
+            userId = userId,
+            nickname = user?.text("nickname").orEmpty(),
+            avatarUrl = user?.text("avatarUrl").orEmpty(),
+            content = raw.text("content"),
+            time = raw.number("time"),
+            likedCount = raw.number("likedCount"),
+            liked = raw.get("liked")?.takeIf { it.isJsonPrimitive }?.asBoolean == true,
+            replyToNickname = repliedUser?.text("nickname").orEmpty(),
+            replyToContent = replied?.text("content").orEmpty(),
+        )
+    }
+
+    /** 发表评论（[parent] > 0 时是回复某条评论） */
+    private fun writeComment(path: String, trackId: Long, content: String, parent: Long): Boolean {
+        if (trackId <= 0) throw SourceAccessException("Invalid song ID")
+        val text = content.trim()
+        if (text.isEmpty()) throw SourceAccessException("The comment is empty.")
+        if (text.length > COMMENT_MAX_LENGTH) throw SourceAccessException("Comment too long (max 140 characters).")
+        val body = JsonObject().apply {
+            addProperty("threadId", commentThread(trackId))
+            addProperty("content", text)
+            if (parent > 0) addProperty("commentId", parent)
+        }
+        weapiComment(path, body)
+        return true
+    }
+
+    /** 给歌曲发一条顶层评论 */
+    fun addComment(trackId: Long, content: String): Boolean =
+        writeComment("/weapi/v1/resource/comments/add", trackId, content, 0L)
+
+    /** 回复某条评论 */
+    fun replyComment(trackId: Long, commentId: Long, content: String): Boolean {
+        if (commentId <= 0) throw SourceAccessException("Invalid comment ID")
+        return writeComment("/weapi/resource/comments/reply", trackId, content, commentId)
+    }
+
+    /** 删除自己发的评论 */
+    fun deleteComment(trackId: Long, commentId: Long): Boolean {
+        if (commentId <= 0) throw SourceAccessException("Invalid comment ID")
+        weapiComment("/weapi/resource/comments/delete", JsonObject().apply {
+            addProperty("threadId", commentThread(trackId))
+            addProperty("commentId", commentId)
+        })
+        return true
+    }
+
+    /** 给评论点赞 / 取消点赞（点赞和取消是不同的接口路径，没有 type 参数） */
+    fun likeComment(trackId: Long, commentId: Long, like: Boolean): Boolean {
+        if (commentId <= 0) throw SourceAccessException("Invalid comment ID")
+        weapiComment(if (like) "/weapi/v1/comment/like" else "/weapi/v1/comment/unlike", JsonObject().apply {
+            addProperty("threadId", commentThread(trackId))
+            addProperty("commentId", commentId)
+        })
+        return true
+    }
+
+    /**
+     * 评论写操作统一走 weapi（和网页版一致，需要登录 Cookie + csrf）。
+     * 只有 code 200 算成功，其余按常见错误翻译成用户能看懂的提示。
+     * 网易云偶尔会先回一个空包（风控/限频），空包重试一次再报错。
+     */
+    private fun weapiComment(path: String, body: JsonObject): JsonObject {
+        if (!loggedIn) throw SourceAccessException("Log in to NetEase first.")
+        body.addProperty("csrf_token", csrf())
+        var response: Pair<String, List<String>>? = null
+        for (attempt in 0 until 2) {
+            response = NeteaseLogin.weapi("https://music.163.com$path", body.toString(), cookieHeader())
+            if (response != null && response.first.isNotBlank()) break
+            if (attempt == 0) {
+                DangoLogger.warn("NetEase comment request returned an empty response, retrying")
+                Thread.sleep(250)
+            }
+        }
+        val payload = response?.first?.takeIf { it.isNotBlank() }
+            ?: throw SourceAccessException("Could not reach NetEase. Please retry.")
+        val root = try { JsonParser().parse(payload) } catch (_: Exception) { null }
+        val o = if (root != null && root.isJsonObject) root.asJsonObject
+            else throw SourceAccessException("NetEase returned an unexpected response. Please retry.")
+        return when (val code = o.number("code")) {
+            200L -> o
+            301L, 302L -> throw SourceAccessException("NetEase login has expired. Please log in again.")
+            400L -> throw SourceAccessException("The comment was rejected. Check its length and content.")
+            502L -> throw SourceAccessException("The comment contains blocked words.")
+            else -> {
+                DangoLogger.warn("NetEase comment failed: code={} message={}", code, o.text("message").ifEmpty { o.text("msg") })
+                throw SourceAccessException("Could not send the comment. Please retry.")
+            }
+        }
     }
 }

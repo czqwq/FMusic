@@ -54,7 +54,8 @@ object MusicSources {
     private val netease = object : MusicSourceApi {
         override val source = MusicSource.NETEASE
         override fun search(query: String) = NeteaseApi.search(query)
-        override fun songUrl(track: NeteaseTrack, quality: AudioQuality, active: () -> Boolean) = NeteaseApi.songUrl(track, quality, active)
+        override fun songUrl(track: NeteaseTrack, quality: AudioQuality, active: () -> Boolean) =
+            NeteaseApi.songUrl(track, quality.asNeteaseQuality(), active)
         override fun lyrics(track: NeteaseTrack) = NeteaseApi.lyrics(track)
         override fun playlists(): List<NeteasePlaylist> {
             NeteaseApi.ensureCookieFile()

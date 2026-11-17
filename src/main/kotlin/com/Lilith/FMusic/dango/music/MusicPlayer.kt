@@ -45,13 +45,33 @@ object MusicPlayer {
         }
 
     @Volatile var quality = AudioQuality.STANDARD
+    /** 网易云自己的六档音质（其它音源仍用 [quality] 三档） */
+    @Volatile var neteaseQuality = NeteaseQuality.LOSSLESS
     @Volatile var currentQuality: AudioQuality? = null
         private set
     @Volatile var fromCache = false
         private set
 
+    /** 声卡提前排队的音频毫秒数；调大更抗卡顿，切歌 / 暂停的反应会慢一点 */
+    @Volatile var audioBufferMs = 1000
+    /** 下一首预取：开始放歌 5 秒后在后台把下一首下好，切歌时直接用（只在内存里） */
+    @Volatile var prefetchEnabled = true
+
     private val loader = Executors.newSingleThreadExecutor { r -> Thread(r, "Dango-MusicLoader").apply { isDaemon = true } }
     private val radioWorker = Executors.newSingleThreadExecutor { r -> Thread(r, "Dango-MusicRadio").apply { isDaemon = true } }
+    /** 预取线程：低优先级，失败或被取消都不影响正在放的歌 */
+    private val prefetcher = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "Dango-MusicPrefetch").apply {
+            isDaemon = true
+            priority = Thread.MIN_PRIORITY
+        }
+    }
+
+    /** 预取好的下一首（只留一首，避免占太多内存） */
+    private class Prepared(val trackKey: String, val qualityTag: String, val audio: Fetched, val at: Long)
+    @Volatile private var prepared: Prepared? = null
+    /** 正在预取的下一首（用于取消；null = 没有在预取） */
+    @Volatile private var prefetchKey: String? = null
 
     /** 电台式的队列（私人 FM）：快放完时用它再要几首接在后面；普通歌单是 null */
     @Volatile var radio: (() -> List<NeteaseTrack>)? = null
@@ -190,7 +210,9 @@ object MusicPlayer {
         message = "加载中…"
         currentQuality = null
         fromCache = false
-        val requestedQuality = quality
+        cancelPrefetchUnless(track)
+        saveResume()
+        val requestedQuality = qualityFor(track)
         loader.execute { load(gen, track, requestedQuality) }
         if (radio != null && idx >= q.size - 2) extendRadio(null)
     }
@@ -248,7 +270,9 @@ object MusicPlayer {
         message = "加载中…"
         currentQuality = null
         fromCache = false
-        val requestedQuality = quality
+        cancelPrefetchUnless(track)
+        saveResume()
+        val requestedQuality = qualityFor(track)
         loader.execute { load(gen, track, requestedQuality, startAt, paused) }
     }
 
@@ -260,7 +284,19 @@ object MusicPlayer {
     @Synchronized fun switchQuality(value: AudioQuality) {
         val changed = quality != value
         quality = value
-        if (!changed || external) return
+        if (changed) reloadCurrent()
+    }
+
+    /** 网易云音质换档（六档），行为和 [switchQuality] 一样 */
+    @Synchronized fun switchNeteaseQuality(value: NeteaseQuality) {
+        val changed = neteaseQuality != value
+        neteaseQuality = value
+        if (changed) reloadCurrent()
+    }
+
+    /** 音质设置变了：按新档位重新加载当前这首，保持播放位置和暂停状态 */
+    @Synchronized private fun reloadCurrent() {
+        if (external) return
         val track = current ?: return
         if (state != State.PLAYING && state != State.PAUSED && state != State.LOADING) return
         val paused = state == State.PAUSED
@@ -273,7 +309,11 @@ object MusicPlayer {
         message = "加载中…"
         currentQuality = null
         fromCache = false
-        loader.execute { load(gen, track, value, { at }, paused) }
+        prepared = null
+        prefetchKey = null
+        saveResume()
+        val requested = qualityFor(track)
+        loader.execute { load(gen, track, requested, { at }, paused) }
     }
 
     /** 把一首歌插在当前这首后面，放完接着原来的队列 */
@@ -341,12 +381,23 @@ object MusicPlayer {
                     // 声卡输出只是停住了，接着放就行；解码线程看到状态变回 PLAYING 会继续写数据
                     state = State.PLAYING
                     l.start()
-                } else {
+                } else if (audio != null) {
                     seekLocal(pausedAtMs)
+                } else {
+                    // 续播恢复出来的暂停状态：音频还没下载，按保存的位置重新加载后再出声
+                    val track = current ?: return
+                    val at = pausedAtMs
+                    val gen = ++generation
+                    state = State.LOADING
+                    message = "加载中…"
+                    currentQuality = null
+                    fromCache = false
+                    loader.execute { load(gen, track, qualityFor(track), { at }, false) }
                 }
             }
             else -> {}
         }
+        saveResume()
     }
 
     fun seek(ms: Long) {
@@ -363,9 +414,15 @@ object MusicPlayer {
         val gen = ++generation
         stopLine()
         startDecode(gen, bytes, target)
+        saveResume()
     }
 
-    @Synchronized fun stop() {
+    /** 用户主动停止：清掉续播记录，下次进游戏不恢复 */
+    @Synchronized fun stop() = stop(clearResume = true)
+
+    /** [clearResume] = false：不是用户主动停止（关闭模块等），保留续播记录 */
+    @Synchronized fun stop(clearResume: Boolean) {
+        if (!clearResume) saveResumeNow() else ResumeStore.clear()
         ++generation
         stopLine()
         audio = null
@@ -374,6 +431,35 @@ object MusicPlayer {
         fromCache = false
         state = State.STOPPED
         message = ""
+        prepared = null
+        prefetchKey = null
+    }
+
+    /**
+     * 进游戏时恢复上次的队列、曲目和进度：保持暂停在原处，按播放才真正开始下载和出声。
+     * 队列 / 进度来自 [ResumeStore]，返回 false 表示当前播放器已经有东西在放、不覆盖。
+     */
+    @Synchronized fun restoreSession(session: ResumeStore.Session): Boolean {
+        if (state != State.STOPPED && state != State.ERROR) return false
+        val tracks = session.tracks
+        val restoredIndex = session.index
+        if (tracks.isEmpty() || restoredIndex !in tracks.indices) return false
+        ++generation
+        stopLine()
+        audio = null
+        prepared = null
+        prefetchKey = null
+        queue = tracks
+        radio = null
+        index = restoredIndex
+        current = tracks[restoredIndex]
+        currentQuality = null
+        fromCache = false
+        pausedAtMs = session.positionMs.coerceIn(0L, max(0L, tracks[restoredIndex].durationMs - 1000))
+        state = State.PAUSED
+        message = ""
+        ResumeStore.adopt(tracks)
+        return true
     }
 
     // ---------------------------------------------------------------- 加载 / 解码
@@ -382,40 +468,17 @@ object MusicPlayer {
         try {
             if (gen != generation) return
             val active = { gen == generation }
-            val cache = if (requestedQuality.cacheEnabled) MusicCache.access() else null
-            val identity = if (cache != null) cacheIdentity(track) else ""
-            val cached = if (requestedQuality.cacheEnabled) cache?.read(identity, requestedQuality, active) else null
-            if (!active()) return
-            val kugou = if (cached == null && track.source == MusicSource.KUGOU) KugouMusicSource.loadAudio(track, requestedQuality, active) else null
-            val url = cached?.info ?: if (track.source == MusicSource.KUGOU) kugou?.info else MusicSources.api(track.source).songUrl(track, requestedQuality, active)
+            val fetched = takePrepared(track) ?: fetch(track, requestedQuality, active)
             if (gen != generation) return
-            if (url == null) return fail(gen, if (track.source == MusicSource.NETEASE) "拿不到播放地址"
-                else if (NativeAccounts.get(track.source) != null) "No playable MP3. Your login may have expired, or this song is restricted by membership or region."
-                else "No guest MP3 available. Login, payment or regional restrictions may apply.")
-            val bytes = cached?.bytes ?: kugou?.bytes ?: if (track.source == MusicSource.NETEASE)
-                NeteaseApi.request(url.url, maxBytes = AudioCache.MAX_AUDIO_BYTES, active = active)
-                else SourceHttp.bytes(url.url, if (track.source == MusicSource.QQ) "https://y.qq.com/" else "https://m.kugou.com/", AudioCache.MAX_AUDIO_BYTES, active)
-            if (gen != generation) return
-            if (bytes == null || bytes.isEmpty() || (!track.cloud && bytes.size < 10_000)) {
-                return fail(gen, if (track.source != MusicSource.NETEASE) "Unable to download this guest MP3. Try another song."
-                    else if (NeteaseApi.loggedIn) "这首歌没有播放权限" else "需要登录才能播放（VIP 歌曲）")
-            }
-            val actualQuality = when {
-                Mp3Probe.kind(bytes) == "flac" -> AudioQuality.LOSSLESS
-                url.quality == AudioQuality.LOSSLESS -> AudioQuality.STANDARD
-                else -> url.quality
-            }
-            val info = NeteaseApi.SongUrl(url.url, url.trialOnly, url.gainDb, url.peak, url.replaced, actualQuality)
-            if (cached == null && requestedQuality.cacheEnabled) cache?.write(identity, info, bytes, active)
-            if (!active()) return
-            // Cloud list duration units are not reliable. Use compressed audio timing before enabling seeking.
-            val measuredDuration = if (track.cloud) AudioAnalysis.duration(bytes) { gen == generation } else 0L
-            val measuredGain = if (normalize) AudioAnalysis.gain(bytes) { gen == generation } else null
+            if (fetched == null) return fail(gen, loadFailureMessage(track))
+            val url = fetched.info
+            val bytes = fetched.bytes
+            val actualQuality = fetched.actualQuality
             synchronized(this) {
                 if (gen != generation) return
                 currentQuality = actualQuality
-                fromCache = cached != null
-                if (measuredDuration > 0) track.durationMs = measuredDuration
+                fromCache = fetched.fromCache
+                if (fetched.measuredDuration > 0) track.durationMs = fetched.measuredDuration
                 audio = bytes
                 message = when {
                     url.trialOnly -> "Preview only: membership is needed for the full song"
@@ -423,9 +486,9 @@ object MusicPlayer {
                     actualQuality.ordinal < requestedQuality.ordinal -> "Requested quality unavailable; playing a lower quality"
                     else -> ""
                 }
-                trackGain = if (normalize) measuredGain ?: loudnessGain(url) else 1f
-                DangoLogger.info("Audio analysis: source={} cloud={} durationMs={} localGain={} appliedGain={}",
-                    track.source.key, track.cloud, measuredDuration, measuredGain != null, trackGain)
+                trackGain = if (normalize) fetched.measuredGain ?: loudnessGain(url) else 1f
+                DangoLogger.info("Audio analysis: source={} cloud={} durationMs={} localGain={} appliedGain={} prefetched={}",
+                    track.source.key, track.cloud, fetched.measuredDuration, fetched.measuredGain != null, trackGain, fetched.prefetched)
                 val start = (startAt?.invoke() ?: 0L).coerceIn(0L, max(0L, track.durationMs - 1000))
                 if (paused) {
                     pausedAtMs = start
@@ -446,10 +509,73 @@ object MusicPlayer {
         }
     }
 
+    /** 下载 / 缓存命中之后的成品：解码线程不关心它是刚下的还是预取好的 */
+    private data class Fetched(
+        val info: NeteaseApi.SongUrl,
+        val bytes: ByteArray,
+        val actualQuality: AudioQuality,
+        val measuredDuration: Long,
+        val measuredGain: Float?,
+        val fromCache: Boolean,
+        val prefetched: Boolean,
+    )
+
+    /**
+     * 解析播放地址 → 读磁盘缓存 / 下载 → 判定实际音质 → 写缓存 → 量时长和响度。
+     * 正常播放和下一首预取共用这一条链路，所以预取好的音频和现下的完全一样。
+     */
+    private fun fetch(track: NeteaseTrack, requestedQuality: AudioQuality, active: () -> Boolean): Fetched? {
+        val cache = if (requestedQuality.cacheEnabled) MusicCache.access() else null
+        val identity = cacheIdentity(track)
+        val cached = if (cache != null) cache.read(identity, requestedQuality, active) else null
+        if (!active()) return null
+        val kugou = if (cached == null && track.source == MusicSource.KUGOU) KugouMusicSource.loadAudio(track, requestedQuality, active) else null
+        val url = cached?.info ?: when (track.source) {
+            MusicSource.KUGOU -> kugou?.info
+            MusicSource.NETEASE -> NeteaseApi.songUrl(track, neteaseQuality, active)
+            else -> MusicSources.api(track.source).songUrl(track, requestedQuality, active)
+        }
+        if (!active()) return null
+        if (url == null) throw SourceAccessException(loadFailureMessage(track))
+        val bytes = cached?.bytes ?: kugou?.bytes ?: when (track.source) {
+            MusicSource.NETEASE -> NeteaseApi.request(url.url, maxBytes = AudioCache.MAX_AUDIO_BYTES, active = active)
+            MusicSource.QQ -> SourceHttp.bytes(url.url, "https://y.qq.com/", AudioCache.MAX_AUDIO_BYTES, active)
+            else -> SourceHttp.bytes(url.url, "https://m.kugou.com/", AudioCache.MAX_AUDIO_BYTES, active)
+        }
+        if (!active()) return null
+        if (bytes == null || bytes.isEmpty() || (!track.cloud && bytes.size < 10_000)) {
+            throw SourceAccessException(emptyAudioMessage(track))
+        }
+        val actualQuality = when {
+            Mp3Probe.kind(bytes) == "flac" -> AudioQuality.LOSSLESS
+            url.quality == AudioQuality.LOSSLESS -> AudioQuality.STANDARD
+            else -> url.quality
+        }
+        val info = NeteaseApi.SongUrl(url.url, url.trialOnly, url.gainDb, url.peak, url.replaced, actualQuality)
+        if (cached == null && cache != null) cache.write(identity, info, bytes, active)
+        if (!active()) return null
+        // 云盘列表给的时长单位不可靠，用压缩音频自己算一遍才能拖进度
+        val measuredDuration = if (track.cloud) AudioAnalysis.duration(bytes) { active() } else 0L
+        val measuredGain = if (normalize) AudioAnalysis.gain(bytes) { active() } else null
+        if (!active()) return null
+        return Fetched(info, bytes, actualQuality, measuredDuration, measuredGain, fromCache = cached != null, prefetched = false)
+    }
+
+    private fun loadFailureMessage(track: NeteaseTrack): String =
+        if (track.source == MusicSource.NETEASE) "拿不到播放地址"
+        else if (NativeAccounts.get(track.source) != null) "No playable MP3. Your login may have expired, or this song is restricted by membership or region."
+        else "No guest MP3 available. Login, payment or regional restrictions may apply."
+
+    private fun emptyAudioMessage(track: NeteaseTrack): String =
+        if (track.source != MusicSource.NETEASE) "Unable to download this guest MP3. Try another song."
+        else if (NeteaseApi.loggedIn) "这首歌没有播放权限" else "需要登录才能播放（VIP 歌曲）"
+
     private fun cacheIdentity(track: NeteaseTrack): String {
         val account = if (track.source == MusicSource.NETEASE) NeteaseApi.audioCacheScope()
             else NativeAccounts.get(track.source)?.let { "${it.userId}:${it.concept}" } ?: "guest"
-        return "${track.key}:${track.mediaId}:${track.cloud}:${track.cloudId}:$account"
+        // 网易云六档音质共用一个入口，缓存也要按档位分开（否则 Hi-Res 会静默复用普通的无损缓存）
+        val tier = if (track.source == MusicSource.NETEASE) ":netease:${neteaseQuality.key}" else ""
+        return "${track.key}:${track.mediaId}:${track.cloud}:${track.cloudId}:$account$tier"
     }
 
     /** 失败跳过独立计时，不占用加载线程；旧请求不能切掉用户新选的歌。 */
@@ -530,8 +656,8 @@ object MusicPlayer {
             try { out?.close() } catch (_: Exception) {}
             return null
         }
-        // 重开时用和 decodeLoop 一样的约 1 秒缓冲（上游这里是 0.25 秒，本模组为了抗 underrun 调大了，见 §6）
-        if (out == null) out = openOutput(format, rate * channels * 2)
+        // 重开时用和 decodeLoop 一样的缓冲（缓冲长度是设置项，默认 1 秒，见「音频缓冲」）
+        if (out == null) out = openOutput(format, bufferBytes(format))
         line = out
         // 新输出从 0 开始：位置采样的基准也要跟着归零（见 positionMs 的说明）
         positionMicrosAt = 0L
@@ -631,6 +757,7 @@ object MusicPlayer {
             var lastBeatMs = -1000f
 
             var appliedVolume = -1f
+            var prefetchScheduled = false
             var pending = first
             while (gen == generation) {
                 val frame = pending ?: decoder.read()
@@ -641,10 +768,10 @@ object MusicPlayer {
                 }
                 if (out == null) {
                     val format = AudioFormat(frame.rate.toFloat(), 16, frame.channels, true, false)
-                    // 约 1 秒缓冲。原来是 0.25 秒，太紧：解码线程一旦被 GC 或游戏线程挤一下
+                    // 缓冲长度来自设置「音频缓冲」。默认 1 秒：解码线程一旦被 GC 或游戏线程挤一下
                     // （单机下客户端和内置服务器共用一个 JVM），声卡就会 underrun，
                     // 听感就是"播放卡一下 / 爆音"。音乐不需要低延迟，缓冲给足更稳。
-                    out = openOutput(format, frame.rate * frame.channels * 2)
+                    out = openOutput(format, bufferBytes(format))
                     line = out
                     positionMicrosAt = 0L
                     positionSampledAt = System.nanoTime()
@@ -751,6 +878,11 @@ object MusicPlayer {
                 // 只有解码线程碰声卡，渲染线程永远不会被阻塞的 write() 挡住。
                 positionMicrosAt = out.positionMicros
                 positionSampledAt = System.nanoTime()
+                // 已经放出去 5 秒：在后台准备下一首，切歌时直接用（只在内存里，失败就当没预取）
+                if (!prefetchScheduled && decodedMs - skipped >= 5_000f) {
+                    prefetchScheduled = true
+                    schedulePrefetch()
+                }
             }
             if (finished && out == null && gen == generation) {
                 finished = false
@@ -799,7 +931,95 @@ object MusicPlayer {
         }
     }
 
+    // ---------------------------------------------------------------- 音质 / 缓冲 / 预取 / 续播
+
+    /** 当前这首歌实际要请求的音质档位（网易云用六档，其它音源用三档） */
+    private fun qualityFor(track: NeteaseTrack): AudioQuality =
+        if (track.source == MusicSource.NETEASE) neteaseQuality.audioQuality else quality
+
+    /** 预取缓存的键：同一首歌 + 同一档音质才算命中 */
+    private fun qualityTag(track: NeteaseTrack): String =
+        if (track.source == MusicSource.NETEASE) "netease:${neteaseQuality.key}" else "audio:${quality.key}"
+
+    /** 下一首要放的歌；电台 / 随机 / 单曲循环时不预取（下一首不确定或不需要重新下载） */
+    private fun schedulePrefetch() {
+        if (!prefetchEnabled || radio != null || shuffle || repeatOne) return
+        val q = queue
+        val nextIndex = index + 1
+        if (nextIndex !in q.indices) return
+        val track = q[nextIndex]
+        val tag = qualityTag(track)
+        val key = "${track.key}|$tag"
+        if (prefetchKey == key) return
+        // 已经有一首预取好的也没必要再预取
+        prepared?.let { if (it.trackKey == track.key && it.qualityTag == tag) return else prepared = null }
+        prefetchKey = key
+        val requested = qualityFor(track)
+        prefetcher.execute {
+            val alive = { prefetchKey == key }
+            try {
+                val fetched = fetch(track, requested, alive) ?: return@execute
+                if (!alive()) return@execute
+                prepared = Prepared(track.key, tag, fetched.copy(prefetched = true), System.currentTimeMillis())
+                DangoLogger.info("Prefetched next track ({} KB)", fetched.bytes.size / 1024)
+            } catch (e: Throwable) {
+                if (alive()) DangoLogger.info("Prefetch skipped: {}", e.javaClass.simpleName)
+            } finally {
+                if (prefetchKey == key) prefetchKey = null
+            }
+        }
+    }
+
+    /** 切歌时：预取的不是这首就取消掉；是这首就留给 [load] 去取用 */
+    private fun cancelPrefetchUnless(track: NeteaseTrack) {
+        val p = prepared
+        if (p != null && (p.trackKey != track.key || p.qualityTag != qualityTag(track))) prepared = null
+        val key = prefetchKey
+        if (key != null && key != "${track.key}|${qualityTag(track)}") prefetchKey = null
+    }
+
+    /** 拿走预取好的音频（档位对不上 / 放太久就丢掉）；实际档位偏低也照样用，播放栏显示的是实际音质 */
+    private fun takePrepared(track: NeteaseTrack): Fetched? {
+        val p = prepared ?: return null
+        if (p.trackKey != track.key || p.qualityTag != qualityTag(track)) return null
+        prepared = null
+        prefetchKey = null
+        if (System.currentTimeMillis() - p.at > PREPARED_MAX_AGE_MS) return null
+        return p.audio
+    }
+
+    /** 声卡缓冲字节数：按设置里的毫秒数算，夹在 1/5 秒到 2 秒之间 */
+    private fun bufferBytes(format: AudioFormat): Int {
+        val perSecond = (format.sampleRate.toInt().coerceAtLeast(8000) * format.channels * 2)
+        val ms = audioBufferMs.coerceIn(200, 2000)
+        return (perSecond.toLong() * ms / 1000L).toInt().coerceIn(perSecond / 5, perSecond * 2)
+    }
+
+    /** 定时 / 切歌 / 暂停时把续播进度写进文件（异步） */
+    private fun saveResume() {
+        if (!ResumeStore.enabled) return
+        if (current == null || state == State.STOPPED) return
+        val q = queue
+        if (index !in q.indices) return
+        ResumeStore.save(q, index, positionMs)
+    }
+
+    /** 退出游戏时同步写一次，保证最后落盘的是最终进度 */
+    fun saveResumeNow() {
+        if (!ResumeStore.enabled) return
+        if (current == null || state == State.STOPPED) return
+        val q = queue
+        if (index !in q.indices) return
+        ResumeStore.save(q, index, positionMs, sync = true)
+    }
+
+    /** 播放中每 10 秒调用一次（由模块 tick 驱动） */
+    fun checkpointResume() = saveResume()
+
     const val OUTPUT_AUTO = 0
     const val OUTPUT_JAVA_SOUND = 1
     const val OUTPUT_GAME = 2
+
+    /** 预取结果最多留多久（毫秒）：放太久就丢掉，切歌时重新下载 */
+    private const val PREPARED_MAX_AGE_MS = 30L * 60 * 1000
 }

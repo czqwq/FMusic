@@ -16,6 +16,8 @@ import com.Lilith.FMusic.dango.module.values.IntValue
 import com.Lilith.FMusic.dango.module.values.ModuleValue
 import com.Lilith.FMusic.dango.music.AudioQuality
 import com.Lilith.FMusic.dango.music.EnvironmentAudio
+import com.Lilith.FMusic.dango.music.NeteaseQuality
+import com.Lilith.FMusic.dango.music.ResumeStore
 import com.Lilith.FMusic.dango.music.RoomAcoustics
 import com.Lilith.FMusic.dango.music.MusicPlayer
 import com.Lilith.FMusic.dango.music.NeteaseApi
@@ -47,9 +49,22 @@ class NeteaseMusicModule : Module() {
     @ModuleValue("Volume", "Playback volume")
     private val volume = FloatValue(0f, 1f, 0.2f, 2)
 
-    @ModuleValue("Audio quality", "Switching reloads the current song; high quality and lossless use local cache")
+    @ModuleValue("Audio quality", "Audio quality for QQ Music and Kugou; switching reloads the current song")
     // 默认高音质：和加音质设置之前的行为一致（优先 320 kbps），标准档才是显式选的 128k。
     private val audioQuality = IntValue(0, 2, 1)
+
+    @ModuleValue("NetEase audio quality", "NetEase's six quality tiers; switching reloads the current song")
+    // 网易云自己的六档（标准 / 较高 / 极高 / 无损 / Hi-Res / 超清母带），默认无损
+    private val neteaseQuality = IntValue(0, 5, NeteaseQuality.LOSSLESS.ordinal)
+
+    @ModuleValue("Resume last session", "Restore the last queue and song position (paused) when you start the game")
+    private val resumeSession = BooleanValue(true)
+
+    @ModuleValue("Next track prefetch", "Download the next song in the background so switching songs is faster")
+    private val prefetchNext = BooleanValue(true)
+
+    @ModuleValue("Audio buffer", "Milliseconds of audio queued ahead; raise it if playback stutters under load")
+    private val audioBuffer = FloatValue(200f, 2000f, 1000f, 0)
 
     @ModuleValue("Cache directory", "Leave empty to use the default directory")
     private val cacheDirectory = com.Lilith.FMusic.dango.module.values.TextValue()
@@ -200,10 +215,37 @@ class NeteaseMusicModule : Module() {
 
     override fun onEnable() {
         NeteaseApi.ensureCookieFile()
+        installShutdownSave()
     }
 
     override fun onDisable() {
-        MusicPlayer.stop()
+        // 关闭模块不是"用户主动停止"，保留续播记录，下次打开模块 / 重启游戏还能接着放
+        MusicPlayer.stop(clearResume = false)
+    }
+
+    /** 退出游戏时同步写一次续播进度（异步写入可能来不及落盘） */
+    private fun installShutdownSave() {
+        if (shutdownHookInstalled) return
+        shutdownHookInstalled = true
+        try {
+            Runtime.getRuntime().addShutdownHook(Thread({
+                try { MusicPlayer.saveResumeNow() } catch (_: Throwable) {}
+            }, "Dango-ResumeSave"))
+        } catch (_: Throwable) {
+        }
+    }
+
+    /** 进游戏后恢复上次的队列和进度（暂停在原处）；没有记录或播放器已经在用就不动 */
+    private fun restoreResume() {
+        if (!resumeSession.get()) return
+        val state = MusicPlayer.state
+        if (state != MusicPlayer.State.STOPPED && state != MusicPlayer.State.ERROR) return
+        val session = ResumeStore.load() ?: return
+        if (!MusicPlayer.restoreSession(session)) return
+        val track = session.tracks[session.index]
+        // 恢复的歌可能来自另一个音源：侧栏、歌单缓存都跟着切过去
+        selectSource(track.source)
+        com.Lilith.FMusic.dango.DangoLogger.info("Resumed last session: {} ({} ms)", track.name, session.positionMs)
     }
 
     fun setVolume(v: Float) {
@@ -213,11 +255,21 @@ class NeteaseMusicModule : Module() {
     /** 当前选择的音质（设置页和播放栏的音质徽章共用） */
     fun preferredQuality(): AudioQuality = AudioQuality.fromSetting(audioQuality.value)
 
+    /** 网易云自己的六档音质（设置页和播放栏的音质徽章共用） */
+    fun preferredNeteaseQuality(): NeteaseQuality = NeteaseQuality.fromSetting(neteaseQuality.value)
+
     /** 播放栏快速切换音质：写回设置并按新档位立刻重新加载当前歌曲 */
     fun selectQuality(quality: AudioQuality) {
         if (preferredQuality() == quality) return
         audioQuality.setValue(quality.ordinal)
         MusicPlayer.switchQuality(quality)
+    }
+
+    /** 播放栏快速切换网易云音质（六档）：写回设置并按新档位立刻重新加载当前歌曲 */
+    fun selectNeteaseQuality(quality: NeteaseQuality) {
+        if (preferredNeteaseQuality() == quality) return
+        neteaseQuality.setValue(quality.ordinal)
+        MusicPlayer.switchNeteaseQuality(quality)
     }
 
     private fun changeVolume(d: Float) {
@@ -264,6 +316,9 @@ class NeteaseMusicModule : Module() {
     }
 
     private var tickCount = 0
+    /** 进游戏后只尝试恢复一次续播（用户已经开始听了就不覆盖） */
+    private var resumeAttempted = false
+    private var shutdownHookInstalled = false
 
     /** 调试：把测房间用的射线画在世界里（绿 → 黄 → 橙 → 红 → 紫 = 第几次反弹，灰 = 射出去没碰到东西） */
     @EventHandler
@@ -374,6 +429,11 @@ class NeteaseMusicModule : Module() {
         // 设置页改了音质也要立即生效（和播放栏的音质徽章走同一条路：按新档位重载当前歌曲）
         val selectedQuality = AudioQuality.fromSetting(audioQuality.value)
         if (MusicPlayer.quality != selectedQuality) MusicPlayer.switchQuality(selectedQuality)
+        val selectedNeteaseQuality = NeteaseQuality.fromSetting(neteaseQuality.value)
+        if (MusicPlayer.neteaseQuality != selectedNeteaseQuality) MusicPlayer.switchNeteaseQuality(selectedNeteaseQuality)
+        MusicPlayer.prefetchEnabled = prefetchNext.get()
+        MusicPlayer.audioBufferMs = audioBuffer.value.toInt()
+        ResumeStore.enabled = enabled && resumeSession.get()
         MusicPlayer.shuffle = shuffle.get()
 
         MusicPlayer.repeatOne = repeatOne.get()
@@ -391,6 +451,16 @@ class NeteaseMusicModule : Module() {
         // 每次 tick 都算一遍纯属浪费——环境音效关着的时候干脆不采样，
         // 传 null 进去让 EnvironmentAudio 把目标值归零（process() 随后会直接早退）。
         EnvironmentAudio.update(if (envOn) try { DangoMusic.instance.platform.environment } catch (_: Exception) { null } else null, RoomAcoustics.room)
+
+        // 续播：等配置读回、模块启用后尝试恢复一次；已经在放歌就不覆盖
+        if (!resumeAttempted && tickCount > 10) {
+            resumeAttempted = true
+            restoreResume()
+        }
+        // 播放中每 10 秒把进度写一次（换歌 / 暂停 / 拖动时另有即时写入）
+        if (ResumeStore.enabled && MusicPlayer.state == MusicPlayer.State.PLAYING && tickCount % 200 == 0) {
+            MusicPlayer.checkpointResume()
+        }
 
         // 打开键额外支持主菜单；其他播放快捷键仍只在世界内响应。
         val platform = DangoMusic.instance.platform

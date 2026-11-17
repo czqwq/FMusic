@@ -593,3 +593,39 @@ DangoMusic 以 **GPL-3.0** 发布，本项目以 **AGPL-3.0** 发布，两者兼
 | JOrbis / Jogg | jcraft | LGPL-2.1 |
 | ZXing（二维码） | zxing | Apache-2.0 |
 | DangoMusic | [Sorihiko/DangoMusic](https://github.com/Sorihiko/DangoMusic) | GPL-3.0 |
+
+## 附录 A：后续新增——网易云六档音质 / 歌曲评论 / 续播与预取
+
+> 2026-11 追加。以下功能在 1.7.6 移植完成之后新增，代码都在 `dango/**` 内，注释与文案不引用任何外部参考实现。
+
+### A.1 网易云六档音质
+
+- 新增 [NeteaseQuality.kt](../src/main/kotlin/com/Lilith/FMusic/dango/music/NeteaseQuality.kt)：`STANDARD / HIGHER / EXHIGH / LOSSLESS / HIRES / MASTER`（网易云 level：standard / higher / exhigh / lossless / hires / jymaster），默认无损。
+- [NeteasePlayback.kt](../src/main/kotlin/com/Lilith/FMusic/dango/music/NeteasePlayback.kt)：从请求档位逐档往下回退，最后兜底老码率接口；无损及以上请求 `encodeType=flac`。
+- 网易云走 `MusicPlayer.neteaseQuality`，QQ/酷狗仍走原来的 `MusicPlayer.quality` 三档；**缓存 identity 追加 `netease:<档位>`**，六档之间不会静默复用别的档位（`AudioCache` 文件本身仍按实际音质命名）。
+- 设置项「网易云音质」（`NeteaseMusicModule.netQuality`），播放栏音质徽章和面板按当前音源显示 6 档或 3 档（[QualityPanel.kt](../src/main/kotlin/com/Lilith/FMusic/dango/musicui/QualityPanel.kt)）。
+- 实际音质仍以音频文件判定（FLAC / 码率）；请求档位没拿到时播放栏提示「Requested quality unavailable; playing a lower quality」。
+
+### A.2 网易云歌曲评论（读 + 写）
+
+- `NeteaseApi` 新增：
+  - 读：`songComments(id, offset)`（公开 GET `/api/v1/resource/comments/R_SO_4_<id>?limit=20&offset=...`）；
+  - 写：`addComment / replyComment / likeComment / deleteComment`（weapi：`/weapi/v1/resource/comments/add`、`/weapi/resource/comments/reply`、`/weapi/resource/comments/delete`、`/weapi/v1/comment/like`，带登录 Cookie + csrf）。
+- 数据模型 `SongComment / CommentPage`：含评论 id、用户、正文、时间、点赞数/是否已赞、被回复人昵称与原文。
+- UI：[CommentsPage.kt](../src/main/kotlin/com/Lilith/FMusic/dango/musicui/CommentsPage.kt)。播放栏评论按钮显示总数；页面支持分页加载、点赞/取消（先改界面再请求，失败回滚）、发表评论、回复某条评论、删除自己发的评论（两次点击确认）、长评自动折行、输入法/粘贴、140 字上限。
+- 路由：`Page.COMMENTS`，打开时记录返回页（Esc / 返回箭头逐层退出）；输入框聚焦时 `MusicScreen.textInputActive` 为真，平台层自动打开系统输入法。
+- 未登录时输入框置灰并提示先登录（登录方式同现有扫码 / Cookie）；写操作失败会显示具体原因（未登录、登录过期、内容违规、长度超限等）。
+
+### A.3 续播 / 音频缓冲 / 下一首预取
+
+- [ResumeStore.kt](../src/main/kotlin/com/Lilith/FMusic/dango/music/ResumeStore.kt)：`resume-queue.json`（队列；超长歌单只存当前曲目前后 5000 首）+ `resume-state.json`（下标 / 曲目 key / 进度 / 时间）。换歌、暂停、拖动、播放中每 10 秒、退出游戏（同步写）各写一次；**主动停止会清掉**，超过 30 天不恢复。
+- `MusicPlayer.restoreSession()`：启动后恢复为**暂停在原处**（队列、当前曲目、进度都对），按播放才真正下载解码；设置项「记住上次播放」默认开，侧栏/歌单也会跟着切到恢复出来的音源。
+- 音频缓冲：`MusicPlayer.audioBufferMs`（设置项 200–2000 ms，默认 1000），打开 / 重开 Java Sound 输出时生效；游戏 OpenAL 输出保持自己的流式缓冲。
+- 下一首预取：开始播放 5 秒后在低优先级线程预取**下一首**（下载 + 缓存写入 + 响度分析），只在内存里留一份；切歌命中即用。电台 / 随机 / 单曲循环不预取；设置项「下一首预取」默认开。
+- 播放链路做了重构：`MusicPlayer.fetch()` 统一「解析播放地址 → 读缓存 / 下载 → 判定实际音质 → 写缓存 → 量时长和响度」，正常播放和预取共用，所以预取好的音频和现下的完全一致。
+
+### A.4 验证状态
+
+- `gradlew build` 全绿（compileKotlin / checkstyle / shadowJar），产物 JAR 里包含新类与 `assets/fmusicdango/lang/zh_cn.tsv` 的新文案。
+- 评论**读**接口按线上返回结构核对过（code / total / more / comments，用户、被回复人、点赞字段）；**写**接口的四个 weapi 路径用未登录请求验证过（都返回 `code 301` 需登录，说明路径和加密方式正确）。
+- **未进游戏实机**：评论面板交互、输入法、发表/回复/点赞/删除、续播跨重启、缓冲听感、预取命中都还需要实机确认（尤其「恢复后按播放继续」以及「变速 / 换音质后进度是否仍然对」）。

@@ -6,6 +6,7 @@ import com.Lilith.FMusic.dango.DangoClient
 import com.Lilith.FMusic.dango.module.impls.music.NeteaseMusicModule
 import com.Lilith.FMusic.dango.musicui.ArtistPage
 import com.Lilith.FMusic.dango.musicui.ArtistRef
+import com.Lilith.FMusic.dango.musicui.CommentsPage
 import com.Lilith.FMusic.dango.musicui.ContextMenu
 import com.Lilith.FMusic.dango.musicui.GridPage
 import com.Lilith.FMusic.dango.musicui.Library
@@ -53,13 +54,15 @@ class MusicScreen(
     internal val login = LoginDialog(this)
     internal val grid = GridPage(this)
     private val artistPage = ArtistPage(this)
+    /** 当前歌曲的网易云评论页 */
+    internal val comments = CommentsPage(this)
     private val settings = SettingsPage(this, module)
     /** 歌曲列表行上的右键菜单（目前只有"发送到点歌系统"） */
     private val songMenu = ContextMenu(ui)
 
-    /** 有输入框在打字（搜索、筛选、设置里改数值 / 颜色）：平台层据此让系统输入法可用 */
+    /** 有输入框在打字（搜索、筛选、设置里改数值 / 颜色、评论输入）：平台层据此让系统输入法可用 */
     val textInputActive: Boolean
-        get() = sidebar.searchFocused || tracks.filterFocused || settings.editing
+        get() = sidebar.searchFocused || tracks.filterFocused || settings.editing || comments.editing
     private val bar = PlayerBar(this, module)
 
     private var openedAt = 0L
@@ -118,6 +121,7 @@ class MusicScreen(
 
     internal fun go(p: Page) {
         songMenu.close()
+        comments.close()
         tracks.clearFilter()
         ScreenState.page = p
         ScreenState.backPage = null
@@ -135,6 +139,7 @@ class MusicScreen(
 
     internal fun goBack() {
         songMenu.close()
+        comments.close()
         if (ScreenState.page == Page.SETTINGS) {
             ScreenState.page = ScreenState.settingsBack
             return
@@ -186,6 +191,21 @@ class MusicScreen(
 
     internal fun goBackOrHome() {
         if (ScreenState.backPage != null) goBack() else go(Page.HOME)
+    }
+
+    /** 打开当前歌曲的评论页（只有网易云有评论；其它音源按钮不显示） */
+    internal fun openComments(track: NeteaseTrack) {
+        if (track.source != MusicSource.NETEASE) return
+        if (ScreenState.page == Page.COMMENTS) {
+            comments.open(track)
+            return
+        }
+        songMenu.close()
+        ScreenState.backPage = ScreenState.page
+        ScreenState.page = Page.COMMENTS
+        comments.open(track)
+        tracks.resetScroll()
+        grid.resetScroll()
     }
 
     internal fun openPlaylist(p: NeteasePlaylist, from: Page?) {
@@ -281,6 +301,7 @@ class MusicScreen(
             tracks.tick()
             artistPage.tick()
             settings.tick()
+            comments.tick()
 
             ui.hits.clear()
             settings.beginFrame()
@@ -526,6 +547,7 @@ class MusicScreen(
         tracks.area = LayoutBounds()
         settings.area = LayoutBounds()
         artistPage.area = LayoutBounds()
+        comments.area = LayoutBounds()
 
         val s = ScreenState
         // 设置页的标签切换有自己的过渡动画，不算换页（否则整页会从透明重新淡入，看起来闪一下）
@@ -550,6 +572,7 @@ class MusicScreen(
             }
             Page.SETTINGS -> settings.draw(body)
             Page.ARTIST -> artistPage.draw(body)
+            Page.COMMENTS -> comments.draw(body)
             else -> tracks.draw(body)
         }
     }
@@ -583,6 +606,8 @@ class MusicScreen(
                 songMenu.close()
                 return
             }
+            // 评论页没有右键菜单，右键不触发"返回"，免得误退
+            if (ScreenState.page == Page.COMMENTS) return
             // 播放栏（含它周围那条边距）和它上面浮着的面板挡着列表：右击这里还是返回上一页，
             // 别弹出它们底下那首歌的菜单
             if ((barRect.height > 0f && my >= barRect.y - 12f) || bar.popupRect.contains(mx, my)) {
@@ -610,6 +635,7 @@ class MusicScreen(
         if (tracks.scrollbarDown(mx, my)) return
         val hit = ui.hits.firstOrNull { it.first.contains(mx, my) }
         settings.onClickElsewhere(hit)
+        comments.onClickElsewhere(hit)
         if (hit == null || hit.first !== sidebar.searchRect) sidebar.searchFocused = false
         if (hit == null || !sidebar.isMenuHit(hit.first)) sidebar.menuOpen = false
         if (hit == null || hit.first !== tracks.filterRect) tracks.filterFocused = false
@@ -652,6 +678,7 @@ class MusicScreen(
             sidebar.listArea.contains(lx, ly) -> sidebar.scrollBy(step)
             grid.area.contains(lx, ly) -> grid.scroll(wheel)
             artistPage.area.contains(lx, ly) -> artistPage.scroll(wheel)
+            comments.area.contains(lx, ly) -> comments.scroll(wheel)
             tracks.area.contains(lx, ly) -> tracks.scroll(wheel, step)
         }
     }
@@ -677,6 +704,7 @@ class MusicScreen(
         if (settings.keyTyped(typedChar, keyCode)) return
         if (sidebar.keyTyped(typedChar, keyCode)) return
         if (tracks.filterKeyTyped(typedChar, keyCode)) return
+        if (comments.keyTyped(typedChar, keyCode)) return
         if (keyCode != Keys.NONE && keyCode == module.openKey.value) {
             if (!openKeyHeld) {
                 openKeyHeld = true

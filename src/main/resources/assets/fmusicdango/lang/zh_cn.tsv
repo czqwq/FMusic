@@ -534,3 +534,43 @@ Enable or disable this module	打开/关闭此模块
 Close	关闭
 Drag to move the window	拖动移动窗口
 Drag to resize the window	拖动调整窗口大小
+Higher	较高
+Hi-Res	Hi-Res
+Master	超清母带
+NetEase audio quality	网易云音质
+Audio quality for QQ Music and Kugou; switching reloads the current song	QQ 音乐 / 酷狗的音质；切换后会重新加载当前歌曲
+NetEase's six quality tiers; switching reloads the current song	网易云的六档音质；切换后会重新加载当前歌曲
+Resume last session	记住上次播放
+Restore the last queue and song position (paused) when you start the game	下次进游戏恢复上次的队列和进度（暂停在原处）
+Next track prefetch	下一首预取
+Download the next song in the background so switching songs is faster	后台提前下载下一首，切歌更快
+Audio buffer	音频缓冲
+Milliseconds of audio queued ahead; raise it if playback stutters under load	提前排队的音频毫秒数；负载下播放卡顿时调大
+Playback continuity	续播与缓冲
+Resume, prefetch and buffering	记住上次、预取与缓冲
+Comments	评论
+All comments	全部评论
+Loading comments…	评论加载中…
+Could not load comments · Retry	评论加载失败 · 点此重试
+No comments yet	还没有评论
+Write a comment…	写评论…
+Log in to comment	登录后才能评论
+Send	发送
+Sending…	发送中…
+Reply	回复
+Reply to %s	回复 %s
+Delete	删除
+Click again	再点一次
+Comment sent	评论已发送
+Reply sent	回复已发送
+Comment deleted	评论已删除
+Log in to NetEase first.	请先登录网易云
+The comment is empty.	评论不能为空
+Comment too long (max 140 characters).	评论太长（最多 140 字）
+Could not send the comment. Please retry.	评论发送失败，请重试
+The comment was rejected. Check its length and content.	评论被拒绝，请检查长度和内容
+The comment contains blocked words.	评论包含敏感词
+Invalid comment ID	评论 ID 无效
+Could not load comments	加载评论失败
+Could not reach NetEase. Please retry.	连不上网易云，请重试
+NetEase returned an unexpected response. Please retry.	网易云返回了异常响应，请重试

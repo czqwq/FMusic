@@ -6,7 +6,9 @@ import com.Lilith.FMusic.dango.module.impls.music.NeteaseMusicModule
 import com.Lilith.FMusic.dango.music.CoverCache
 import com.Lilith.FMusic.dango.music.MusicPlayer
 import com.Lilith.FMusic.dango.music.MusicScreen
+import com.Lilith.FMusic.dango.music.MusicSource
 import com.Lilith.FMusic.dango.music.MusicSources
+import com.Lilith.FMusic.dango.music.NeteaseTrack
 import com.Lilith.FMusic.dango.platform.PlayerAction
 import com.Lilith.FMusic.dango.ui.LayoutBounds
 import com.Lilith.FMusic.dango.ui.ShadowStyle
@@ -64,6 +66,7 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
     private val repeatA = Anim()
     private val modeA = Anim()
     private val likeA = Anim()
+    private val commentA = Anim()
     /** 播放 ↔ 暂停图标的过渡 */
     private val playMorph = Spring(320f, 26f)
     /** 进度条上的圆钮：鼠标移上去时渐显 */
@@ -86,14 +89,21 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
         // 窗口窄时歌名区跟着缩短，别压到中间的按钮上（红心也要留位置）
         // 左边界：播放模式按钮（中间那组最左边）再留一点空
         val leftLimit = bar.x + bar.width / 2f - 136f
-        // 歌名后面的小按钮：网易云红心、加到歌单的 +；放不下（窗口太窄）就不显示，免得压到播放模式按钮
+        // 歌名后面的小按钮：网易云红心、加到歌单的 +、评论；放不下（窗口太窄）就不显示，免得压到播放模式按钮
         val likeWanted = t != null && !MusicPlayer.external && MusicSources.api(t.source).canLike
         val addWanted = add.available(t)
+        // 评论只有网易云有；按钮上带评论数，所以比其它小按钮宽一点
+        val commentWanted = t != null && !MusicPlayer.external && t.source == MusicSource.NETEASE
         val room = leftLimit - infoX - 40f - 12f
-        val likeShown = likeWanted && room >= 32f
-        val addShown = addWanted && room >= (if (likeShown) 64f else 32f)
+        var used = 0f
+        val likeShown = likeWanted && room >= used + 32f
+        if (likeShown) used += 32f
+        val addShown = addWanted && room >= used + 32f
+        if (addShown) used += 32f
+        val commentShown = commentWanted && room >= used + COMMENT_W
+        if (commentShown) used += COMMENT_W
         if (!addShown) add.open = false
-        val extras = (if (likeShown) 32f else 0f) + (if (addShown) 32f else 0f)
+        val extras = used
         val infoW = (leftLimit - infoX - extras - (if (extras > 0f) 12f else 8f)).coerceIn(40f, 220f)
         val title = t?.name ?: I18n.text("Not playing")
         ui.text(ui.trim(title, infoW, 13f, Theme.FONT_SEMIBOLD), infoX, coverBox.y + 9f, 13f, Theme.TEXT_PRIMARY, Theme.FONT_SEMIBOLD)
@@ -144,6 +154,11 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
         if (t != null && addShown) {
             val ax = infoX + infoW + 8f + (if (likeShown) 32f else 0f)
             add.drawButton(LayoutBounds(ax, coverBox.y + cs / 2f - 14f, 28f, 28f), t)
+        }
+        // 评论（点开当前歌曲的评论页）
+        if (t != null && commentShown) {
+            val bx = infoX + infoW + 8f + (if (likeShown) 32f else 0f) + (if (addShown) 32f else 0f)
+            drawCommentsButton(LayoutBounds(bx, coverBox.y + cs / 2f - 14f, COMMENT_W, 28f), t)
         }
 
         // 中：上一首 / 播放 / 下一首 / 队列。点击区域固定，动画只改画出来的样子
@@ -416,6 +431,40 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
         return k
     }
 
+    /** 评论按钮：对话气泡 + 评论数（点开当前歌曲的评论页；只有网易云有） */
+    private fun drawCommentsButton(b: LayoutBounds, track: NeteaseTrack) {
+        val k = button(b, commentA)
+        val count = screen.comments.countFor(track)
+        val cy = b.y + b.height / 2f
+        val iconX = b.x + 12f
+        // 气泡：圆角矩形 + 左下角小尾巴 + 三个点
+        val bubble = LayoutBounds(iconX - 7f * k, cy - 7.5f * k, 14f * k, 10.5f * k)
+        ui.card(bubble, Theme.TEXT_PRIMARY, 5f * k)
+        val ctx = ui.ctx
+        ctx.pushTranslate(bubble.x + 3.2f * k, bubble.bottom - 0.8f * k, 0f)
+        ctx.pushRotate(38f, 0f, 0f, 1f)
+        ui.card(LayoutBounds(-2f * k, -2f * k, 4f * k, 4f * k), Theme.TEXT_PRIMARY, 1.2f * k)
+        ctx.popTransform()
+        ctx.popTransform()
+        val dot = 1.6f * k
+        for (i in 0 until 3) {
+            ui.card(LayoutBounds(bubble.x + 3.4f * k + i * 3.0f * k, cy - 1.2f * k - dot / 2f, dot, dot),
+                Color(0.10f, 0.10f, 0.13f, 1f), dot / 2f)
+        }
+        // 评论数：还没拿到时显示 …，一万以上显示 9999+
+        val text = when {
+            count == null -> "…"
+            count > 9999 -> "9999+"
+            else -> count.toString()
+        }
+        ui.text(text, iconX + 10f, cy - 5.5f, 9f, Theme.TEXT_SECONDARY, Theme.FONT_SEMIBOLD)
+        ui.hits += b to {
+            commentA.press.v -= 7f
+            screen.openComments(track)
+        }
+        ui.tip(b, I18n.text("Comments") + if (count != null) " · $count" else "", above = true)
+    }
+
     /** 随机 / 单曲循环：选中的红底渐入渐出，点击先缩再弹回 */
     private fun toggleButton(b: LayoutBounds, vy: Float, on: Boolean, a: Anim, glyph: String, action: () -> Unit) {
         val o = a.on.tick(if (on) 1f else 0f).coerceIn(0f, 1f)
@@ -505,6 +554,8 @@ internal class PlayerBar(private val screen: MusicScreen, private val module: Ne
 private val BAR_GLASS = Theme.GLASS_SIDEBAR.copy(radius = 28f, shadow = ShadowStyle(Color(0f, 0f, 0f, 0.10f), 14f, Vec2(0f, -3f)))
 /** 右边小按钮的间隔（按钮 32 宽） */
 private const val BTN_STEP = 36f
+/** 评论按钮宽一点：气泡 + 评论数 */
+private const val COMMENT_W = 46f
 /** 最靠右的按钮和音量条之间：留给左边的小喇叭 */
 private const val VOL_GAP = 32f
 /** 音量条最短 */
