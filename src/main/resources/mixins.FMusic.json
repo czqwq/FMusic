@@ -9,7 +9,9 @@
   "client": [
     "MixinGuiChat",
     "MixinLibSound",
-    "MixinSound"
+    "MixinSound",
+    "MixinRenderGlobalDance",
+    "MixinRenderManagerDance"
   ],
   "server": []
 }

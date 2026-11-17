@@ -18,7 +18,7 @@
 | 液态玻璃渲染管线 | `legacy/.../shader/**`、`ui/GlassRenderContext.kt`、`ui/glass/GlassBackdrop.kt` | 自建 GLSL（形状 / 图像 / 字体 / 玻璃 / 模糊 / 辉光三级降采样） |
 | Inter 字体 + CJK 字体管理 | `legacy/.../font/**` | Inter 打包在图集里；CJK 用系统字体按需生成图集，不打包字体文件 |
 | 环境音效 + 房间回声 | `common/core/.../music/EnvironmentAudio.kt`、`RoomAcoustics.kt` | 发射线测量空间混响、水下闷音、雨声压音 |
-| 生物踩点 Dance | `common/core/.../music/Dance.kt` | 按 BPM 网格抖动生物 |
+| 生物踩点 Dance | `common/core/.../music/Dance.kt` + `mc1710/DanceRender.kt` | 按 BPM 网格抖动生物；1.7.10 侧挂在 `RenderManager` 实体分发外层并限定世界渲染范围，YSMU / 其它替换渲染器同样生效（见 §3.13） |
 | 音频分析 / 音量归一化 | `common/core/.../music/AudioAnalysis.kt` | 让不同歌曲响度一致 |
 | 云盘 | `CloudDrives.kt`、`KugouCloud.kt`、`QqCloud.kt` | 只读浏览，无上传/删除 |
 | 更新检查 | `common/core/.../update/UpdateChecker.kt` | 改为查 FMusic 自己的 release |
@@ -316,6 +316,41 @@ FMusic 原有 HUD（歌词 / KTV / 封面 / 进度条）与新移植的 Song car
 只差我们自己的悬浮提示层和音质徽章排版（上游没有这两块）。`d7d8908` 里的 `NeteaseMusicModule` 音质设置项、
 `SettingsPage` 音质选项、`zh_cn.tsv` 音质文案同样因为「已有实现」不重复添加。
 
+### 3.13 生物踩点抖动的 YSMU / 替换渲染器兼容
+
+上游的「生物跟着节奏跳」只算姿势（`Dance.pose()`），套姿势是各平台层的事；1.7.10 这边原先照搬
+1.8.9 的 `RenderLivingEvent.Pre/Post`（在 `mc1710/ForgeBridge.kt` 里）。这层挂点只要有替换渲染器
+模组就不成立：
+
+- **YSMU 玩家**：YSMU 在 `RenderPlayerEvent.Pre` 就 `setCanceled(true)` 并自己画 GeckoLib 模型，
+  原版 `RenderPlayer#doRender` 直接 return，`super.doRender` 里的 `RenderLivingEvent.Pre` 根本不会发；
+- **YSMU NPC / 载具**：NPC 在 `RenderLivingEvent.Pre` 里取消并当场上屏（我们是 LOWEST，最后收到，
+  只 push 不 pop，矩阵栈失衡）；载具在 `RenderManager` 里被 redirect 掉整个 `render.doRender`，事件也不发；
+- 其它 GeckoLib 模组的替换渲染器同理。
+
+改成和姐妹项目 [FriendSwine](https://github.com/jiaotan798/friendswine)（同一个 1.7.10 移植环境，
+自带该兼容）同形的做法：
+
+| 部位 | 做法 | 为什么 |
+|---|---|---|
+| 挂点 | mixin `RenderManager.func_147939_a`（HEAD / `doRenderShadowAndFire` 调用前 / RETURN） | 在实体分发外层：原版渲染器、YSMU 的 GeckoLib 渲染器、其它替换渲染器都吃同一套变换 |
+| 压扁 / 拉长 | GL 矩阵缩放，轴心 `y - entity.yOffset` | `RenderPlayer` 和 YSMU 都是先减 `yOffset` 再画模型；用 `y` 当轴心时压扁会把脚抬起来（FriendSwine 踩过的坑） |
+| 转圈 | 改 `renderYawOffset` / `rotationYawHead`（含 prev），不直接转矩阵 | 名字牌是 billboard，转矩阵文字会跟着歪；YSMU 的模型朝向读的也是这两个字段（`GeoReplacedEntityRenderer#resolveBodyYaw` 插值 `prevRenderYawOffset→renderYawOffset`），所以一样生效 |
+| 阴影 / 火焰 | 画之前 `pop + push` 换掉栈帧、还原朝向 | 阴影不能被压扁、火焰位置不能歪 |
+| 生效范围 | mixin `RenderGlobal.renderEntities` 记深度，只在世界实体渲染里套 | 物品栏纸娃娃 / GUI 实体预览 / YSMU 预览不跟着抖；世界实体（开着界面时背景里也在渲染）照常抖 |
+
+实现文件：`mc1710/DanceRender.kt`（姿势 / 矩阵 / 朝向 / 嵌套栈，全部带注释）、
+`mixins/early/MixinRenderManagerDance.java`、`mixins/early/MixinRenderGlobalDance.java`
+（已加进 `mixins.FMusic.json` 的 client 列表；refmap 已核对：`doRenderShadowAndFire` → `func_76979_b`、
+`renderEntities` → `func_147589_a`）。原先 `ForgeBridge` 里的两个 `RenderLivingEvent` 监听已删除，
+避免双重变换。
+
+行为差异：**物品栏纸娃娃不再跟着抖**（之前会）。世界里的实体（第三人称的自己、别的玩家、
+被 YSMU 替换模型的玩家 / NPC / 载具）都照常抖，名字牌不转、阴影 / 火焰不歪；没装 YSMU 时
+与原实现的画面一致（矩阵 / 朝向的合成方式相同）。另：验证本改动时顺带修了
+`GlStateSnapshot` 里 `glGetInteger(GL_SCISSOR_BOX, IntBuffer)` 只给 4 个元素的缓冲区导致的崩溃
+（LWJGL2 对 `IntBuffer` 版本统一要求 ≥16 个元素，见 3.13 下方的 `utils/render/GlStateSnapshot.kt` 注释）。
+
 ## 四、Angelica / 光影兼容
 
 GTNH 环境下 `runClient` 会加载 [Angelica](https://github.com/GTNewHorizons/Angelica)（1.7.10 的渲染层：
@@ -372,6 +407,14 @@ GL 3.3 core profile + Java 端固定管线模拟 + Iris 光影 + 自带字体系
     早期回声延迟应该跟着变短（不会所有房间都顶在 80ms 上限）。
 15. **播放栏图标像素对齐**（1.7.6）：GUI 缩放不是整数比例 / 全屏时，播放模式、均衡器、变速变调、
     加歌单几个按钮的细线应该一样粗、不发虚，上一首 / 下一首 / 队列图标视觉居中（不再偏向一边）。
+16. **抖动 + YSMU 兼容**（§3.13）：装 YSMU（模型包加载正常、玩家/NPC 有替换模型）后进世界，
+    打开「生物踩点」放歌：
+    - 第三人称看自己 / 看别的玩家 / 看被 YSMU 替换模型的 NPC：压扁-拉长和转圈都要生效
+      （之前 YSMU 玩家完全不抖）；
+    - 压扁时**脚不能离地**（轴心用的是 `y - yOffset`，参考 FriendSwine 的抬脚教训）；
+    - 名字牌文字不应跟着转；阴影和火焰不应被压扁 / 错位；
+    - 物品栏纸娃娃 / 模型预览界面不应抖（预期不抖，这是 §3.13 的行为差异）；
+    - 把 YSMU 卸掉再放一次，世界内行为应与原来一致。
 
 ### 4.1 GL 调用审计（务必保持，否则会 JVM 级崩溃）
 

@@ -74,7 +74,10 @@ class GlStateSnapshot {
         matrixMode = GL11.glGetInteger(GL11.GL_MATRIX_MODE)
 
         scissorTest = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST)
-        val box = BufferUtils.createIntBuffer(4)
+        // LWJGL2 的 glGetInteger(int, IntBuffer) 不按 pname 猜实际返回值个数，统一要求缓冲区至少 16 个元素
+        // （GL_VIEWPORT 最多 16 个）；只给 4 个会在 LWJGL 的 BufferChecks 里直接抛 IllegalArgumentException。
+        // 这里只需要前 4 个（SCISSOR_BOX 就是 4 个），所以开 16、读 4。
+        val box = BufferUtils.createIntBuffer(16)
         GL11.glGetInteger(GL11.GL_SCISSOR_BOX, box)
         for (k in 0..3) scissorBox[k] = box.get(k)
         arrayBuffer = GL11.glGetInteger(GL15.GL_ARRAY_BUFFER_BINDING)
